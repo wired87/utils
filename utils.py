@@ -24,7 +24,7 @@ import asyncio
 import csv
 import json
 import os
-from typing import Dict, List
+from typing import Dict, List, Any, Union, Tuple, Optional
 
 import aiofiles
 import httpx
@@ -828,7 +828,16 @@ class Utils:
                     continue  # try again
 
 
-
+    async def apost(self, url: str, data=dict()) -> dict or None:
+        headers = {'Content-Type': 'application/json'}
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=data, headers=headers, timeout=999.0)
+                if response.is_success:
+                    return response.json()
+        except Exception as e:
+            print(f'Request failed: {e}, retrying...')
+        return None
 
 
     async def download_json_content(
