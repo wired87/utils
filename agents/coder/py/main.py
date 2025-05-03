@@ -3,7 +3,7 @@ import os
 import ast
 import networkx as nx
 
-from gnn.processing.model.main import asave_data_checkpoint
+from utils.gnn.processing.model.main import asave_data_checkpoint
 from utils.utils import GraphUtils
 
 
@@ -52,19 +52,6 @@ class CodeGraphUploader:
 
     def __init__(self, g:GraphUtils):# db="BETSE13", inid="CODE"
         self.g = g
-
-    def upload(self):
-        """
-        Uploads the given NetworkX graph to Spanner.
-        """
-        print("Uploading code graph to Spanner...")
-        """for nid, a in self.g.G.nodes(data=True):
-            print(nid, a)
-        print(len(self.g.G.nodes()))"""
-
-        asyncio.run(self.g.abatch_commit())
-
-        print("Upload complete.")
 
     def _upload_nodes(self, node_data_map):
 

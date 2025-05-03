@@ -1,3 +1,4 @@
+from _google.bq.loader.aloader import ABQHandler
 from utils.gnn.embedder import embed
 from utils.file.aread_json import aread_content
 
@@ -23,7 +24,7 @@ import asyncio
 import csv
 import json
 import os
-from typing import Dict, Optional, List
+from typing import Dict, List
 
 import aiofiles
 import httpx
@@ -31,33 +32,22 @@ import networkx as nx
 import yaml
 from tqdm import tqdm
 
-from utils.ggoogle.spanner.acore import SpannerAsyncHelper
+from _google.spanner.acore import SpannerAsyncHelper
 
 from bm.logging_custom import cpr
 from utils.file.flatten_dict import flatten_attributes
-from utils.ggoogle.storage.storage import GBucket
-from utils.ggoogle.spanner.graph_loader import SpannerGraphLoader
+from _google.storage.storage import GBucket
+from _google.spanner.graph_loader import SpannerGraphLoader
 from utils.gnn.processing.graph_manipulator import Manipulator
 
 
 # todo batch process: collect, then send up in batches
 
-def replace_special_chars(s):
-    """
-    Replaces all special characters in a string with "_".
-    Keeps only alphanumeric characters and underscores.
-
-    :param s: Input string
-    :return: Cleaned string with special characters replaced
-    """
-    return re.sub(r'[^a-zA-Z0-9_]', '', s)
-
-
 class GraphUtils(
     SpannerGraphLoader,
     SpannerAsyncHelper,
-    # BigQueryGraphHandler,
-    #ABQHandler
+    #BigQueryGraphHandler,
+    ABQHandler
 ):
     def __init__(
             self,
@@ -67,16 +57,20 @@ class GraphUtils(
             sp_dbid=None,
             cache_only=False,
             G=None,
+            dataset=None
     ):
-        super().__init__()
+        #super().__init__()
         #ABQHandler.__init__(self)
+        self.dataset=dataset
         SpannerAsyncHelper.__init__(self, sp_dbid)
         SpannerGraphLoader.__init__(self, sp_dbid)
+        ABQHandler.__init__(self, dataset=dataset)
+        #BigQueryGraphHandler.__init__(self)
 
         self.G = G or nx.Graph()
 
         self.table_name = table_name
-        self.upload_to = "sp"
+        self.upload_to = upload_to
         self.bucket = GBucket()
         self.utils = Utils()
         self.manipulator = Manipulator()
@@ -84,12 +78,13 @@ class GraphUtils(
         self.loop_count = 0
         self.not_null_check_col = not_null_check_col
         self.schemas = {
-            self.table_name: {
-                "schema": {},
-                "rows": [],
-                "id_map": set(),
-            },
+
         }
+        """self.table_name: {
+                        "schema": {},
+                        "rows": [],
+                        "id_map": set(),
+                    },"""
 
         # For localized G loading for changes while loop
         self.cache = []
@@ -102,6 +97,137 @@ class GraphUtils(
         self.all_tables = self.list_spanner_tables() if upload_to == "sp" else self.get_tables()
         self.cache_only = cache_only
 
+
+
+
+
+    ####################################
+    # CORE
+    ####################################
+
+
+    async def abatch_commit(self, embed_only=True):
+        """Need to be called after each layer process finished with rest_commit
+        if any(len(v["rows"]) > self.batch_chunk_size for v in self.schemas.values()) or rest_commit and not self.commit:
+        self.commit=True
+        """
+        print(">>>Start batch commit")
+        try:
+            self.print_status()
+            await self.acreate_session()
+            await self.acreate_tables_batch()
+            await self.aschema_batch_process()
+            await self.aupsert_batch(embed_only)
+            self.cleanup_self_schema()
+        except Exception as e:
+            print(f"Error during abatch_commit: {e}")
+        print(">>>Finished")
+
+    async def batch_commit(self):
+        """Need to be called after each layer process finished with rest_commit
+        if any(len(v["rows"]) > self.batch_chunk_size for v in self.schemas.values()) or rest_commit and not self.commit:
+        self.commit=True
+        """
+        print(">>>Start batch commit")
+        self.print_status()
+        self.create_tables_batch()
+        self.schema_batch_process()
+        self.upsert_batch()
+        self.cleanup_self_schema()
+        print(">>>Finished")
+
+
+
+
+
+
+
+    def add_node(self, attrs: dict, flatten=False):
+        attrs = self.clean_attr_keys(attrs, flatten)
+        attrs["type"] = attrs["type"].upper()
+        # print(">>NODE FILTERED")
+        #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
+        self.local_batch_loader(attrs)
+        if self.cache_only is False:
+            self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
+
+        return True
+
+    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False):
+        #pprint.pp(attrs)
+
+        try:
+
+            src_layer = replace_special_chars(attrs.get("src_layer")).upper()
+            trgt_layer = replace_special_chars(attrs.get("trgt_layer")).upper()
+
+            #print("src_layer", src_layer)
+            #print("trgt_layer", trgt_layer)
+            if src is None:
+                src = attrs.get("src")
+            if trt is None:
+                trt = attrs.get("trt")
+
+            if src and trt and src_layer and trgt_layer:
+                if isinstance(src, int):
+                    src = str(src)
+                if isinstance(trt, int):
+                    trt = str(trt)
+                #print("int conv...")
+
+                attrs = self.clean_attr_keys(attrs, flatten)
+                #print("attrs_new", attrs )
+                rel = attrs.get("rel", "").lower().replace(" ", "_")
+
+                attrs = {
+                    **attrs,
+                    "src": src,
+                    "trgt": trt,
+                    "id": f"{src}_{rel}_{trt}"
+                }
+
+                # print(">>FILTERED EDGE")
+                # pprint.pp(attrs)
+
+                src_layer = attrs.get("src_layer").upper()
+                trgt_layer = attrs.get("trgt_layer").upper()
+
+                #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
+
+                edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
+                attrs["type"] = edge_table_name
+
+                src_node_attr = {"id": src, "type": src_layer}
+
+                trgt_node_attr = {"id": trt, "type": trgt_layer}
+                # print(f"Add {src} -> trgt: {trt}")
+
+                # todo run in executor
+                self.local_batch_loader(src_node_attr)
+                self.local_batch_loader(trgt_node_attr)
+                self.local_batch_loader(attrs)
+
+                if self.cache_only is False:
+                    self.G.add_edge(src, trt, **{k:v for k,v in attrs.items() if k not in ["src", "trgt"]})
+                else:
+                    self.cache.append(dict(
+                        src=src,
+                        trgt=trt,
+                        **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]}
+                    )
+                )
+
+                #self.G.add_node(src, type=src_layer)
+                #self.G.add_node(trt, type=trgt_layer)
+
+        except Exception as e:
+            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, )
+
+
+
+    ####################################
+    # HELPER
+    ####################################
 
 
     def get_ids(self, table=None):
@@ -137,11 +263,7 @@ class GraphUtils(
         if testing is not None:
             content = await aread_content(test_chunk)
         else:
-            """if os.name == "nt":
-                content = await self.utils.load_content(
-                    path=bucket_path, layer=layer, local=None
-                )
-            else:"""
+
             if not os.path.exists(local_path):
                 print(f"Local path {local_path} does not exists. Fetch from {bucket_path}")
                 content = json.loads(self.bucket.download_blob(bucket_path))
@@ -184,12 +306,15 @@ class GraphUtils(
                     "rows": [],
                     "id_map": set(),
                 }
-                #print(f"Added {table_name} to schema")
+                print(f"Added {table_name} to schema")
 
             if row_id not in [item for item in self.schemas[table_name]["id_map"]]:
+                print(f"Insert {row_id} into {table_name}")
                 self.schemas[table_name]["rows"].append(args)
                 self.schemas[table_name]["id_map"].add(row_id)
-        print("Added args")
+            else:
+                print(f"{row_id} already in schema")
+        #print("Added args")
 
 
     async def acreate_tables_batch(self):
@@ -358,107 +483,7 @@ class GraphUtils(
             nodes[node_type] += 1
         pprint.pp(nodes)
 
-    async def abatch_commit(self, embed_only=True):
-        """Need to be called after each layer process finished with rest_commit
-        if any(len(v["rows"]) > self.batch_chunk_size for v in self.schemas.values()) or rest_commit and not self.commit:
-        self.commit=True
-        """
-        print(">>>Start batch commit")
-        try:
-            self.print_status()
-            await self.acreate_session()
-            await self.acreate_tables_batch()
-            await self.aschema_batch_process()
-            await self.aupsert_batch(embed_only)
-            self.cleanup_self_schema()
-        except Exception as e:
-            print(f"Error during abatch_commit: {e}")
-        print(">>>Finished")
 
-    async def batch_commit(self):
-        """Need to be called after each layer process finished with rest_commit
-        if any(len(v["rows"]) > self.batch_chunk_size for v in self.schemas.values()) or rest_commit and not self.commit:
-        self.commit=True
-        """
-        print(">>>Start batch commit")
-        self.print_status()
-        self.create_tables_batch()
-        self.schema_batch_process()
-        self.upsert_batch()
-        self.cleanup_self_schema()
-        print(">>>Finished")
-
-    async def aadd_node(self, attrs: dict):
-        attrs = self.clean_attr_keys(attrs)
-        attrs["type"] = attrs["type"].upper()
-        # print(">>NODE FILTERED")
-        # pprint.pp(attrs)
-        # print(f"Add {attrs['id']} -> layer: {attrs['type']}")
-        await self.alocal_batch_loader(attrs)
-        return True
-
-    def add_node(self, attrs: dict, flatten=False):
-        attrs = self.clean_attr_keys(attrs, flatten)
-        attrs["type"] = attrs["type"].upper()
-        # print(">>NODE FILTERED")
-        #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
-
-        self.local_batch_loader(attrs)
-        if self.cache_only is False:
-            self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
-        return True
-
-    async def aadd_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=True):
-        try:
-            src_layer = replace_special_chars(attrs.get("src_layer")).upper()
-            trgt_layer = replace_special_chars(attrs.get("trgt_layer")).upper()
-
-            if not src:
-                src = attrs.get("src")
-            if not trt:
-                src = attrs.get("trt")
-
-            if src and trt and src_layer and trgt_layer:
-                if isinstance(src, int):
-                    src = str(src)
-                if isinstance(trt, int):
-                    trt = str(trt)
-
-                attrs = self.clean_attr_keys(attrs, flatten)
-
-                print(attrs)
-                rel = attrs.get("rel", "").lower().replace(" ", "_")
-
-                attrs = {
-                    **attrs,
-                    "src": src,
-                    "trgt": trt,
-                    "id": f"{src}_{rel}_{trt}"
-                }
-
-                # print(">>FILTERED EDGE")
-                # pprint.pp(attrs)
-
-                src_layer = attrs.get("src_layer").upper()
-                trgt_layer = attrs.get("trgt_layer").upper()
-                # print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
-
-                edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
-                attrs["type"] = edge_table_name
-
-                src_node_attr = {"id": src, "type": src_layer}
-
-                trgt_node_attr = {"id": trt, "type": trgt_layer}
-
-                # print(f"Add {src} -> trgt: {trt}")
-
-                await asyncio.gather(*[
-                    self.local_batch_loader(src_node_attr),
-                    self.local_batch_loader(trgt_node_attr),
-                    self.local_batch_loader(attrs),
-                ])
-        except Exception as e:
-            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e)
 
 
     def get_single_neighbor_nx(self, node, target_type):
@@ -485,80 +510,6 @@ class GraphUtils(
             if self.G.nodes[neighbor].get('type') == target_type:
                 return neighbor, self.G.nodes[neighbor]
         return None  # No neighbor of that type found
-
-
-
-
-    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False):
-        #pprint.pp(attrs)
-
-        try:
-
-            src_layer = replace_special_chars(attrs.get("src_layer")).upper()
-            trgt_layer = replace_special_chars(attrs.get("trgt_layer")).upper()
-
-            #print("src_layer", src_layer)
-            #print("trgt_layer", trgt_layer)
-            if src is None:
-                src = attrs.get("src")
-            if trt is None:
-                trt = attrs.get("trt")
-
-            if src and trt and src_layer and trgt_layer:
-                if isinstance(src, int):
-                    src = str(src)
-                if isinstance(trt, int):
-                    trt = str(trt)
-                #print("int conv...")
-
-                attrs = self.clean_attr_keys(attrs, flatten)
-                #print("attrs_new", attrs )
-                rel = attrs.get("rel", "").lower().replace(" ", "_")
-
-                attrs = {
-                    **attrs,
-                    "src": src,
-                    "trgt": trt,
-                    "id": f"{src}_{rel}_{trt}"
-                }
-
-                # print(">>FILTERED EDGE")
-                # pprint.pp(attrs)
-
-                src_layer = attrs.get("src_layer").upper()
-                trgt_layer = attrs.get("trgt_layer").upper()
-
-                #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
-
-                edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
-                attrs["type"] = edge_table_name
-
-                #src_node_attr = {"id": src, "type": src_layer}
-
-                #trgt_node_attr = {"id": trt, "type": trgt_layer}
-                # print(f"Add {src} -> trgt: {trt}")
-
-                # todo run in executor
-                #self.local_batch_loader(src_node_attr)
-                #self.local_batch_loader(trgt_node_attr)
-                #self.local_batch_loader(attrs)
-
-                if self.cache_only is False:
-                    self.G.add_edge(src, trt, **{k:v for k,v in attrs.items() if k not in ["src", "trgt"]})
-                else:
-                    self.cache.append(dict(
-                        src=src,
-                        trgt=trt,
-                        **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]}
-                    ))
-
-                #self.G.add_node(src, type=src_layer)
-                #self.G.add_node(trt, type=trgt_layer)
-
-        except Exception as e:
-            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, )
-
-
 
     def get_gene_id_name(self, chrom=False):
         if chrom:
@@ -655,68 +606,6 @@ class GraphUtils(
             if k not in self.schemas.get(table_name):
                 self.schemas[table_name].update({k: self.get_spanner_type(v)})
 
-    async def aadd_edge(
-            self,
-            attrs: Optional[Dict],
-            src_layer,
-            trgt_layer,
-            src_node_attr,
-            trgt_node_attr,
-            edge_table_name
-    ):
-        # print("edge", attrs)
-        # print("src_node_attr", src_node_attr)
-        # print("trgt_node_attr", trgt_node_attr)
-        await asyncio.gather(*[
-            self.atable_schema_process(src_layer, src_node_attr),
-            self.atable_schema_process(trgt_layer, trgt_node_attr),
-            self.atable_schema_process(edge_table_name, attrs, ttype="edge")
-        ])
-
-        await asyncio.gather(*[
-            self.aupdate_insert(src_layer, [src_node_attr]),
-            self.aupdate_insert(trgt_layer, [trgt_node_attr]),
-            self.aupdate_insert(edge_table_name, [attrs])
-        ])
-
-    async def aadd_node(self, attrs, table_name):
-        await self.atable_schema_process(table_name, attrs=attrs)
-        await self.aupdate_insert(table_name, [attrs])
-
-        """if amode:
-            await self.aadd_node(attrs, table_name=attrs["type"])
-        else:
-            try:
-                self.table_schema_process(table_name=attrs["type"], attrs=attrs)
-                self.update_insert(table=attrs["type"], rows=[attrs])
-            except Exception as e:
-                print("Error inserting NODE", e)
-                return None
-            return True"""
-
-        """if amode:
-            await self.aadd_edge(
-                attrs,
-                src_layer,
-                trgt_layer,
-                src_node_attr,
-                trgt_node_attr,
-                edge_table_name
-            )
-
-        else:
-            # CHECK ADD NODE TABLES
-            self.table_schema_process(table_name=src_layer, attrs=src_node_attr)
-            self.table_schema_process(table_name=trgt_layer, attrs=trgt_node_attr)
-
-            # CHECK ADD NODE IDS
-            self.update_insert(table=src_layer, rows=[src_node_attr])
-            self.update_insert(table=trgt_layer, rows=[trgt_node_attr])
-
-            # CHECK ADD EDGE TABLES
-            self.table_schema_process(table_name=edge_table_name, attrs=attrs, ttype="edge")
-
-            self.update_insert(table=edge_table_name, rows=[attrs])"""
 
     ############ SPANNER
     async def atable_schema_process(self, table_name: str, attrs: Dict, ttype: str = "node"):

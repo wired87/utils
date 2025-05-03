@@ -8,7 +8,7 @@ a second agent compares the result and give tipps for improvement till hes confi
 a pre written py script receives the output from the agent, creates nodes, edges and embeddings of both and creates new layers from it
 tech satack:
 - not neo4j!
-- google services
+- _google services
 - rest is your choice
 
 

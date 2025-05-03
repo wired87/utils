@@ -1,19 +1,69 @@
 import os
 import ast
-
-from utils.agents.coder.py.main import CodeGraphUploader
+from utils.gnn.embedder import embed
 from utils.utils import GraphUtils
 
 
 class ProjectExtractor:
-    def __init__(self, g):
-        self.root_path = r"C:\Users\wired\OneDrive\Desktop\Projects\bm\_betse"
+    def __init__(self, g:GraphUtils):
+        
+        self.local_modules = None
+        self.repo_id = None
+        self.root_path = None
+        self.requirements = []
         self.project_structure = {}
         self.ignore = []
 
-        self.g_utils = g
+        self.g = g
 
-    def extract_code_and_imports(self, file_path):
+
+
+    def extract(self, root, repo_id, repo_name):
+        print("start extraction")
+
+        self.root_path = root
+        print("Project root", root)
+
+        self.repo_id = repo_id
+        print("repo_id", repo_id)
+
+        self.repo_name = repo_name
+
+        self.local_modules = [os.path.basename(root) for root, _, _ in os.walk(self.root_path)]
+
+        readme = self.extract_metadata()
+        # Create a node for the repo
+        self.g.add_node(
+            attrs=dict(
+                id=self.repo_id,
+                type="REPO",
+                readme=embed(readme) if readme is not None else embed("default"),
+                requirements=self.requirements
+            )
+        )
+
+        for root, _, files in os.walk(self.root_path):
+            for file in files:
+                current_path = os.path.join(root, file)
+                if current_path in self.ignore:
+                    print("Path excluded")
+                    continue
+
+                if file.endswith('.py'):
+                    # self.project_structure[file] = self._parse_file(current_path)
+                    file_name, full_code = self.handle_file_content(current_path)
+
+                    file_id = self.handle_code(file_name, full_code, current_path)
+
+                    self.handle_imports(
+                        full_code,
+                        file_id,
+                        file_path=current_path
+                    )
+
+        print("Finished")
+
+    def handle_code(self, file_name, full_code, current_path):
         """
         Opens a Python file, extracts its full code content, and identifies all imported
         modules and objects.
@@ -31,105 +81,142 @@ class ProjectExtractor:
             SyntaxError: If the file contains invalid Python syntax.
             Exception: For other potential file reading errors.
         """
+        #print("current_path", current_path)
+        print("current_path", current_path)
+        current_path_proj_root = current_path.replace(self.root_path, "")
+        print("current_path_proj_root", current_path_proj_root)
 
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Error: File not found at {file_path}")
+        file_id = current_path_proj_root.replace("\\", ".").replace("/", ".")
+
+        if file_id.startswith("."):
+            file_id = file_id[1:]
+        print("Add file", file_id)
+
+        self.g.add_node(
+            attrs=dict(
+                id=file_id,
+                type="FILE",
+                embed=embed(full_code),
+                code=full_code
+            )
+        )
+        self.g.add_edge(
+            src=self.repo_id,
+            trt=file_id,
+            attrs=dict(
+                src_layer="REPO",
+                trgt_layer="FILE",
+                rel="has"
+            )
+        )
+        return file_id
+
+
+    def extract_code(self, node, lines):
+        """Extract code from ast node"""
+        start = node.lineno - 1
+        end = node.end_lineno  # includes end line
+        return "\n".join(lines[start:end])
+
+    def extract_comments(
+            self,
+            full_code,
+
+    ):
+        file_comments=[]
+        # Extract comments
+        for i, line in enumerate(full_code.splitlines(), start=1):
+            if line.startswith("#"):
+                file_comments.append((i, line.strip()))
+            if line.startswith(('"""', "'''",)):
+                start_line = i
+                end_line = None
+                for end_index, line in enumerate(full_code.splitlines()[start_line:], start=start_line):
+                    if line.strip.endswith(('"""', "'''",)):
+                        end_line = end_index
+
+                full_comment = "\n".join(full_code[start_line:end_line])
+                file_comments.append(full_comment)
+        return file_comments
+
+
+    def handle_file_content(self, file_path):
         file_name = file_path.split("/")[-1].split("\\")[-1]
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                full_code = f.read()
-
-
-        except Exception as e:
-            print(f"Error reading file {file_path}: {e}")
-            raise  # Re-raise the exception after printing
+        with open(file_path, 'r', encoding='utf-8') as f:
+            full_code = f.read()
+        return file_name, full_code
 
 
 
 
+    def is_local_import(self, module_name):
+        if "." in module_name:
+            module_name = module_name.split(".")[0]
 
-        imports_set = set()
+        if module_name in self.local_modules and module_name not in self.requirements:
+            print("Local Module:", module_name)
+            return True
+        else:
+            print("Lib import", module_name)
+        return False
 
-        try:
-            tree = ast.parse(full_code, filename=file_path)
+    def handle_imports(self, full_code, file_id, file_path):
+        tree = ast.parse(full_code, filename=file_path)
+        #variables = []
 
-            for node in ast.walk(tree):
-
-                if isinstance(node, ast.Import):
-                    self.g_utils.add_edge(
-                        file_name,
-                        node,
-                        attrs=dict(type="BETSE13",
-                                   rel="import_content",
-                                   src_layer="file",
-                                   trgt_layer="file")
-                    )
-
-                    # Handles 'import module' or 'import module as alias'
-                    for alias in node.names:
-                        imports_set.add(alias.name)  # Add the original module name
-                elif isinstance(node, ast.ImportFrom):
-                    self.g_utils.add_edge(
-                        file_name,
-                        file_path,
-                        attrs=dict(type="BETSE13", rel="import_origin",
-                                   src_layer="file",
-                                   trgt_layer="file")
-                    )
-
-                    if node.module:
-                        # Optionally add the base module/package from which things are imported
-                        # imports_set.add(node.module) # Uncomment if you want 'os' in addition to 'path' from 'from os import path'
-                        pass  # Often, users just want the specific things imported
-
-                    for alias in node.names:
-                        # alias.name is the specific module/object imported (e.g., 'path')
-                        # Construct the full path if importing a submodule/object
-                        full_import_name = f"{node.module}.{alias.name}" if node.module else alias.name
-                        # However, the request asks for original files/libs,
-                        # 'alias.name' usually represents the most direct item imported
-                        imports_set.add(alias.name)  # Add the specific imported name ('path')
-                if isinstance(node, ast.Module):
-                    #print("Add_node", node,  "file_n<me", file_name, full_code)
-                    self.g_utils.add_node(
-
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    module_name = alias.name  # Use alias.name inside ast.Import
+                    print("Module name", module_name)
+                    self.g.add_edge(
+                        file_id,
+                        module_name,
                         attrs=dict(
-                            id=file_path,
-                            code=full_code,
-                            type="BETSE13",
+                            rel="import",
+                            src_layer="FILE",
+                            trgt_layer="LIB" if not self.is_local_import(module_name) else "LOCAL"
                         )
                     )
-        except SyntaxError as e:
-            print(f"Error parsing Python code in {file_path}: {e}")
-            raise  # Re-raise the syntax error
-        except Exception as e:
-            print(f"An unexpected error occurred during AST processing: {e}")
-            raise  # Re-raise other potential AST errors
+
+            elif isinstance(node, ast.ImportFrom):
+                module_name = node.module or ""  # might be None
+                for alias in node.names:
+                    imported_name = alias.name
+                    self.g.add_edge(
+                        file_id,
+                        f"{module_name}.{imported_name}",
+                        attrs=dict(
+                            rel="import_from",
+                            src_layer="FILE",
+                            trgt_layer="LIB" if not self.is_local_import(module_name) else "LOCAL"
+                        )
+                    )
 
 
-    def extract(self):
-        print("start")
-        current_parent = None
+
+
+    def extract_metadata(self):
+        readme=None
         for root, _, files in os.walk(self.root_path):
-            # if current_parent is not None:
-            # self.g_utils.G.add_node(current_parent)
-            if len(files) > 200:
-                print(f"Too many files in {root}, skipping")
-                continue
             for file in files:
                 current_path = os.path.join(root, file)
                 if current_path in self.ignore:
                     print("Path excluded")
                     continue
 
-
-                if file.endswith('.py'):
-                    #self.project_structure[file] = self._parse_file(current_path)
-                    self.extract_code_and_imports(current_path)
-
-        #pprint.pp(self.get_project_structure())
-        print("Finished")
-        return self.g_utils.G
+                if file == 'README.md':
+                    readme = open(current_path, "r", encoding="utf-8").read()
+                elif file.startswith("requirements"):
+                    requirements=[]
+                    requirements_file = open(current_path, "r", encoding="utf-8").read()
+                    for line in requirements_file.splitlines():
+                        stripped = line.strip()
+                        if len(stripped):
+                            if not stripped.startswith("#") and stripped[-1].isdigit():
+                                self.requirements.append(stripped)
+        print("Project Metadata Extracted")
+        return readme
 
     def _parse_file(self, file_path):
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -242,10 +329,61 @@ class ProjectExtractor:
         return self.project_structure
 
 
-if __name__ == '__main__':
-    g = GraphUtils(upload_to="sp", table_name="BETSE13")
 
-    extractor = ProjectExtractor(g)
-    extractor.extract()
-    pyg_creator = CodeGraphUploader(g)
-    pyg_creator.upload()
+
+"""try:
+    tree = ast.parse(full_code, filename=file_path)
+    variables = []
+
+    file_comments:list = self.extract_comments(
+        full_code
+    )
+    self.g.add_node(
+        attrs=dict(
+            id=f"{file_name}_file_comment_{len(file_comments)}",
+            code=full_code,
+            type="COMMENT",
+        )
+    )
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            self.g.add_node(
+                attrs=dict(
+                    id=f"{file_name}_{node.name}",
+                    code=full_code,
+                    type="CLASS",
+                )
+            )
+
+
+
+        # DEF
+        elif isinstance(node, ast.FunctionDef):
+            self.g.add_node(
+                attrs=dict(
+                    id=f"{file_name}_{node.name}",
+                    code=full_code,
+                    type="DEF",
+                )
+            )
+
+        # VARIABLES
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    val = ast.literal_eval(node.value) if isinstance(node.value, (
+                    ast.Constant, ast.Num, ast.Str, ast.List, ast.Dict, ast.Tuple)) else "complex_expr"
+                    variables.append((target.id, val))
+
+
+
+
+
+
+except SyntaxError as e:
+    print(f"Error parsing Python code in {file_path}: {e}")
+    raise  # Re-raise the syntax error
+except Exception as e:
+    print(f"An unexpected error occurred during AST processing: {e}")
+    raise  # Re-raise other potential AST errors"""

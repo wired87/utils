@@ -35,8 +35,8 @@ import os
 import networkx as nx
 
 from utils.aws.process_ensembl import aread_json_content
-from utils.ggoogle.storage import MOUNT_PATH, MAIN_BUCKET
-from utils.ggoogle.storage.storage import GBucket
+from _google.storage import MOUNT_PATH, MAIN_BUCKET
+from _google.storage.storage import GBucket
 from utils.utils import Utils
 
 #from gnn.processing.layer.main import LayerProcessor

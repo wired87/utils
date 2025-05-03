@@ -36,7 +36,7 @@ import asyncio
 import json
 import time
 
-from google.api_core.exceptions import ResourceExhausted
+from _google.api_core.exceptions import ResourceExhausted
 
 from typing import List
 

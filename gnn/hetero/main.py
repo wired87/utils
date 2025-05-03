@@ -13,7 +13,7 @@ from torch_geometric.data import HeteroData
 from torch_geometric.nn import TransformerConv
 from transformers import AutoTokenizer, AutoModel
 
-from utils.ggoogle.storage.storage import GBucket
+from _google.storage.storage import GBucket
 from utils.gnn import NX_LOCAL_CKPT, NX_BUCKET_CKPT, SRC_PATH
 from utils.gnn.embedder import embed
 from utils.gnn.processing.model.main import asave_data_checkpoint

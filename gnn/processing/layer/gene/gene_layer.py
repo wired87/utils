@@ -39,7 +39,7 @@ ENSMUSG, ENSMUST, etc. → Mouse-specific equivalents
 import asyncio
 
 
-from google.api_core.exceptions import ResourceExhausted
+from _google.api_core.exceptions import ResourceExhausted
 
 from typing import List
 
