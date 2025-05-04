@@ -1,6 +1,6 @@
 import ast
 
-class FunctionParameterExtractor:
+class FunctionExtractor:
     def __init__(self, code_str: str):
         self.code_str = code_str
         self.function_data=[]
@@ -10,21 +10,35 @@ class FunctionParameterExtractor:
 
     def extract(self):
         """
-        Extracts all functions and args from given str
-        :return: list[dict]
+        Extracts all functions, their arguments, and return key (from `returns = "..."`)
+        and compiles the function as a callable object.
         """
         tree = ast.parse(self.code_str)
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
                 params = [arg.arg for arg in node.args.args]
                 func_code = ast.unparse(node)
-                self.function_data.append(
-                    {
-                        "def_name": node.name,
-                        "runnable": func_code,
-                        "args": params,
-                    }
-                )
+
+                # Compile the function so it's callable
+                local_scope = {}
+                exec(func_code, {}, local_scope)
+                func_obj = local_scope[node.name]
+
+                # Extract return variable name (if set via `returns = "..."`)
+                return_var = None
+                for stmt in node.body:
+                    if isinstance(stmt, ast.Assign):
+                        for target in stmt.targets:
+                            if isinstance(target, ast.Name) and target.id == "returns":
+                                if isinstance(stmt.value, ast.Constant):
+                                    return_var = stmt.value.value
+
+                self.function_data.append({
+                    "def_name": node.name,
+                    "runnable": func_obj,  # ✅ now a real Python function
+                    "args": params,
+                    "dest_key": return_var,
+                })
         return self.function_data
 
     def match_to_powerset(self, powerset) -> list:
@@ -42,23 +56,17 @@ class FunctionParameterExtractor:
         return matched_functions
 
 
-
-
-
     def match_to_function_keys(self, f1, f2):
-        calc_values={}
-        for k, v in f1.items():
-            for item in self.function_data:
+
+        for item in self.function_data:
+            calc_values = {}
+            for k, v in f2.items():
                 for arg in item["args"]:
-                    if arg == k:
-                        calc_values[k] = v
-        calc_values2={}
-        for k, v in f2.items():
-            for item in self.function_data:
-                for arg in item["args"]:
-                    if arg == k:
+                    if arg == k and k not in calc_values: # check same & avoid overwriting
                         calc_values[k] = v
 
-        if len()
+            if len(calc_values.values()) == len(item["args"]): # all values present todo amke better
+                pass
+
 
 

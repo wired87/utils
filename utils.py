@@ -97,16 +97,10 @@ class GraphUtils(
         self.all_tables = self.list_spanner_tables() if upload_to == "sp" else self.get_tables()
         self.cache_only = cache_only
 
-
-
-
-
     ####################################
     # CORE
     ####################################
-
-
-    async def abatch_commit(self, embed_only=True):
+    async def abatch_commit(self, embed_only=True, create_session=True):
         """Need to be called after each layer process finished with rest_commit
         if any(len(v["rows"]) > self.batch_chunk_size for v in self.schemas.values()) or rest_commit and not self.commit:
         self.commit=True
@@ -114,7 +108,8 @@ class GraphUtils(
         print(">>>Start batch commit")
         try:
             self.print_status()
-            await self.acreate_session()
+            if create_session is True:
+                await self.acreate_session()
             await self.acreate_tables_batch()
             await self.aschema_batch_process()
             await self.aupsert_batch(embed_only)
@@ -138,18 +133,19 @@ class GraphUtils(
 
 
 
-
-
-
-
-    def add_node(self, attrs: dict, flatten=False):
+    def add_node(self, attrs: dict, flatten=False, single_upsert=False):
         attrs = self.clean_attr_keys(attrs, flatten)
         attrs["type"] = attrs["type"].upper()
         # print(">>NODE FILTERED")
         #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
+        """if single_upsert is True:
+            await self.g.upsert_row(
+                table=f"{edge_attrs['src_layer'].upper()}_{edge_attrs['rel']}_{edge_attrs['trgt_layer'].upper()}",
+                batch_chunk=[edge_attrs])"""
+
         self.local_batch_loader(attrs)
-        if self.cache_only is False:
-            self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
+        #if self.cache_only is False:
+        self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
 
         return True
 
@@ -228,6 +224,11 @@ class GraphUtils(
     ####################################
     # HELPER
     ####################################
+
+    def get_edge_attrs(self, parent, child):
+        edge_attrs = self.G[parent["id"]][child["id"]]
+        # Todo fetch directly form sp or bq
+        print("Attrs fetched", edge_attrs)
 
 
     def get_ids(self, table=None):
