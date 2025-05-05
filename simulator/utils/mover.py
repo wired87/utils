@@ -1,0 +1,149 @@
+from typing import List
+
+import numpy as np
+
+class Mover:
+    def __init__(self, g_utils):
+
+        # Get realistic diffusion coefficient in µm²/s
+        self.cell_index = 0
+        self.target = None
+        self.position = None
+        self.g_utils = g_utils
+        # Time step and movement step
+        self.time_step = 0.001  # seconds
+
+    def find_nearest_point_from_pos_list(self, start_pos, points):
+        start = np.array(start_pos)
+        points = np.array(points)
+
+        distances = np.linalg.norm(points - start, axis=1)
+        nearest_index = np.argmin(distances)
+        return points[nearest_index], distances[nearest_index]
+
+
+
+    def find_nearest_neighbor(self, start_pos, neighbors:List[tuple]):
+        #print("find_nearest_neighbor", neighbors)
+        nearest_pos = None
+        nearest_distance = None
+        neareast_neighbor_id = None
+        #print("Nieghbors fnn")
+        #pprint.pp(neighbors)
+        for neighbor in neighbors:
+            if isinstance(neighbor, tuple):
+                neighbor_id = neighbor[0]
+                neighbor_attrs = neighbor[1]
+            else:
+                neighbor_id = neighbor
+                neighbor_attrs = self.g_utils.G.nodes[neighbor_id]
+
+            pos = neighbor_attrs.get("pos")
+
+            dx = pos[0] - start_pos[0]
+            dy = pos[1] - start_pos[1]
+            dz = pos[2] - start_pos[2]
+
+            distance = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
+            if nearest_distance is None:
+                nearest_distance = distance
+                nearest_pos = pos
+                neareast_neighbor_id = neighbor_id
+
+            else:
+                if distance < nearest_distance:
+                    nearest_distance = distance
+                    nearest_pos = pos
+                    neareast_neighbor_id=neighbor_id
+
+        #print("nearest_pos, nearest_distance, neareast_neighbor_id", nearest_pos, nearest_distance, neareast_neighbor_id)
+        return nearest_pos, nearest_distance, neareast_neighbor_id
+
+
+
+
+
+    def move_src_to_trgt(self, pos1, pos2, step_size):
+            direction = [p2 - p1 for p1, p2 in zip(pos1, pos2)]
+            distance = sum(d ** 2 for d in direction) ** 0.5
+            if distance == 0:
+                return pos1  # already at the target
+            unit_direction = [d / distance for d in direction]
+            return [p1 + step_size * ud for p1, ud in zip(pos1, unit_direction)]
+
+
+
+    def move(
+            self,
+            position_um,
+            target_pos,
+            source_radius,
+            target_radius,
+            diffusion,
+    ):
+
+        diffusion = diffusion
+
+        step_size_um = np.sqrt(2 * diffusion * self.time_step)
+
+        self.position = np.array(position_um, dtype=float)
+        self.target = np.array(target_pos, dtype=float) if target_pos is not None else None
+
+        if self.target is not None:
+            direction = self.target - self.position
+            dist = np.linalg.norm(direction)
+
+            # Minimum allowed distance to prevent overlap
+            min_dist = source_radius + target_radius
+
+            # Already within safe distance — stop moving
+            if dist <= min_dist:
+                return
+
+            direction = direction / dist
+            move_vector = direction * step_size_um
+
+            # Don't overshoot and pass the surface
+            if dist - step_size_um < min_dist:
+                move_vector = direction * (dist - min_dist)
+
+        else:
+            # Pure diffusion
+            move_vector = np.random.normal(0, step_size_um, 3)
+
+        self.position += move_vector
+
+    def is_at_target(self, threshold=1.0):
+        if self.target is None:
+            return False
+        return np.linalg.norm(self.target - self.position) < threshold
+
+    def __repr__(self):
+        #prints each call
+        return f"<{self.position.round(2)}>"
+
+    def spread_cells(self, amount_cells, screen_width, screen_height, self_attrs):
+        self.cell_index += 1
+
+        cols = int(amount_cells ** 0.5)
+        rows = (amount_cells + cols - 1) // cols
+
+        # Cell index is 1-based right now, fix that:
+        index = self.cell_index - 1
+        row = index // cols
+        col = index % cols
+
+        cell_width = screen_width / cols
+        cell_height = screen_height / rows
+
+        x = (col + 0.5) * cell_width
+        y = (row + 0.5) * cell_height
+
+        self_attrs["pos"] = [x, y, 0.0]
+        print(f"UPDATED CELL POS cell index {self.cell_index}:", self_attrs["pos"])
+        self_attrs["init"] = False
+        return self_attrs
+
+
+
+

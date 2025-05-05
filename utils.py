@@ -1,21 +1,6 @@
-from _google.bq.loader.aloader import ABQHandler
+from _google.bq.bq_handler import BQCore
 from utils.gnn.embedder import embed
 from utils.file.aread_json import aread_content
-
-
-# todo batch process: collect, then send up in batches
-
-def replace_special_chars(s):
-    """
-    Replaces all special characters in a string with "_".
-    Keeps only alphanumeric characters and underscores.
-
-    :param s: Input string
-    :return: Cleaned string with special characters replaced
-    """
-    return re.sub(r'[^a-zA-Z0-9_]', '', s)
-
-
 
 import pprint
 import re
@@ -24,7 +9,7 @@ import asyncio
 import csv
 import json
 import os
-from typing import Dict, List, Any, Union, Tuple, Optional
+from typing import Dict, List
 
 import aiofiles
 import httpx
@@ -43,11 +28,25 @@ from utils.gnn.processing.graph_manipulator import Manipulator
 
 # todo batch process: collect, then send up in batches
 
+def replace_special_chars(s):
+    """
+    Replaces all special characters in a string with "_".
+    Keeps only alphanumeric characters and underscores.
+
+    :param s: Input string
+    :return: Cleaned string with special characters replaced
+    """
+    return re.sub(r'[^a-zA-Z0-9_]', '', s)
+
+
+# todo batch process: collect, then send up in batches
+
 class GraphUtils(
     SpannerGraphLoader,
     SpannerAsyncHelper,
     #BigQueryGraphHandler,
-    ABQHandler
+    #ABQHandler
+    BQCore
 ):
     def __init__(
             self,
@@ -55,20 +54,19 @@ class GraphUtils(
             upload_to: str = "bq",
             not_null_check_col="id",
             sp_dbid=None,
-            cache_only=False,
+            nx_only=False,
             G=None,
             dataset=None
     ):
-        #super().__init__()
-        #ABQHandler.__init__(self)
         self.dataset=dataset
         SpannerAsyncHelper.__init__(self, sp_dbid)
         SpannerGraphLoader.__init__(self, sp_dbid)
-        ABQHandler.__init__(self, dataset=dataset)
+        BQCore.__init__(self, dataset_id=sp_dbid)
+
+        #ABQHandler.__init__(self, dataset=dataset)
         #BigQueryGraphHandler.__init__(self)
 
         self.G = G or nx.Graph()
-
         self.table_name = table_name
         self.upload_to = upload_to
         self.bucket = GBucket()
@@ -95,7 +93,7 @@ class GraphUtils(
         self.edge_batch = {}
         self.runs = 0
         self.all_tables = self.list_spanner_tables() if upload_to == "sp" else self.get_tables()
-        self.cache_only = cache_only
+        self.nx_only = nx_only
 
     ####################################
     # CORE
@@ -113,6 +111,7 @@ class GraphUtils(
             await self.acreate_tables_batch()
             await self.aschema_batch_process()
             await self.aupsert_batch(embed_only)
+
             self.cleanup_self_schema()
         except Exception as e:
             print(f"Error during abatch_commit: {e}")
@@ -143,8 +142,8 @@ class GraphUtils(
                 table=f"{edge_attrs['src_layer'].upper()}_{edge_attrs['rel']}_{edge_attrs['trgt_layer'].upper()}",
                 batch_chunk=[edge_attrs])"""
 
-        self.local_batch_loader(attrs)
-        #if self.cache_only is False:
+        if self.nx_only is False:
+            self.local_batch_loader(attrs)
         self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
 
         return True
@@ -198,26 +197,32 @@ class GraphUtils(
                 trgt_node_attr = {"id": trt, "type": trgt_layer}
                 # print(f"Add {src} -> trgt: {trt}")
 
-                # todo run in executor
-                self.local_batch_loader(src_node_attr)
-                self.local_batch_loader(trgt_node_attr)
-                self.local_batch_loader(attrs)
+                if self.nx_only is False:
+                    # todo run in executor
+                    self.local_batch_loader(src_node_attr)
+                    self.local_batch_loader(trgt_node_attr)
+                    self.local_batch_loader(attrs)
 
-                if self.cache_only is False:
-                    self.G.add_edge(src, trt, **{k:v for k,v in attrs.items() if k not in ["src", "trgt"]})
-                else:
+                self.G.add_edge(src, trt, **{k:v for k,v in attrs.items() if k not in ["src", "trgt"]})
+                self.G.add_node(src, **src_node_attr)
+                self.G.add_node(trt, **trgt_node_attr)
+
+
+
+                """else:
                     self.cache.append(dict(
                         src=src,
                         trgt=trt,
                         **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]}
                     )
-                )
+                )"""
+                # todo skipping error
 
                 #self.G.add_node(src, type=src_layer)
                 #self.G.add_node(trt, type=trgt_layer)
 
         except Exception as e:
-            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, )
+            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
 
 
@@ -310,11 +315,11 @@ class GraphUtils(
                 print(f"Added {table_name} to schema")
 
             if row_id not in [item for item in self.schemas[table_name]["id_map"]]:
-                print(f"Insert {row_id} into {table_name}")
+                #print(f"Insert {row_id} into {table_name}")
                 self.schemas[table_name]["rows"].append(args)
                 self.schemas[table_name]["id_map"].add(row_id)
-            else:
-                print(f"{row_id} already in schema")
+            #else:
+                #print(f"{row_id} already in schema")
         #print("Added args")
 
 
@@ -333,10 +338,10 @@ class GraphUtils(
         else:
             for k, v in self.schemas.items():
                 # todo get all (filtered) bq tables
-                await self.acheck_add_bq_table(
+                
+                self.get_create_bq_table(
                     table_name=k,
                     ttype="edge" if any(c.islower() for c in k) else "node",
-                    schema_fetch=False
                 )
 
     def create_tables_batch(self):
@@ -353,7 +358,7 @@ class GraphUtils(
                     )
         else:
             for k, v in self.schemas.items():
-                # todo get all (filtered) bq tables
+                
                 self.get_create_bq_table(
                     table_name=k,
                     ttype="edge" if any(c.islower() for c in k) else "node",
@@ -385,7 +390,8 @@ class GraphUtils(
             )
         else:
             for k, v in self.schemas.items():
-                await self.aupdate_bq_schema(
+                
+                self.update_bq_schema(
                     keys=v["schema"],
                     table=k
                 )
@@ -412,6 +418,7 @@ class GraphUtils(
                 )
         else:
             for k, v in self.schemas.items():
+                
                 self.update_bq_schema(
                     keys=v["schema"],
                     table=k
@@ -448,11 +455,11 @@ class GraphUtils(
                     )
                 )
             await asyncio.gather(*tasks)
-
             print("Batch upserted")
         else:
             for k, v in self.schemas.items():
-                self.bq_insert(k, v["rows"])
+                # Need to Stage changes
+                self.bq_insert(table_id=k, rows=v["rows"])
 
     def upsert_batch(self):
         if self.upload_to == "sp":
@@ -463,7 +470,11 @@ class GraphUtils(
                 )
         else:
             for k, v in self.schemas.items():
-                self.bq_insert(k, v["rows"])
+                self.bq_insert(
+                    table_id=k,
+                    rows=v["rows"],
+                    schema=v["schema"]
+                )
 
     def cleanup_self_schema(self):
         # print("Cleanup schema")

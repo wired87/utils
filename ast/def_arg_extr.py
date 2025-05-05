@@ -1,10 +1,12 @@
 import ast
+import pprint
+
 
 class FunctionExtractor:
-    def __init__(self, code_str: str):
+    def __init__(self, code_str: str, g):
         self.code_str = code_str
         self.function_data=[]
-
+        self.g=g
         print("Extracting functions with params")
         self.extract()
 
@@ -13,6 +15,20 @@ class FunctionExtractor:
         Extracts all functions, their arguments, and return key (from `returns = "..."`)
         and compiles the function as a callable object.
         """
+        # Request Equations from BQ
+        """query = self.g.select_all_from_table_query()
+        equations:list = self.g.run_query(query, conv_to_dict=True)
+        for eq in equations:
+
+            expr = parse_expr(eq["equation"])
+            eq_args = expr.free_symbols
+            self.function_data.append({
+                "def_name": eq["name"],
+                "description": eq["description"],
+                "args": eq_args,
+                "dest_key": eq["dest_key"],
+            })"""
+
         tree = ast.parse(self.code_str)
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
@@ -39,6 +55,8 @@ class FunctionExtractor:
                     "args": params,
                     "dest_key": return_var,
                 })
+        print("Funciton data extracted")
+        pprint.pp(self.function_data)
         return self.function_data
 
     def match_to_powerset(self, powerset) -> list:

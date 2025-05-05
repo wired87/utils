@@ -4,15 +4,15 @@ import json
 import networkx as nx
 
 from utils.utils import GraphUtils
-from utils.world.create_world import CreateGWorld, WorldCore
-from utils.world.run_world import World
+from utils.simulator.world.create_world import CreateWorld, WorldCore
+from utils.simulator.world.run_world import World
 
 GP = r"C:\Users\wired\OneDrive\Desktop\Projects\bm\bm_process\world\world01.json"
 
 def create():
     world_core = WorldCore()
 
-    god = CreateGWorld(world_core.g_utils, world_core.user_id)
+    god = CreateWorld(world_core.g_utils, world_core.user_id)
     asyncio.run(god.hello_world())
 
     with open(GP, "w") as f:

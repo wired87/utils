@@ -1,14 +1,16 @@
+import asyncio
+
 import pygame
 
 from bm.settings import TEST_USER_ID
-from load_world_objects import WorldObjectLoader
-from physics.world import ChargedParticleHandler
+from physics.particles.particle_updator import ChargedParticleHandler
+from utils.simulator.utils.load_world_objects import WorldObjectLoader
 from utils.pygame.renderer import PyGameRenderer
 
 from utils.utils import GraphUtils
 
 
-class World:
+class WorldRunner:
     """
     Loads the env with all objects and sims them
     Each loop represents a timestep (on that way,
@@ -23,9 +25,10 @@ class World:
     fake till make
     """
 
-    def __init__(self, g: GraphUtils, user_id=TEST_USER_ID):
+    def __init__(self, g: GraphUtils, env_id:str, user_id=TEST_USER_ID):
 
         self.g = g
+        self.env_id = env_id
         self.scale = 1e7
         self.ion_scale = 1e9
         self.fps = 60
@@ -37,9 +40,12 @@ class World:
         self.pg_renderer = None
         self.screen = None
         self.screen = None
-        self.env_id = None
 
-        self.wol = WorldObjectLoader()
+        self.wol = WorldObjectLoader(
+            g,
+            env_id,
+            user_id
+        )
         self.charged_particle_handler = ChargedParticleHandler(
             g, user_id
         )
@@ -57,20 +63,14 @@ class World:
 
     def init_world(self):
         pygame.init()
+        asyncio.run(self.wol.load_local_graph())
         # init env
         for nid, attrs in self.g.G.nodes(data=True):
             if attrs.get("type") == "ENV":
-                self.width = attrs.get("screen_size")[1]
-                self.height = attrs.get("screen_size")[0]
-                self.amount_cells = attrs.get("cell_concentration")
-                self.env_id = nid
+                self.width = attrs.get("screen_size", 500)[1]
+                self.height = attrs.get("screen_size", 500)[0]
+                #self.amount_cells = attrs.get("cell_concentration")
 
-        # Create particles
-        self.charged_particle_handler.create({
-            "electron": 1,  # 100,000,000,000,000,000,000 electrons per m³
-            "proton": 1,  # 10,000,000,000,000,000,000 protons per m³
-            "neutron": 1,  # 1,000,000,000,000,000 neutrons per m
-        })
         # Init Surface
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Ion Field Simulation")
@@ -166,8 +166,6 @@ class World:
         running = True
         index = 0
         while running:
-            mouse_pos = pygame.mouse.get_pos()
-            # print("Loop", index)
             index += 1
             # todo get direct cell & ion neighbor from pos -> in feedback loop
             self.clock.tick(self.fps)
@@ -191,9 +189,3 @@ class World:
 
         pygame.quit()
 
-
-
-if __name__ == "__main__":
-    g = GraphUtils()
-    w = World(g)
-    w.run()

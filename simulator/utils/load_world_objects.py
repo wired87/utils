@@ -1,24 +1,57 @@
 import pprint
-
-from bm.settings import TEST_USER_ID
 from _google.spanner.acore import SpannerAsyncHelper
-from utils.world.create_world import WorldCore
+from utils.simulator.world.create_world import WorldCore
+from utils.utils import GraphUtils
 
 
 class WorldObjectLoader(SpannerAsyncHelper, WorldCore):
-    
-    def __init__(self):
+    """
+
+
+    """
+    def __init__(self, g: GraphUtils, user_id, env_id):
         super().__init__()
-        self.user_id = TEST_USER_ID
+        self.g=g
+        self.user_id = user_id
+        self.env_id = env_id
+
         self.win_size = None
         self.ion_types = None
-        self.env_id = f'env_{self.user_id}'
         self.env_cell_ids = None
         self.membranes = None
+        self.testing=True  #-> get from BQ
+
+    async def load_local_graph(self):
+
+        if self.testing:
+            print("Load graph")
+            # Get ENV entry from BQ
+            query=self.g.get_entry_from_table_query(
+                table="ENV",
+                value_of_interest=self.env_id,
+                key_of_interest="id"
+            )
+            env:dict = self.g.run_query(query, conv_to_dict=True)[0]
+
+            # Load local NXG
+            self.g.add_node(env)
+
+            query = self.g.entry_from_parent_entry_query(
+                table="PARTICLE",
+                parent_entry=self.env_id,
+            )
+
+            particle_entries: list[dict] = self.g.run_query(query, conv_to_dict=True)
+
+            # Load local NXG
+            for particle in particle_entries:
+                self.g.add_node(particle)
+
+            self.g.print_status()
+            print("Finished local loading")
+            return
 
 
-
-    async def get_env(self):
         # Get Env
         query =f"""
         SELECT * FROM ENV WHERE id = {self.env_id}

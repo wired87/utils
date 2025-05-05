@@ -1,12 +1,14 @@
 import asyncio
 
 from bm.settings import TEST_USER_ID
+from physics.particles.particle_creator import ParticleCreator
+from utils.simulator.world.env.env_creator import ENVCCreator
 from utils.utils import GraphUtils
 
 
 class WorldCore:
     def __init__(self, user_id=None):
-        self.g_utils = GraphUtils(upload_to="sp", cache_only=False)
+        self.g = GraphUtils(upload_to="sp", cache_only=False)
 
         self.user_id = user_id or TEST_USER_ID
         self.graph_name = "BRAINMASTER"
@@ -20,8 +22,11 @@ class WorldCore:
         ]
 
 
-class CreateGWorld:
+class CreateWorld:
     """
+    Creator for bare empty sim World
+
+
     Start/Change ->
     Adapt Config ->
     Model Changes ->
@@ -29,16 +34,17 @@ class CreateGWorld:
     Render.
     """
     """
-    Workflow:
-
+    Workflow
     Collect reactions
     Create Graph
     Simulate interactions
     """
 
-    def __init__(self, g_utils:GraphUtils, user_id=None, gene_functionalities: list or None = None):
+    def __init__(self, g:GraphUtils, particle_conc, world_type="bare", user_id=None):
         self.user_id = user_id
-        self.g_utils = g_utils
+        self.world_type=world_type
+        self.particle_conc = particle_conc
+        self.g = g
         self.raw = True  # upload without linking anything
         self.filter_for = "EXPERIMENT_accession_"
         self.size = 0
@@ -49,8 +55,8 @@ class CreateGWorld:
         self.run_batch_gcp = True
         self.testing = True
         self.current_file = None
-        self.spanner_db_id = "brainmaster02"
         self.ion_count = 0
+        self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
 
         self.overall_modulator_args = {
             "pos_x": 0.0,
@@ -67,52 +73,48 @@ class CreateGWorld:
 
     async def hello_world(self):
         print("create world")
+        
+        # ENV
+        self.env_creator.create()
 
+        #if self.world_type == "bare":
+        particle_creator = ParticleCreator(
+            g=self.g,
+            env_id=self.env_creator.envc_id,
+        )
+        particle_creator.create(
+            particle_conc=self.particle_conc
+        )
 
+        self.g.print_status_G()
 
+        print("Start batch")
+        if self.g.upload_to == "sp":
+            await self.g.acreate_session()
+        await self.g.abatch_commit()
 
-
-
-
-
-
-
-
-
-
-
-
-        if self.testing:
-            print("process finished")
-            self.g_utils.print_status_G()
-            return True
-        else:
-            print("Start batch")
-            await self.g_utils.acreate_session()
-            await self.g_utils.abatch_commit()
-
-            # Create Spanner Graph
-            print("Create Spanner Graph")
-            node_tables, edge_tables = self.g_utils.filter_table_names(self.g_utils.schemas.keys())
-            self.g_utils.create_graph(
-                node_tables=node_tables,
-                edge_tables=edge_tables,
-                graph_name=self.graph_name,
-            )
+        """# Create Spanner Graph
+        print("Create Spanner Graph")
+        node_tables, edge_tables = self.g.filter_table_names(self.g.schemas.keys())
+        self.g.create_graph(
+            node_tables=node_tables,
+            edge_tables=edge_tables,
+            graph_name=self.graph_name,
+        )"""
 
     async def reinit(self, tables=True, G=True):
-        await self.g_utils.acreate_session()
+        await self.g.acreate_session()
         if G is True:
             print("del g")
-            await self.g_utils.update_db(self.g_utils.drop_graph_query(self.graph_name))
+            await self.g.update_db(self.g.drop_graph_query(self.graph_name))
         if tables is True:
             print("Del tables")
             await asyncio.gather(*[
-                self.g_utils.update_db(
-                    self.g_utils.drop_table_query(k.upper())
+                self.g.update_db(
+                    self.g.drop_table_query(k.upper())
                 ) for k, v in self.ecm_creator.content["ion_concentration_mM"].items()
             ])
-            await asyncio.gather(*[self.g_utils.update_db(self.g_utils.drop_table_query(item.upper())) for item in
+            await asyncio.gather(*[self.g.update_db(self.g.drop_table_query(item.upper())) for item in
                                    ["MEMBRANE", "ENV", "CELL"]])
         print("Tables cleared")
 
