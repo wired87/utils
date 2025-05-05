@@ -9,7 +9,6 @@ from utils.utils import GraphUtils
 
 
 class World:
-
     """
     Loads the env with all objects and sims them
     Each loop represents a timestep (on that way,
@@ -24,9 +23,9 @@ class World:
     fake till make
     """
 
-    def __init__(self, g_utils:GraphUtils, user_id=TEST_USER_ID ):
+    def __init__(self, g: GraphUtils, user_id=TEST_USER_ID):
 
-        self.g_utils = g_utils
+        self.g = g
         self.scale = 1e7
         self.ion_scale = 1e9
         self.fps = 60
@@ -42,10 +41,10 @@ class World:
 
         self.wol = WorldObjectLoader()
         self.charged_particle_handler = ChargedParticleHandler(
-            user_id
+            g, user_id
         )
-        self.cell_positions={}
-        self.g_utils=g_utils
+        self.cell_positions = {}
+        self.g = g
         self.user_id = user_id
 
         self.T = None
@@ -54,39 +53,42 @@ class World:
         self.testing = True
 
         # CLASSES
-        #self.env_up = ENVUpdator()
-
+        # self.env_up = ENVUpdator()
 
     def init_world(self):
         pygame.init()
         # init env
-        for nid, attrs in self.g_utils.G.nodes(data=True):
+        for nid, attrs in self.g.G.nodes(data=True):
             if attrs.get("type") == "ENV":
                 self.width = attrs.get("screen_size")[1]
                 self.height = attrs.get("screen_size")[0]
                 self.amount_cells = attrs.get("cell_concentration")
                 self.env_id = nid
 
+        # Create particles
+        self.charged_particle_handler.create({
+            "electron": 1,  # 100,000,000,000,000,000,000 electrons per m³
+            "proton": 1,  # 10,000,000,000,000,000,000 protons per m³
+            "neutron": 1,  # 1,000,000,000,000,000 neutrons per m
+        })
         # Init Surface
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Ion Field Simulation")
 
         # Init PG Renderer
         self.pg_renderer = PyGameRenderer(
-            self.g_utils,
+            self.g,
             screen=self.screen,
             scale=self.scale
         )
         print("World initialized")
 
-
-
-    def update_loop(self, mouse_pos):
+    def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G
-        stuff = [(nid, attrs) for nid, attrs in self.g_utils.G.nodes(data=True)]
+        stuff = [(nid, attrs) for nid, attrs in self.g.G.nodes(data=True)]
         len_stuff = len(stuff)
 
-        index=0
+        index = 0
         while index < len_stuff:
             # validate item
             updated_len_stuff = len(stuff)
@@ -97,100 +99,75 @@ class World:
 
             node_type = attrs.get("type")
 
-            if node_type == "PAYLOAD":
-                pass
+            if node_type == "PARTICLE":
+                self.charged_particle_handler.update(nid, attrs)
+
             index += 1
             self.render(node_type, attrs, nid)
 
-
-
     def render(self, node_type, attrs, nid):
 
-        if node_type == "CORE_SURFACE_AREA":
+        if node_type == "PARTICLE":
             # todo calc i each run the exact shape of the cell to adapt the sa on it
             self.pg_renderer.render(attrs, nid, scale=self.scale)
 
-        elif node_type == "PAYLOAD":
-            self.pg_renderer.render(attrs, nid, scale=self.scale)
-
-        elif node_type == "NEUROTRANSMITTER":
-            self.pg_renderer.render(attrs, nid, scale=self.scale)
-
-        elif node_type == "AXON":
-            self.pg_renderer.render(attrs, nid, scale=self.scale)
-
-        elif node_type == "DENDRITE":
-            self.pg_renderer.render(attrs, nid, scale=self.scale)
-
-        elif node_type == "CELL":
-            self.pg_renderer.render(attrs, nid, scale=self.scale)
-
-
     def render_edges(self):
-        for src, trgt in self.g_utils.G.edges():
-            #print("src, trgt", src, trgt)
-            src_attrs = self.g_utils.G.nodes[src]
-            trgt_attrs = self.g_utils.G.nodes[trgt]
+        for src, trgt in self.g.G.edges():
+            # print("src, trgt", src, trgt)
+            src_attrs = self.g.G.nodes[src]
+            trgt_attrs = self.g.G.nodes[trgt]
 
             # Skip invalid edge IDs
-            src_type= src_attrs.get("type")
-            trgt_type= trgt_attrs.get("type")
-            #print("src_type LINE:", src_type, trgt_type)
+            src_type = src_attrs.get("type")
+            trgt_type = trgt_attrs.get("type")
+            # print("src_type LINE:", src_type, trgt_type)
 
             if src_type == "AXON" and trgt_type == "DENDRITE":
                 src_pos = src_attrs.get("pos")
                 trgt_pos = trgt_attrs.get("pos")
 
-
                 start = (src_pos[0], src_pos[1])
                 end = (trgt_pos[0], trgt_pos[1])
-                #print("DRAW LINE:", f"{src}:{src_type}:{start}", f"{trgt}:{trgt_type}:{end}")
+                # print("DRAW LINE:", f"{src}:{src_type}:{start}", f"{trgt}:{trgt_type}:{end}")
 
                 pygame.draw.line(self.screen, (0, 0, 255), start, end, width=1)
 
-        #asyncio.run(self.g_utils.batch_commit())
-
-
+        # asyncio.run(self.g.batch_commit())
 
     def update_G(self):
         # Update G
-        for k, v in self.g_utils.schemas.items():
+        for k, v in self.g.schemas.items():
             # Update nodes
             for item in v["rows"]:
-                self.g_utils.G.add_node(
+                self.g.G.add_node(
                     item["id"],
-                    **{k:v for k,v in item.items() if k != "id"}
+                    **{k: v for k, v in item.items() if k != "id"}
                 )
-                v["rows"]=[]
+                v["rows"] = []
         # Update edges
-        for item in self.g_utils.cache:
-            self.g_utils.G.add_edge(
+        for item in self.g.cache:
+            self.g.G.add_edge(
                 item["src"],
                 item["trgt"],
-                attrs={k:v for k,v in item.items() if k not in ["src", "trt"]},
+                attrs={k: v for k, v in item.items() if k not in ["src", "trt"]},
             )
-        self.g_utils.cache = []
+        self.g.cache = []
 
         # Rm nodes & reset
-        self.g_utils.clear_cache()
-        self.g_utils.cache_trash=[]
-
-
-
-
-
+        self.g.clear_cache()
+        self.g.cache_trash = []
 
     def run(self):
         """For changes of cell / env (intra<->extra) graph repr way better"""
 
         # -< einfach ions in cell darstellen ->
-        #asyncio.run(self.wol.load_objects())
+        # asyncio.run(self.wol.load_objects())
         self.init_world()
         running = True
-        index=0
+        index = 0
         while running:
             mouse_pos = pygame.mouse.get_pos()
-            #print("Loop", index)
+            # print("Loop", index)
             index += 1
             # todo get direct cell & ion neighbor from pos -> in feedback loop
             self.clock.tick(self.fps)
@@ -206,7 +183,7 @@ class World:
             self.screen.fill((0, 0, 0))  # Black
 
             # Update Objects
-            self.update_loop(mouse_pos)
+            self.update_loop()
 
             # Render objects
 
@@ -216,7 +193,7 @@ class World:
 
 
 
-
-
-
-
+if __name__ == "__main__":
+    g = GraphUtils()
+    w = World(g)
+    w.run()
