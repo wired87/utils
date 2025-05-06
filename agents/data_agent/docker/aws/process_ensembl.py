@@ -6,7 +6,7 @@ import boto3
 
 from aiolimiter import AsyncLimiter
 
-from gnn.processing.model.main import asave_data_checkpoint
+from utils.gnn.processing.model.main import asave_data_checkpoint
 
 """Mared issues: 
 chromosome HSCHR6_MHC_MCF_CTG1

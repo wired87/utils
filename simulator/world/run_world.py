@@ -25,7 +25,7 @@ class WorldRunner:
     fake till make
     """
 
-    def __init__(self, g: GraphUtils, env_id:str, user_id=TEST_USER_ID):
+    def __init__(self, g: GraphUtils, env_id:str, user_id=TEST_USER_ID, local_g_path=None):
 
         self.g = g
         self.env_id = env_id
@@ -44,7 +44,8 @@ class WorldRunner:
         self.wol = WorldObjectLoader(
             g,
             env_id,
-            user_id
+            user_id,
+            local_g_path=local_g_path
         )
         self.charged_particle_handler = ChargedParticleHandler(
             g, user_id

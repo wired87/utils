@@ -1,4 +1,5 @@
 from _google.bq.bq_handler import BQCore
+from utils.agents.data_agent.docker.aws.process_ensembl import aread_json_content
 from utils.gnn.embedder import embed
 from utils.file.aread_json import aread_content
 
@@ -56,17 +57,21 @@ class GraphUtils(
             sp_dbid=None,
             nx_only=False,
             G=None,
-            dataset=None
+            dataset=None,
+            g_from_path=None,
     ):
         self.dataset=dataset
         SpannerAsyncHelper.__init__(self, sp_dbid)
         SpannerGraphLoader.__init__(self, sp_dbid)
         BQCore.__init__(self, dataset_id=sp_dbid)
+        self.g_from_path=g_from_path
+        self.get_nx_graph(g_from_path, G)
 
         #ABQHandler.__init__(self, dataset=dataset)
         #BigQueryGraphHandler.__init__(self)
 
-        self.G = G or nx.Graph()
+
+
         self.table_name = table_name
         self.upload_to = upload_to
         self.bucket = GBucket()
@@ -94,6 +99,25 @@ class GraphUtils(
         self.runs = 0
         self.all_tables = self.list_spanner_tables() if upload_to == "sp" else self.get_tables()
         self.nx_only = nx_only
+
+
+
+    def get_nx_graph(self, g_from_path, G):
+        if g_from_path is not None:
+            if os.path.exists(g_from_path):
+                self.G = self.load_graph()
+        if G is not None:
+            self.G = G
+        else:
+            self.G = nx.Graph()
+        print("Local Graph loaded")
+
+
+    def save_graph(self, dest_name):
+        data = nx.node_link_data(self.G)
+        with open(f"{dest_name}", "w") as f:
+            json.dump(data, f)
+        print("Graph saved:", dest_name)
 
     ####################################
     # CORE
@@ -459,7 +483,7 @@ class GraphUtils(
         else:
             for k, v in self.schemas.items():
                 # Need to Stage changes
-                self.bq_insert(table_id=k, rows=v["rows"])
+                self.bq_insert(table_id=k, rows=v["rows"], schema=v["schema"])
 
     def upsert_batch(self):
         if self.upload_to == "sp":
@@ -677,11 +701,13 @@ class GraphUtils(
                 if k not in node_data:
                     self.G.nodes[src][k] = v
 
-    def load_graph(self, graph_file):
+    def load_graph(self, local_g_path=None):
+        if local_g_path is None:
+            local_g_path = self.g_from_path
         """Loads the networkx graph from a JSON file."""
-        if graph_file:
-            cpr(f"📂 Loading graph from {graph_file}...")
-            with open(graph_file, "r", encoding="utf-8") as f:
+        if local_g_path is not None:
+            cpr(f"📂 Loading graph from {local_g_path}...")
+            with open(local_g_path, "r", encoding="utf-8") as f:
                 graph_data = json.load(f)  # Use json.load() for files, not json.loads()
             self.graph = nx.node_link_graph(graph_data)
             cpr(f"✅ Graph loaded! {len(self.graph.nodes)} nodes, {len(self.graph.edges)} edges.")

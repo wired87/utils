@@ -1,14 +1,16 @@
 import asyncio
+import os
 
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from bm.settings import TEST_USER_ID
+from utils.simulator.world.create_world import CreateWorld
 from utils.simulator.world.run_world import WorldRunner
 from utils.utils import GraphUtils
 
-
+LOAD_GRAPHP=r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\local_graph"
 
 class S(serializers.Serializer):
     user_id = serializers.CharField(
@@ -19,7 +21,12 @@ class S(serializers.Serializer):
         help_text="ID of ENV that should be run",
         default="env_rajtigesomnlhfyqzbvx"
     )
+particle_concentration_matrix = {
+    "electron": 5, #1e20,   # 100,000,000,000,000,000,000 electrons per m³
+    "proton":   5, # 1e19,  # 10,000,000,000,000,000,000 protons per m³
+    "neutron":  5, #1e15,   # 1,000,000,000,000,000 neutrons per m³
 
+}
 class WorldRunnerView(APIView):
     serializer_class = S
 
@@ -30,20 +37,40 @@ class WorldRunnerView(APIView):
 
         data = request.data
         user_id = data.get("user_id", TEST_USER_ID)
-        env_id = data.get("env_id", "env_rajtigesomnlhfyqzbvx")
+        env_id = data.get("env_id", "env_bare_rajtigesomnlhfyqzbvx")
+        if env_id is None or len(env_id.strip()) == 0:
+            env_id = "env_bare_rajtigesomnlhfyqzbvx"
 
-        # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)
-        g = GraphUtils(
-            upload_to="bq",
-            sp_dbid="brainmaster",
-            nx_only=True
-        )
+        g_path = os.path.join(LOAD_GRAPHP, f"{env_id}.json")
+        if not os.path.exists(g_path):
+            # create
+            print("Create Graph")
+            g = GraphUtils(
+                upload_to="bq",
+                sp_dbid="brainmaster"
+            )
+            world_creator = CreateWorld(g, particle_concentration_matrix, world_type="bare", user_id=TEST_USER_ID, g_path=g_path)
+
+            asyncio.run(world_creator.hello_world())
+            # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)
+        else:
+            print("Graph already exists")
+            g = GraphUtils(
+                upload_to="bq",
+                sp_dbid="brainmaster",
+                nx_only=True,
+                g_from_path=g_path,
+            )
+
         world_runner = WorldRunner(
             g,
             env_id,
             user_id,
+            local_g_path=g_path
         )
+
         world_runner.run()
+
         # return StreamingHttpResponse({"status": "success"}, status=200)
         return Response({"status": "success"}, status=200)
 

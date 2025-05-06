@@ -9,7 +9,7 @@ class WorldObjectLoader(SpannerAsyncHelper, WorldCore):
 
 
     """
-    def __init__(self, g: GraphUtils, user_id, env_id):
+    def __init__(self, g: GraphUtils, user_id, env_id, local_g_path):
         super().__init__()
         self.g=g
         self.user_id = user_id
@@ -19,11 +19,12 @@ class WorldObjectLoader(SpannerAsyncHelper, WorldCore):
         self.ion_types = None
         self.env_cell_ids = None
         self.membranes = None
-        self.testing=True  #-> get from BQ
+        self.testing = True  #-> get from BQ
+        self.local_g_path = local_g_path
 
     async def load_local_graph(self):
 
-        if self.testing:
+        if self.testing is False:
             print("Load graph")
             # Get ENV entry from BQ
             query=self.g.get_entry_from_table_query(
@@ -50,7 +51,6 @@ class WorldObjectLoader(SpannerAsyncHelper, WorldCore):
             self.g.print_status()
             print("Finished local loading")
             return
-
 
         # Get Env
         query =f"""

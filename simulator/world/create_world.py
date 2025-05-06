@@ -40,7 +40,7 @@ class CreateWorld:
     Simulate interactions
     """
 
-    def __init__(self, g:GraphUtils, particle_conc, world_type="bare", user_id=None):
+    def __init__(self, g:GraphUtils, particle_conc, world_type="bare", user_id=None, g_path=None):
         self.user_id = user_id
         self.world_type=world_type
         self.particle_conc = particle_conc
@@ -57,7 +57,7 @@ class CreateWorld:
         self.current_file = None
         self.ion_count = 0
         self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
-
+        self.g_path=g_path
         self.overall_modulator_args = {
             "pos_x": 0.0,
             "pos_y": 0.0,
@@ -87,11 +87,13 @@ class CreateWorld:
         )
 
         self.g.print_status_G()
-
-        print("Start batch")
-        if self.g.upload_to == "sp":
-            await self.g.acreate_session()
-        await self.g.abatch_commit()
+        if self.testing:
+            self.g.save_graph(dest_name=self.g_path)
+        else:
+            print("Start batch")
+            if self.g.upload_to == "sp":
+                await self.g.acreate_session()
+            await self.g.abatch_commit()
 
         """# Create Spanner Graph
         print("Create Spanner Graph")
