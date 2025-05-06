@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from bm.settings import TEST_USER_ID
+from utils.graph.get_utils import get_graph_utils
 from utils.simulator.world.create_world import CreateWorld
-from utils.utils import GraphUtils
 
 particle_concentration_matrix = {
     "electron": 5, #1e20,   # 100,000,000,000,000,000,000 electrons per m³
@@ -36,7 +36,7 @@ class S(serializers.Serializer):
 
 class CreateWorldView(APIView):
     serializer_class = S
-
+    testing=True
     def post(self, request):
         """
         Entry is alltimes 2 nodes with a edge connection
@@ -47,9 +47,10 @@ class CreateWorldView(APIView):
         particle_conc = particle_concentration_matrix#data.get("particle_conc")
 
         # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)
-        g = GraphUtils(
+        g = get_graph_utils(
+            local=self.testing,
             upload_to="bq",
-            sp_dbid="brainmaster"
+            database="brainmaster"
         )
 
         world_creator = CreateWorld(g, particle_conc, world_type, user_id=TEST_USER_ID)

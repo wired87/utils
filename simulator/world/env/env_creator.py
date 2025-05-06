@@ -1,4 +1,5 @@
 import os
+import pprint
 
 from utils.file.yaml import load_yaml
 
@@ -10,6 +11,9 @@ class ENVCCreator:
         self.content_base_path = r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\world\env"
 
         self.content = self.validate_env_type()
+        self.uniform_cp = r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\world\env\uniform_env.yaml"
+        self.unic=load_yaml(self.uniform_cp)
+
         self.g_utils = g
         self.user_id = user_id
         self.envc_id = f"env_{self.world_type}_{self.user_id}"
@@ -32,13 +36,19 @@ class ENVCCreator:
         """
         print("Creating ENVC...")
         self.content["id"] = self.envc_id
-        self.g_utils.add_node(
-            attrs=dict(
+        env_c= dict(
                 world_type=self.world_type,
                 type=self.layer,
                 parent=[self.user_id],
-                **self.content
+                **self.content,
+                **self.unic,
             ),
+
+        print("ENVC")
+        pprint.pp(env_c)
+
+        self.g_utils.add_node(
+            attrs=env_c
         )
         print("Link USER to ENV")
         self.g_utils.add_edge(

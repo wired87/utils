@@ -6,9 +6,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from bm.settings import TEST_USER_ID
+from utils.graph.get_utils import get_graph_utils
 from utils.simulator.world.create_world import CreateWorld
 from utils.simulator.world.run_world import WorldRunner
-from utils.utils import GraphUtils
 
 LOAD_GRAPHP=r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\local_graph"
 
@@ -29,7 +29,7 @@ particle_concentration_matrix = {
 }
 class WorldRunnerView(APIView):
     serializer_class = S
-
+    testing=True
     def post(self, request):
         """
         Entry is alltimes 2 nodes with a edge connection
@@ -42,12 +42,18 @@ class WorldRunnerView(APIView):
             env_id = "env_bare_rajtigesomnlhfyqzbvx"
 
         g_path = os.path.join(LOAD_GRAPHP, f"{env_id}.json")
+
+        # validate needed Graph
+        g_obj = get_graph_utils(
+            local=self.testing,
+        )
+
         if not os.path.exists(g_path):
             # create
             print("Create Graph")
-            g = GraphUtils(
+            g = g_obj(
                 upload_to="bq",
-                sp_dbid="brainmaster"
+                database="brainmaster"
             )
             world_creator = CreateWorld(g, particle_concentration_matrix, world_type="bare", user_id=TEST_USER_ID, g_path=g_path)
 
@@ -55,9 +61,9 @@ class WorldRunnerView(APIView):
             # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)
         else:
             print("Graph already exists")
-            g = GraphUtils(
+            g = g_obj(
                 upload_to="bq",
-                sp_dbid="brainmaster",
+                database="brainmaster",
                 nx_only=True,
                 g_from_path=g_path,
             )

@@ -1,13 +1,9 @@
-import asyncio
-
 import pygame
 
 from bm.settings import TEST_USER_ID
 from physics.particles.particle_updator import ChargedParticleHandler
-from utils.simulator.utils.load_world_objects import WorldObjectLoader
 from utils.pygame.renderer import PyGameRenderer
 
-from utils.utils import GraphUtils
 
 
 class WorldRunner:
@@ -25,7 +21,7 @@ class WorldRunner:
     fake till make
     """
 
-    def __init__(self, g: GraphUtils, env_id:str, user_id=TEST_USER_ID, local_g_path=None):
+    def __init__(self, g, env_id:str, user_id=TEST_USER_ID, local_g_path=None):
 
         self.g = g
         self.env_id = env_id
@@ -41,12 +37,12 @@ class WorldRunner:
         self.screen = None
         self.screen = None
 
-        self.wol = WorldObjectLoader(
+        """self.wol = WorldObjectLoader(
             g,
             env_id,
             user_id,
             local_g_path=local_g_path
-        )
+        )"""
         self.charged_particle_handler = ChargedParticleHandler(
             g, user_id
         )
@@ -64,15 +60,18 @@ class WorldRunner:
 
     def init_world(self):
         pygame.init()
-        asyncio.run(self.wol.load_local_graph())
+        #asyncio.run(self.wol.load_local_graph())
         # init env
         for nid, attrs in self.g.G.nodes(data=True):
             if attrs.get("type") == "ENV":
-                self.width = attrs.get("screen_size", 500)[1]
-                self.height = attrs.get("screen_size", 500)[0]
+                screen_dim=attrs.get("screen_dim")
+                self.height = screen_dim[1]
+                self.width = screen_dim[0]
+
                 #self.amount_cells = attrs.get("cell_concentration")
 
         # Init Surface
+        print("screen_dim", self.width, self.height)
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Ion Field Simulation")
 

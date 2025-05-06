@@ -2,13 +2,13 @@ import asyncio
 
 from bm.settings import TEST_USER_ID
 from physics.particles.particle_creator import ParticleCreator
+from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.simulator.world.env.env_creator import ENVCCreator
-from utils.utils import GraphUtils
 
 
 class WorldCore:
-    def __init__(self, user_id=None):
-        self.g = GraphUtils(upload_to="sp", cache_only=False)
+    def __init__(self, g, user_id=None):
+        self.g = g
 
         self.user_id = user_id or TEST_USER_ID
         self.graph_name = "BRAINMASTER"
@@ -40,7 +40,14 @@ class CreateWorld:
     Simulate interactions
     """
 
-    def __init__(self, g:GraphUtils, particle_conc, world_type="bare", user_id=None, g_path=None):
+    def __init__(
+            self,
+             g:LocalGraphUtils, # or GraphUtils for prod
+            particle_conc,
+            world_type="bare",
+            user_id=None,
+            g_path=None,
+    ):
         self.user_id = user_id
         self.world_type=world_type
         self.particle_conc = particle_conc
@@ -86,7 +93,8 @@ class CreateWorld:
             particle_conc=self.particle_conc
         )
 
-        self.g.print_status_G()
+        self.g.print_status()
+
         if self.testing:
             self.g.save_graph(dest_name=self.g_path)
         else:

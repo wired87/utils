@@ -1,17 +1,16 @@
 import pprint
-from _google.spanner.acore import SpannerAsyncHelper
+#from _google.spanner.acore import SpannerAsyncHelper
 from utils.simulator.world.create_world import WorldCore
-from utils.utils import GraphUtils
 
 
-class WorldObjectLoader(SpannerAsyncHelper, WorldCore):
-    """
+class WorldObjectLoader(
+    #SpannerAsyncHelper,
+    WorldCore
+):
 
-
-    """
-    def __init__(self, g: GraphUtils, user_id, env_id, local_g_path):
+    def __init__(self, g, user_id, env_id, local_g_path):
         super().__init__()
-        self.g=g
+        self.g = g
         self.user_id = user_id
         self.env_id = env_id
 

@@ -1,0 +1,7 @@
+screen_dim:
+  - 700 # w
+  - 1200 # h
+  - 700 # d
+
+m_factor: 10000
+cell_concentration: 16
