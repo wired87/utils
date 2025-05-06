@@ -3,13 +3,13 @@ from typing import List
 import numpy as np
 
 class Mover:
-    def __init__(self, g_utils):
+    def __init__(self, g):
 
         # Get realistic diffusion coefficient in µm²/s
         self.cell_index = 0
         self.target = None
         self.position = None
-        self.g_utils = g_utils
+        self.g = g
         # Time step and movement step
         self.time_step = 0.001  # seconds
 
@@ -36,7 +36,7 @@ class Mover:
                 neighbor_attrs = neighbor[1]
             else:
                 neighbor_id = neighbor
-                neighbor_attrs = self.g_utils.G.nodes[neighbor_id]
+                neighbor_attrs = self.g.G.nodes[neighbor_id]
 
             pos = neighbor_attrs.get("pos")
 
@@ -122,11 +122,11 @@ class Mover:
         #prints each call
         return f"<{self.position.round(2)}>"
 
-    def spread_cells(self, amount_cells, screen_width, screen_height, self_attrs):
+    def spread_objects(self, amount_items, screen_width, screen_height, self_attrs):
         self.cell_index += 1
 
-        cols = int(amount_cells ** 0.5)
-        rows = (amount_cells + cols - 1) // cols
+        cols = int(amount_items ** 0.5)
+        rows = (amount_items + cols - 1) // cols
 
         # Cell index is 1-based right now, fix that:
         index = self.cell_index - 1

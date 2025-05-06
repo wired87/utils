@@ -1,0 +1,136 @@
+- name: Coulomb's Law
+  description: "Calculate the electrostatic force between two point charges."
+  returns: "electrostatic_force"
+  equation: "k_e * charge1 * charge2 / r**2"
+  parameters:
+    - charge1: [float]
+    - charge2: [float]
+    - r_vec: [np.ndarray]
+
+- name: Newton's Second Law
+  description: "Calculate the force vector given mass and acceleration."
+  returns: "force_vector"
+  equation: "mass * acceleration"
+  parameters:
+    - mass: [float]
+    - acceleration: [np.ndarray]
+
+- name: Kinetic Energy
+  description: "Calculate the kinetic energy of an object given its mass and velocity."
+  returns: "kinetic_energy"
+  equation: "0.5 * mass * velocity**2"
+  parameters:
+    - mass: [float]
+    - velocity: [np.ndarray]
+
+- name: Gravitational Potential Energy
+  description: "Calculate the gravitational potential energy for a mass at a given position."
+  returns: "gravitational_potential_energy"
+  equation: "-mass * dot(pos, g_vec)"
+  parameters:
+    - mass: [float]
+    - pos: [np.ndarray]
+    - g_vec: [np.ndarray]
+
+- name: Ohm's Law
+  description: "Calculate the current based on voltage and resistance."
+  returns: "current"
+  equation: "voltage / resistance"
+  parameters:
+    - voltage: [float]
+    - resistance: [float]
+
+- name: Einstein's Mass-Energy Equivalence
+  description: "Calculate the energy equivalent of a given mass using Einstein's equation."
+  returns: "mass_energy"
+  equation: "mass * c**2"
+  parameters:
+    - mass: [float]
+    - c: [float, 299_792_458]
+
+- name: Schrödinger's Energy (3D particle in a box)
+  description: "Calculate the energy of a particle in a 3D box based on quantum mechanics."
+  returns: "quantum_energy"
+  equation: "(h**2 * (n_x**2 / L_x**2 + n_y**2 / L_y**2 + n_z**2 / L_z**2)) / (8 * m)"
+  parameters:
+    - n_xyz: [np.ndarray]
+    - m: [float]
+    - L_xyz: [np.ndarray]
+    - h: [float, 6.62607015e-34]
+
+- name: First Law of Thermodynamics
+  description: "Calculate the internal energy change from heat and work."
+  returns: "internal_energy"
+  equation: "Q - W"
+  parameters:
+    - Q: [float]
+    - W: [float]
+
+- name: Second Law of Thermodynamics
+  description: "Calculate the change in entropy from heat and temperature."
+  returns: "entropy_change"
+  equation: "Q / T"
+  parameters:
+    - Q: [float]
+    - T: [float]
+
+- name: Gauss's Law
+  description: "Calculate the electric flux through a surface using Gauss's Law."
+  returns: "electric_flux"
+  equation: "dot(E_field, area) / epsilon_0"
+  parameters:
+    - E_field: [np.ndarray]
+    - area: [np.ndarray]
+    - epsilon_0: [float, 8.854187817e-12]
+
+- name: Boltzmann Entropy
+  description: "Calculate the entropy of a system using the Boltzmann entropy formula."
+  returns: "entropy"
+  equation: "k_B * log(W)"
+  parameters:
+    - W: [float]
+    - k_B: [float, 1.380649e-23]
+
+- name: Heisenberg Uncertainty Principle
+  description: "Calculate the uncertainty in momentum given position uncertainty."
+  returns: "uncertainty_momentum"
+  equation: "h / (4 * pi * delta_x)"
+  parameters:
+    - delta_x: [float]
+    - h: [float, 6.62607015e-34]
+
+- name: Lorentz Force
+  description: "Calculate the force on a charge moving through a magnetic field."
+  returns: "lorentz_force"
+  equation: "q * cross(v, B)"
+  parameters:
+    - q: [float]
+    - v: [np.ndarray]
+    - B: [np.ndarray]
+
+- name: Hooke's Law
+  description: "Calculate the restoring force exerted by a spring based on displacement."
+  returns: "spring_force"
+  equation: "-spring_constant * displacement"
+  parameters:
+    - spring_constant: [float]
+    - displacement: [np.ndarray]
+
+- name: Compute Gravity Vector
+  description: "Compute the gravity vector at a given position from the center of the Earth."
+  returns: "g_vec"
+  equation: "-g_mag * (r_vec / r)"
+  parameters:
+    - pos: [np.ndarray]
+    - G: [float, 6.67430e-11] # second val = default
+    - M: [float, 5.972e24]
+    - center: [np.ndarray, [0, 0, 0]]
+
+- name: Self Gravity Field
+  description: "Calculate the gravity field from a single particle at a given position."
+  returns: "g_vec"
+  equation: "-g_mag * (r_vec / r)"
+  parameters:
+    - particle: [dict]
+    - target_pos: [np.ndarray]
+    - G: [float, 6.67430e-11]

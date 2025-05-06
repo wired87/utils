@@ -15,8 +15,9 @@ class LocalGraphUtils(Utils):
 
     def __init__(self, G=None, g_from_path=None, nx_only=False, **args):
         super().__init__()
+        self.G = None
         self.g_from_path=g_from_path
-        self.get_nx_graph(G, g_from_path)
+        self.get_nx_graph(G)
         self.nx_only = nx_only
         self.manipulator = Manipulator()
 
@@ -129,16 +130,13 @@ class LocalGraphUtils(Utils):
     # HELPER
     ####################################
 
-
-
-
-    def get_nx_graph(self, G, g_from_path):
-        if g_from_path is not None:
-            if os.path.exists(g_from_path):
-                self.G = self.load_graph()
+    def get_nx_graph(self, G):
+        if self.g_from_path is not None:
+            if os.path.exists(self.g_from_path):
+                self.load_graph()
         if G is not None:
             self.G = G
-        else:
+        elif self.G is None:
             self.G = nx.Graph()
         print("Local Graph loaded")
 
@@ -154,12 +152,11 @@ class LocalGraphUtils(Utils):
         if local_g_path is None:
             local_g_path = self.g_from_path
         """Loads the networkx graph from a JSON file."""
-        if local_g_path is not None:
-            cpr(f"📂 Loading graph from {local_g_path}...")
-            with open(local_g_path, "r", encoding="utf-8") as f:
-                graph_data = json.load(f)  # Use json.load() for files, not json.loads()
-            self.G = nx.node_link_graph(graph_data)
-            cpr(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
+        cpr(f"📂 Loading graph from {local_g_path}...")
+        with open(local_g_path, "r", encoding="utf-8") as f:
+            graph_data = json.load(f)  # Use json.load() for files, not json.loads()
+        self.G = nx.node_link_graph(graph_data)
+        cpr(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
 
     def print_status_G(self):
@@ -170,7 +167,6 @@ class LocalGraphUtils(Utils):
             if node_type not in nodes:
                 nodes[node_type] = 0
             nodes[node_type] += 1
-
         pprint.pp(nodes)
 
     def print_status(self):

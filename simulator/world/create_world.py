@@ -46,7 +46,6 @@ class CreateWorld:
             particle_conc,
             world_type="bare",
             user_id=None,
-            g_path=None,
     ):
         self.user_id = user_id
         self.world_type=world_type
@@ -64,7 +63,6 @@ class CreateWorld:
         self.current_file = None
         self.ion_count = 0
         self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
-        self.g_path=g_path
         self.overall_modulator_args = {
             "pos_x": 0.0,
             "pos_y": 0.0,
@@ -96,7 +94,7 @@ class CreateWorld:
         self.g.print_status()
 
         if self.testing:
-            self.g.save_graph(dest_name=self.g_path)
+            self.g.save_graph(dest_name=self.g.g_path)
         else:
             print("Start batch")
             if self.g.upload_to == "sp":

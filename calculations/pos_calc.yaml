@@ -1,0 +1,9 @@
+- name: Change in Position
+  description: "Calculate the change in position of an object based on forces acting on it, using Newton's second law and Kinetic Energy."
+  returns: "position_change"
+  equation: "position + (force * delta_t) / mass"
+  parameters:
+    - position: [np.ndarray]   # Current position of the object
+    - force: [np.ndarray]      # Net force acting on the object (calculated from Coulomb's law, Lorentz force, etc.)
+    - delta_t: [float]         # Time step over which the change is calculated
+    - mass: [float]            # Mass of the object

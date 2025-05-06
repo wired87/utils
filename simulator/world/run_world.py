@@ -1,9 +1,12 @@
+import asyncio
+
 import pygame
 
+from bm.logging_custom import cpr
 from bm.settings import TEST_USER_ID
 from physics.particles.particle_updator import ChargedParticleHandler
 from utils.pygame.renderer import PyGameRenderer
-
+from utils.simulator.utils.mover import Mover
 
 
 class WorldRunner:
@@ -21,9 +24,11 @@ class WorldRunner:
     fake till make
     """
 
-    def __init__(self, g, env_id:str, user_id=TEST_USER_ID, local_g_path=None):
+    def __init__(self, g, env_id: str, user_id=TEST_USER_ID, local_g_path=None):
 
         self.g = g
+        cpr(f"✅ Graph WorldRunner: {len(self.g.G.nodes)} nodes, {len(self.g.G.edges)} edges.")
+
         self.env_id = env_id
         self.scale = 1e7
         self.ion_scale = 1e9
@@ -54,26 +59,32 @@ class WorldRunner:
         self.D = None
 
         self.testing = True
-
+        self.mover = Mover(self.g)
         # CLASSES
         # self.env_up = ENVUpdator()
 
+        # Particles include in the initial spread process
+        self.spread_items_type = [
+            "PARTICLE"
+        ]
+
     def init_world(self):
         pygame.init()
-        #asyncio.run(self.wol.load_local_graph())
+        # asyncio.run(self.wol.load_local_graph())
         # init env
         for nid, attrs in self.g.G.nodes(data=True):
             if attrs.get("type") == "ENV":
-                screen_dim=attrs.get("screen_dim")
+                print("ENV attrs", attrs)
+                screen_dim = attrs.get("screen_dim")
                 self.height = screen_dim[1]
                 self.width = screen_dim[0]
+                # self.amount_cells = attrs.get("cell_concentration")
 
-                #self.amount_cells = attrs.get("cell_concentration")
 
         # Init Surface
         print("screen_dim", self.width, self.height)
         self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("Ion Field Simulation")
+        pygame.display.set_caption("Particle Field Simulation")
 
         # Init PG Renderer
         self.pg_renderer = PyGameRenderer(
@@ -81,7 +92,25 @@ class WorldRunner:
             screen=self.screen,
             scale=self.scale
         )
+
+        # Spread items
         print("World initialized")
+
+    def spread_items(self):
+        spread_items = [
+            (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
+            attrs.get("type") in self.spread_items_type
+        ]
+        for nid, attrs in spread_items:
+            init = attrs.get("init")
+            if init is True:
+                self_attrs = self.mover.spread_objects(
+                    amount_items=len(spread_items),
+                    screen_width=self.width,
+                    screen_height=self.height,
+                    self_attrs=attrs
+                )
+                self.g.G.nodes[nid].update(self_attrs)
 
     def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G
@@ -100,7 +129,7 @@ class WorldRunner:
             node_type = attrs.get("type")
 
             if node_type == "PARTICLE":
-                self.charged_particle_handler.update(nid, attrs)
+                asyncio.run(self.charged_particle_handler.update(nid, attrs))
 
             index += 1
             self.render(node_type, attrs, nid)
@@ -122,7 +151,7 @@ class WorldRunner:
             trgt_type = trgt_attrs.get("type")
             # print("src_type LINE:", src_type, trgt_type)
 
-            if src_type == "AXON" and trgt_type == "DENDRITE":
+            if src_type == "PARTICLE" and trgt_type == "PARTICLE":
                 src_pos = src_attrs.get("pos")
                 trgt_pos = trgt_attrs.get("pos")
 
@@ -188,4 +217,3 @@ class WorldRunner:
             pygame.display.update()
 
         pygame.quit()
-

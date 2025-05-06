@@ -42,7 +42,7 @@ class ENVCCreator:
                 parent=[self.user_id],
                 **self.content,
                 **self.unic,
-            ),
+            )
 
         print("ENVC")
         pprint.pp(env_c)
