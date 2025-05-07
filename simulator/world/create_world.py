@@ -91,10 +91,10 @@ class CreateWorld:
             particle_conc=self.particle_conc
         )
 
-        self.g.print_status()
+        self.g.print_status_G()
 
         if self.testing:
-            self.g.save_graph(dest_name=self.g.g_path)
+            self.g.save_graph(dest_name=self.g.g_from_path)
         else:
             print("Start batch")
             if self.g.upload_to == "sp":

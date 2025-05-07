@@ -58,7 +58,7 @@ class WorldRunnerView(APIView):
         )
         if not os.path.exists(g_path):
 
-            world_creator = CreateWorld(g, particle_concentration_matrix, world_type="bare", user_id=TEST_USER_ID, g_path=g_path)
+            world_creator = CreateWorld(g, particle_concentration_matrix, world_type="bare", user_id=TEST_USER_ID)
 
             asyncio.run(world_creator.hello_world())
             # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)

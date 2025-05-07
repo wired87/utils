@@ -2,7 +2,7 @@ import ast
 import pprint
 
 
-class FunctionExtractor:
+class Calculator:
     def __init__(self, code_str: str, g):
         self.code_str = code_str
         self.function_data=[]

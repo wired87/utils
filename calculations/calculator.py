@@ -1,155 +1,214 @@
-import ast
-import pprint
+import numpy as np
 import sympy as sp
+
+from utils.calculations import GRAVITYC, POSC, CORE_LAWS_C
 
 
 class Calculator:
-    def __init__(self, yaml_data, g):
-        """
-        Constructor for the Calculator class.
-
-        Parameters:
-        - yaml_data: The YAML content containing function definitions and parameters.
-        - g: An external object (possibly a database or context) for retrieving values.
-        """
-        self.yaml_data = yaml_data
+    def __init__(self, g):
         self.g = g
-        self.function_data = []
-        print("Extracting functions and parameters from YAML data")
-        self.extract_functions_from_yaml()
+        self.calculations = list(
+                CORE_LAWS_C +
+                POSC +
+                GRAVITYC
+        )
 
-    def extract_functions_from_yaml(self):
+    def main(self, parent, child, edge_attrs, env_attrs):
+        print("Start calc process")
+
+        sources = {
+            "parent":parent,
+            "child": child,
+            "edge_attrs":edge_attrs,
+            "env_attrs":env_attrs
+        }
+
+
+        # Get function
+        for calc_item in self.calculations:
+            result, key = self._calc(
+                calc_item,
+                sources
+            )
+            if result is not None:
+                if key in parent:
+                    parent[key] = result
+
+                elif key in edge_attrs:
+                    parent[key] = result
+
+                elif key in env_attrs:
+                    parent[key] = result
+
+        print("Finished calc process")
+        return parent
+
+    def _calc(
+            self,
+            calc_item,
+            sources:dict,
+    ):
+
+        function_name = calc_item["name"]
+        returns = calc_item["returns"]
+        equation = calc_item["equation"]
+        params = calc_item["parameters"]
+
+        # Get Values for params
+        extracted_params, value_dict_dest = self._extract_single_args(
+            params,
+            sources,
+        )
+
+        # Calc
+        result = self._run(equation, eq_args=extracted_params)
+
+        print(f"{function_name} calc result:", result)
+        return result, returns
+
+    def _resolve_arg(self, arg, sources):
+        for calc_item in self.calculations:
+            if calc_item["returns"] == arg:
+                result = self._calc(
+                    calc_item,
+                    sources
+                )
+                return result
+    def _validate_value(self, key, sources, current_loop_object, name):
         """
-        Extracts function information from the provided YAML data, combining the
-        parameter data from the three dictionaries (parent, child, edge_attrs).
+        Case: val1, val2 required
+        Get value from correct dict based on
         """
-        for func in self.yaml_data:
-            function_name = func["name"]
-            description = func["description"]
-            return_key = func["returns"]
-            equation = func["equation"]
-            params = func["parameters"]
+        if key[:-1].isdigit():
+            if int(key) == int("1"):
+                return sources["parent"][name]
+            elif int(key) == int("2"):
+                return sources["child"][name]
+        return current_loop_object[name]
 
-            # Process parameters and default values
-            param_dict = {}
-            for param in params:
-                param_name = param[0]
-                param_type = param[1]
-                param_default = param[2] if len(param) > 2 else None
-                param_dict[param_name] = {
-                    "type": param_type,
-                    "default": param_default
-                }
 
-            self.function_data.append({
-                "def_name": function_name,
-                "description": description,
-                "equation": equation,
-                "params": param_dict,
-                "dest_key": return_key,
-            })
 
-        print("Functions and parameters extracted:")
-        pprint.pp(self.function_data)
 
-    def match_to_powerset(self, powerset):
+
+    def _extract_single_args(self, required_args, sources:dict):
         """
-        Matches function parameters to a given powerset (list of sets of arguments).
+        Tries to collect all arguments required for an equation from provided sources.
+        If a value is not found directly or via default, it attempts to resolve it through another calculation.
         """
-        matched_functions = []
-        for item in self.function_data:
-            param_set = set(item["params"].keys())
-            for power_item in powerset:
-                if param_set == set(power_item):
-                    matched_functions.append(
-                        (item, param_set)
+        collected_args = {}
+        value_dict_dest = None
+
+        for item in required_args:
+            name, last_char = self._validate_arg(item["name"])
+            found = False
+
+            # Add key to in collection
+            key = f"{name}{last_char}" if last_char is not None else name
+
+            # Check all input sources (parent, child, edge_attrs, env_attrs)
+            for origin, object_value in sources.items():
+                if name in object_value:
+                    value = self._validate_value(
+                        key,
+                        sources,
+                        object_value,
+                        name
                     )
-        return matched_functions
+                    print("name, value, required_args", name, value, item)
+                    collected_args[key] = self._convert_type(value, item)
+                    print(f"[FOUND] {name} in input sources: {value}")
+                    found = True
+                    break
 
-    def extract_single_args(self, args, parent, child, edge_attrs, call_args=None):
-        """
-        Aligns parameters from three dictionaries: parent, child, and edge_attrs.
-        """
-        call_args = call_args or {}
-        for arg in args:
-            if arg in parent:
-                call_args[arg] = parent[arg]
-            elif arg in child:
-                call_args[arg] = child[arg]
-            elif arg in edge_attrs:
-                call_args[arg] = edge_attrs[arg]
+            # Check for default value
+            if not found:
+                default = item.get("default_value", None)
+                if default is not None:
+                    print("name, value, required_args", name, default, item)
+                    collected_args[key] = self._convert_type(default, item)
+                    print(f"[DEFAULT] Used default for {name}: {default}")
+                    found = True
 
-            if arg.endswith("1") or arg.endswith("2"):
-                bare_key = arg[:-1]
-                if bare_key in parent and bare_key in child:
-                    call_args[f"{bare_key}1"] = parent[bare_key]
-                    call_args[f"{bare_key}2"] = child[bare_key]
-        return call_args
+            # Try to calculate missing argument via known equations
+            if not found:
+                print(f"[MISSING] {key} not found in sources or defaults. Attempting to calculate...")
+                result = self._resolve_arg(name, sources)
+                if result is None:
+                    print(f"[FAIL] Could not resolve {name}. Aborting argument extraction.")
+                    return None, None
+                collected_args[key] = result
+                print(f"[CALCULATED] {name} was computed as: {result}")
 
-    def run(self, func_name, params):
-        """
-        Runs the extracted function with the given parameters.
-
-        Parameters:
-        - func_name: Name of the function to run.
-        - params: Dictionary containing the parameters for the function.
-        """
-        # Find the function in the function data
-        func_data = next((item for item in self.function_data if item["def_name"] == func_name), None)
-        if not func_data:
-            raise ValueError(f"Function {func_name} not found in the extracted data.")
-
-        # Prepare the function and parameters
-        equation = func_data["equation"]
-        param_dict = func_data["params"]
-
-        # Substitute the parameters in the equation
-        substituted_equation = equation
-        for param_name, param_value in params.items():
-            param_type = param_dict[param_name]["type"]
-            substituted_equation = substituted_equation.replace(param_name, str(param_value))
-
-        # Compute the result using sympy for mathematical expressions
-        result = sp.sympify(substituted_equation)
-
-        return result
+        return collected_args, value_dict_dest
 
 
-# Example usage:
 
-yaml_data = [
-    {
-        "name": "Coulomb's Law",
-        "description": "Calculate the electrostatic force between two point charges.",
-        "returns": "electrostatic_force",
-        "equation": "k_e * charge1 * charge2 / r**2",
-        "parameters": [
-            ["charge1", "float"],
-            ["charge2", "float"],
-            ["r_vec", "np.ndarray"]
-        ]
-    },
-    {
-        "name": "Newton's Second Law",
-        "description": "Calculate the force vector given mass and acceleration.",
-        "returns": "force_vector",
-        "equation": "mass * acceleration",
-        "parameters": [
-            ["mass", "float"],
-            ["acceleration", "np.ndarray"]
-        ]
-    }
-]
+    def _validate_arg(self, arg):
+        last_char = arg[-1]
+        if last_char.isdigit():  # endswith 1,2,3,...
+            base = arg[:-1]
+            return base, last_char
+        return arg, None
 
-# Create a Calculator instance with YAML data and some external context `g`
-calc = Calculator(yaml_data, g=None)
+    def _convert_type(self, value, item):
+        param_type = item["type"]
+        if param_type == "float":
+            return float(value)
+        elif param_type == "np.ndarray":
+            return np.array(value)
+        elif param_type == "int":
+            return int(value)
+        elif param_type == "dict":
+            return dict(value)
+        elif param_type == "np.log":
+            print("np.log param type value", value)
+            return np.log(float(value))
+        else:
+            return value
 
-# Example of running a function (Coulomb's Law) with parameters
-params = {
-    "charge1": 1.0e-6,  # C
-    "charge2": 2.0e-6,  # C
-    "r_vec": [0.1, 0.2, 0.3]  # meters (just for example)
-}
 
-result = calc.run("Coulomb's Law", params)
-print(f"Result: {result}")
+    def _run(self, equation, eq_args):
+        try:
+            result = eval(equation, {"np": np, "sp": sp, **eq_args})
+            return result
+        except Exception as e:
+            print(f"Error evaluating equation: {e}")
+            return None
+
+
+"""
+
+
+    def _extract_single_args2(self, required_args, sources):
+        collected_args = {}
+        value_dict_dest=None
+        for item in required_args:
+            name = item["name"]
+            found = False
+            for source in sources:
+                if name in source:
+                    value = source[name]
+                    collected_args[name] = self._convert_type(name, value, required_args)
+                    found = True
+                    break
+
+            if not found:
+                default = required_args[name].get("default", None)
+                if default is not None:
+                    collected_args[name] = self._convert_type(name, default, required_args)
+                else:
+                    # Required args could not be collected
+                    # from given dicts ->
+                    # try calc missing values from
+                    # equations
+                    result = self._resolve_arg(
+                        name,
+                        sources
+                    )
+                    if result is None:
+                        return None
+                    collected_args[name] = result
+
+        return collected_args, value_dict_dest
+
+"""

@@ -125,7 +125,6 @@ class WorldRunner:
                 index -= (updated_len_stuff - len_stuff)
 
             nid, attrs = stuff[index]
-
             node_type = attrs.get("type")
 
             if node_type == "PARTICLE":

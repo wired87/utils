@@ -2,6 +2,7 @@ import json
 import os
 import pprint
 import re
+from typing import List
 
 import networkx as nx
 from utils.file.flatten_dict import flatten_attributes
@@ -106,19 +107,6 @@ class LocalGraphUtils(Utils):
                 self.G.add_edge(src, trt, **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]})
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
-
-                """else:
-                    self.cache.append(dict(
-                        src=src,
-                        trgt=trt,
-                        **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]}
-                    )
-                )"""
-                # todo skipping error
-
-                # self.G.add_node(src, type=src_layer)
-                # self.G.add_node(trt, type=trgt_layer)
-
         except Exception as e:
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
@@ -161,20 +149,13 @@ class LocalGraphUtils(Utils):
 
     def print_status_G(self):
         print(">>>STATUS")
-        nodes = {}
-        for k, v in self.G.nodes(data=True):
-            node_type = v.get("type")
-            if node_type not in nodes:
-                nodes[node_type] = 0
-            nodes[node_type] += 1
-        pprint.pp(nodes)
+        print(f"📍 Nodes {len(self.G.nodes)}")
+        print(f"📍 Edges {len(self.G.edges)}")
 
     def print_status(self):
         print(">>>STATUS")
         for k, v in self.schemas.items():
             print(f"Table {k}: \n{len(v['rows'])} rows \n")
-
-
 
     def get_edge_attrs(self, parent, child):
         edge_attrs = self.G[parent["id"]][child["id"]]
@@ -257,3 +238,22 @@ class LocalGraphUtils(Utils):
                     new_v.append(value)
             v = new_v
         return v
+
+
+    def get_single_neighbor_nx(self, node, target_type):
+        # print("Node", node)
+        if isinstance(node, tuple):
+            node = node[0]
+        for neighbor in self.G.neighbors(node):
+            if self.G.nodes[neighbor].get('type') == target_type:
+                return neighbor, self.G.nodes[neighbor]
+        return None, None  # No neighbor of that type found
+
+    def get_neighbor_list(self, node, target_type: str or list) -> List[tuple] or None:
+        neighbors = []
+        if isinstance(target_type, str):
+            target_type = [target_type]
+        for neighbor in self.G.neighbors(node):
+            if self.G.nodes[neighbor].get('type') in target_type:
+                neighbors.append((neighbor, self.G.nodes[neighbor]))
+        return neighbors
