@@ -5,6 +5,7 @@ import pygame
 from bm.logging_custom import cpr
 from bm.settings import TEST_USER_ID
 from physics.particles.particle_updator import ChargedParticleHandler
+from physics.quantum_fields.qf_updator import QFHandler
 from utils.pygame.renderer import PyGameRenderer
 from utils.simulator.utils.mover import Mover
 
@@ -51,6 +52,12 @@ class WorldRunner:
         self.charged_particle_handler = ChargedParticleHandler(
             g, user_id
         )
+
+        self.qf_handler = QFHandler(
+            g,
+            user_id
+        )
+
         self.cell_positions = {}
         self.g = g
         self.user_id = user_id
@@ -129,6 +136,11 @@ class WorldRunner:
 
             if node_type == "PARTICLE":
                 asyncio.run(self.charged_particle_handler.update(nid, attrs))
+            elif node_type == "QF_NODE":
+                self.qf_handler.update(
+                    nid,
+                    attrs
+                )
 
             index += 1
             self.render(node_type, attrs, nid)

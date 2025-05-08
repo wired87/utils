@@ -21,12 +21,21 @@ class S(serializers.Serializer):
         help_text="ID of ENV that should be run",
         default="env_rajtigesomnlhfyqzbvx"
     )
+
+
+
 particle_concentration_matrix = {
     "electron": 5, #1e20,   # 100,000,000,000,000,000,000 electrons per m³
     "proton":   5, # 1e19,  # 10,000,000,000,000,000,000 protons per m³
     "neutron":  5, #1e15,   # 1,000,000,000,000,000 neutrons per m³
-
 }
+
+
+qfn_concentration=20
+
+
+
+
 class WorldRunnerView(APIView):
     serializer_class = S
     testing=True
@@ -56,9 +65,10 @@ class WorldRunnerView(APIView):
             nx_only=True,
             g_from_path=g_path
         )
+
         if not os.path.exists(g_path):
 
-            world_creator = CreateWorld(g, particle_concentration_matrix, world_type="bare", user_id=TEST_USER_ID)
+            world_creator = CreateWorld(g, qfn_concentration, world_type="bare", user_id=TEST_USER_ID)
 
             asyncio.run(world_creator.hello_world())
             # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)

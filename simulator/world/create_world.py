@@ -2,6 +2,7 @@ import asyncio
 
 from bm.settings import TEST_USER_ID
 from physics.particles.particle_creator import ParticleCreator
+from physics.quantum_fields.qf_creator import QFCreator
 from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.simulator.world.env.env_creator import ENVCCreator
 
@@ -43,13 +44,14 @@ class CreateWorld:
     def __init__(
             self,
              g:LocalGraphUtils, # or GraphUtils for prod
-            particle_conc,
+            object_conc,
             world_type="bare",
             user_id=None,
     ):
         self.user_id = user_id
         self.world_type=world_type
-        self.particle_conc = particle_conc
+        self.object_conc = object_conc
+
         self.g = g
         self.raw = True  # upload without linking anything
         self.filter_for = "EXPERIMENT_accession_"
@@ -83,12 +85,20 @@ class CreateWorld:
         self.env_creator.create()
 
         #if self.world_type == "bare":
-        particle_creator = ParticleCreator(
+        """particle_creator = ParticleCreator(
             g=self.g,
             env_id=self.env_creator.envc_id,
         )
         particle_creator.create(
             particle_conc=self.particle_conc
+        )"""
+
+        particle_creator = QFCreator(
+            g=self.g,
+            env_id=self.env_creator.envc_id,
+        )
+        particle_creator.create(
+            qf_conc=self.object_conc
         )
 
         self.g.print_status_G()

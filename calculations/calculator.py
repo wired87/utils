@@ -1,17 +1,12 @@
 import numpy as np
 import sympy as sp
 
-from utils.calculations import GRAVITYC, POSC, CORE_LAWS_C
 
 
 class Calculator:
-    def __init__(self, g):
+    def __init__(self, g, calculations:list):
         self.g = g
-        self.calculations = list(
-                CORE_LAWS_C +
-                POSC +
-                GRAVITYC
-        )
+        self.calculations = calculations
 
     def main(self, parent, child, edge_attrs, env_attrs):
         print("Start calc process")
@@ -155,7 +150,7 @@ class Calculator:
         if param_type == "float":
             return float(value)
         elif param_type == "np.ndarray":
-            return np.array(value)
+            return np.array(value, dtype=float)
         elif param_type == "int":
             return int(value)
         elif param_type == "dict":
@@ -172,7 +167,7 @@ class Calculator:
             result = eval(equation, {"np": np, "sp": sp, **eq_args})
             return result
         except Exception as e:
-            print(f"Error evaluating equation: {e}")
+            print(f"Error running equation: {e}")
             return None
 
 
