@@ -5,7 +5,7 @@ import pygame
 from bm.logging_custom import cpr
 from bm.settings import TEST_USER_ID
 from physics.particles.particle_updator import ChargedParticleHandler
-from physics.quantum_fields.qf_updator import QFHandler
+from utils.simulator.world.env.env_updator import QFHandler
 from utils.pygame.renderer import PyGameRenderer
 from utils.simulator.utils.mover import Mover
 
@@ -82,7 +82,7 @@ class WorldRunner:
         for nid, attrs in self.g.G.nodes(data=True):
             if attrs.get("type") == "ENV":
                 print("ENV attrs", attrs)
-                screen_dim = attrs.get("screen_dim")
+                screen_dim = attrs.get("dim")
                 self.height = screen_dim[1]
                 self.width = screen_dim[0]
                 # self.amount_cells = attrs.get("cell_concentration")

@@ -1,8 +1,18 @@
+
+r"""
+👉 Ions create electric fields by moving around.
+👉 Electric fields guide ions.
+👉 This feedback loop is what you simulate.
+- the keys to intelligence lies in ion interaction
+"""
+
+
+
 import asyncio
 
 from bm.settings import TEST_USER_ID
-from physics.particles.particle_creator import ParticleCreator
 from physics.quantum_fields.qf_creator import QFCreator
+from utils.file.yaml import load_yaml
 from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.simulator.world.env.env_creator import ENVCCreator
 
@@ -46,7 +56,7 @@ class CreateWorld:
              g:LocalGraphUtils, # or GraphUtils for prod
             object_conc,
             world_type="bare",
-            user_id=None,
+            user_id=TEST_USER_ID,
     ):
         self.user_id = user_id
         self.world_type=world_type
@@ -93,32 +103,78 @@ class CreateWorld:
             particle_conc=self.particle_conc
         )"""
 
-        particle_creator = QFCreator(
+        qf_creator = QFCreator(
             g=self.g,
             env_id=self.env_creator.envc_id,
         )
-        particle_creator.create(
-            qf_conc=self.object_conc
+        qf_creator.create(
+            dim=self.env_creator.content["dim"]
         )
+
+        self.connect_all_nodes()
 
         self.g.print_status_G()
 
         if self.testing:
             self.g.save_graph(dest_name=self.g.g_from_path)
-        else:
+        """else:
             print("Start batch")
             if self.g.upload_to == "sp":
                 await self.g.acreate_session()
             await self.g.abatch_commit()
+            """
 
-        """# Create Spanner Graph
-        print("Create Spanner Graph")
-        node_tables, edge_tables = self.g.filter_table_names(self.g.schemas.keys())
-        self.g.create_graph(
-            node_tables=node_tables,
-            edge_tables=edge_tables,
-            graph_name=self.graph_name,
-        )"""
+    def connect_all_nodes(self):
+        print("Connect nodes")
+
+        for nid, args in self.g.G.nodes(data=True):
+            for nnid, nargs in self.g.G.nodes(data=True):
+                src_layer = args.get('type')
+                trgt_layer = nargs.get('type')
+
+                if nid != nnid and trgt_layer != "USERS" and src_layer != "USERS":
+                    print(">>>>", nid, nnid, nargs)
+                    print("args", args)
+                    edge_content = args["EC"][trgt_layer]
+                    # We create here a double connection
+                    # ( A->B & reverse)
+                    self.g.add_edge(
+                        src=nid,
+                        trt=nnid,
+                        attrs=dict(
+                            src_layer=src_layer,
+                            trgt_layer=trgt_layer,
+                            rel=edge_content["rel"],
+                            **load_yaml(edge_content["edge_attrs"]),
+                        )
+                    )
+
+        # remove the path specs from each node
+        for nid, args in self.g.G.nodes(data=True):
+            if args.get("type") != "USERS":
+                args.pop("EC")
+        print("All Nodes Connected")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     async def reinit(self, tables=True, G=True):
         await self.g.acreate_session()
@@ -138,9 +194,12 @@ class CreateWorld:
 
 
 
-r"""
-👉 Ions create electric fields by moving around.
-👉 Electric fields guide ions.
-👉 This feedback loop is what you simulate.
-- the keys to intelligence lies in ion interaction
-"""
+
+        """# Create Spanner Graph
+        print("Create Spanner Graph")
+        node_tables, edge_tables = self.g.filter_table_names(self.g.schemas.keys())
+        self.g.create_graph(
+            node_tables=node_tables,
+            edge_tables=edge_tables,
+            graph_name=self.graph_name,
+        )"""

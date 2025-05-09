@@ -1,7 +1,27 @@
-screen_dim:
-  - 700 # w
-  - 1200 # h
-  - 700 # d
+dim:
+  - 700.0 # w
+  - 1200.0 # h
+  - 700.0 # d
+
+# STANDARD PARAMS
+L_xyz: [1e-9, 1e-9, 1e-9] #  the size of the room
+k_e: 8.9875517923e9
+k_B: 1.380649e-23
+epsilon_0: 8.854187817e-12
+G: 6.67430e-11
+#M: 5.972e24 # default from earth -> useless in a bare/vacuum env
+c: 299792458
+h: 6.62607015e-34
 
 m_factor: 10000
 cell_concentration: 16
+
+
+EC:
+  QF:
+    rel: has_component
+    edge_attrs: physics/quantum_fields/content/qf_edge.yaml
+
+  PARTICLE:
+    rel: has_component
+    edge_attrs: physics/quantum_fields/content/qf_particle_edge.yaml
