@@ -107,9 +107,7 @@ class CreateWorld:
             g=self.g,
             env_id=self.env_creator.envc_id,
         )
-        qf_creator.create(
-            dim=self.env_creator.content["dim"]
-        )
+        qf_creator.create()
 
         self.connect_all_nodes()
 
