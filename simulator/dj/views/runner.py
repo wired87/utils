@@ -27,6 +27,10 @@ components= {
     "electron": 5,  # 1e20,   # 100,000,000,000,000,000,000 electrons per m³
     "proton": 5,  # 1e19,  # 10,000,000,000,000,000,000 protons per m³
     "neutron": 5,  # 1e15,   # 1,000,000,000,000,000 neutrons per m³
+    "qf": {
+        "shape": "rect",
+        "dim": [25, 25, 25]
+    }
 }
 
 

@@ -54,13 +54,13 @@ class CreateWorld:
     def __init__(
             self,
              g:LocalGraphUtils, # or GraphUtils for prod
-            object_conc,
+            components,
             world_type="bare",
             user_id=TEST_USER_ID,
     ):
         self.user_id = user_id
         self.world_type=world_type
-        self.object_conc = object_conc
+        self.components = components
 
         self.g = g
         self.raw = True  # upload without linking anything
@@ -106,6 +106,8 @@ class CreateWorld:
         qf_creator = QFCreator(
             g=self.g,
             env_id=self.env_creator.envc_id,
+            testing=self.testing,
+            specs=self.components["qf"]
         )
         qf_creator.create()
 
