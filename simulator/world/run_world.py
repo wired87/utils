@@ -4,7 +4,9 @@ import pygame
 
 from bm.logging_custom import cpr
 from bm.settings import TEST_USER_ID
+from physics import STANDARD_MODELC, POSC, GRAVITYC, CORE_LAWS_C
 from physics.particles.particle_updator import ChargedParticleHandler
+from physics.putils.calculator import Calculator
 from utils.simulator.world.env.env_updator import QFHandler
 from utils.pygame.renderer import PyGameRenderer
 from utils.simulator.utils.mover import Mover
@@ -28,7 +30,6 @@ class WorldRunner:
     def __init__(self, g, env_id: str, user_id=TEST_USER_ID, local_g_path=None):
 
         self.g = g
-        cpr(f"✅ Graph WorldRunner: {len(self.g.G.nodes)} nodes, {len(self.g.G.edges)} edges.")
 
         self.env_id = env_id
         self.scale = 1e7
@@ -49,6 +50,7 @@ class WorldRunner:
             user_id,
             local_g_path=local_g_path
         )"""
+
         self.charged_particle_handler = ChargedParticleHandler(
             g, user_id
         )
@@ -69,7 +71,18 @@ class WorldRunner:
         self.mover = Mover(self.g)
         # CLASSES
         # self.env_up = ENVUpdator()
+        self.calculator = Calculator(
+            g,
+            calculations=list(
+                # QF Equations
+                STANDARD_MODELC +
 
+                # Particle Equations
+                CORE_LAWS_C +
+                POSC +
+                GRAVITYC
+            )
+        )
         # Particles include in the initial spread process
         self.spread_items_type = [
             "PARTICLE"
@@ -86,7 +99,6 @@ class WorldRunner:
                 self.height = screen_dim[1]
                 self.width = screen_dim[0]
                 # self.amount_cells = attrs.get("cell_concentration")
-
 
         # Init Surface
         print("screen_dim", self.width, self.height)
@@ -119,12 +131,16 @@ class WorldRunner:
                 )
                 self.g.G.nodes[nid].update(self_attrs)
 
+
+    #def get_
+
     def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G
         stuff = [(nid, attrs) for nid, attrs in self.g.G.nodes(data=True)]
         len_stuff = len(stuff)
-
+        env_attrs = self.g.G.nodes[self.env_id]
         index = 0
+
         while index < len_stuff:
             # validate item
             updated_len_stuff = len(stuff)
@@ -132,16 +148,33 @@ class WorldRunner:
                 index -= (updated_len_stuff - len_stuff)
 
             nid, attrs = stuff[index]
-            node_type = attrs.get("type")
+            node_type=attrs.get("type")
 
-            if node_type == "PARTICLE":
-                asyncio.run(self.charged_particle_handler.update(nid, attrs))
-            elif node_type == "QF_NODE":
-                self.qf_handler.update(
-                    nid,
-                    attrs
-                )
+            # Loop through each other item
+            nindex = 0
+            while nindex < len_stuff:
+                # validate item
+                updated_len_stuff = len(stuff)
+                if len_stuff < updated_len_stuff:
+                    nindex -= (updated_len_stuff - len_stuff)
 
+                nnid, nattrs = stuff[nindex]
+                if nid != nnid:
+
+                    # Get Stuff
+                    edge_attrs = self.g.G.edges[nid, nnid]
+
+                    self.calculator.main(
+                        parent=attrs,
+                        child=nattrs,
+                        edge_attrs=edge_attrs,
+                        env_attrs=env_attrs
+                    )
+
+                # todo: impl. check for node type -> see Wasteleands (bottom)
+                # todo implement neuron logic -> connect nearest 10 ->
+
+                nindex += 1
             index += 1
             self.render(node_type, attrs, nid)
 
@@ -228,3 +261,18 @@ class WorldRunner:
             pygame.display.update()
 
         pygame.quit()
+
+
+
+"""
+node_type = attrs.get("type")
+
+            if node_type == "PARTICLE":
+                asyncio.run(self.charged_particle_handler.update(nid, attrs))
+            elif node_type == "QF_NODE":
+                self.qf_handler.update(
+                    nid,
+                    attrs
+                )
+
+"""

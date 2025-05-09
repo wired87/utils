@@ -26,19 +26,7 @@ class QFHandler:
         # Core physics content
         self.user_id = user_id
         # Utility classes
-        self.calculator = Calculator(
-            g,
-            calculations=list(
-                # QF Equations
-                STANDARD_MODELC +
 
-                # Particle Equations
-                CORE_LAWS_C +
-                POSC +
-                GRAVITYC
-
-            )
-        )
         self.g = g
 
     async def update(self, nid, args):

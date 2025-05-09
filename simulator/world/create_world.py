@@ -9,6 +9,7 @@ r"""
 
 
 import asyncio
+import os
 
 from bm.settings import TEST_USER_ID
 from physics.quantum_fields.qf_creator import QFCreator
@@ -109,7 +110,10 @@ class CreateWorld:
             testing=self.testing,
             specs=self.components["qf"]
         )
+
         qf_creator.create()
+
+        self.g.print_status_G()
 
         self.connect_all_nodes()
 
@@ -117,35 +121,35 @@ class CreateWorld:
 
         if self.testing:
             self.g.save_graph(dest_name=self.g.g_from_path)
-        """else:
-            print("Start batch")
-            if self.g.upload_to == "sp":
-                await self.g.acreate_session()
-            await self.g.abatch_commit()
-            """
+
 
     def connect_all_nodes(self):
         print("Connect nodes")
 
+        edge_yaml_cache = {}
+
         for nid, args in self.g.G.nodes(data=True):
             for nnid, nargs in self.g.G.nodes(data=True):
-                src_layer = args.get('type')
-                trgt_layer = nargs.get('type')
+                if nid != nnid and args.get("type") != "USERS" and nargs.get("type") != "USERS":
+                    src_layer = args.get('type')
+                    trgt_layer = nargs.get('type')
 
-                if nid != nnid and trgt_layer != "USERS" and src_layer != "USERS":
-                    print(">>>>", nid, nnid, nargs)
-                    print("args", args)
-                    edge_content = args["EC"][trgt_layer]
-                    # We create here a double connection
-                    # ( A->B & reverse)
+                    edge_def = args["EC"].get(trgt_layer)
+                    if not edge_def:
+                        continue
+
+                    edge_key = edge_def["edge_attrs"]
+                    if edge_key not in edge_yaml_cache:
+                        edge_yaml_cache[edge_key] = load_yaml(os.path.abspath(edge_key))
+
                     self.g.add_edge(
                         src=nid,
                         trt=nnid,
                         attrs=dict(
                             src_layer=src_layer,
                             trgt_layer=trgt_layer,
-                            rel=edge_content["rel"],
-                            **load_yaml(edge_content["edge_attrs"]),
+                            rel=edge_def["rel"],
+                            **edge_yaml_cache[edge_key],
                         )
                     )
 

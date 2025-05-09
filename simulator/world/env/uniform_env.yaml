@@ -25,3 +25,7 @@ EC:
   PARTICLE:
     rel: has_component
     edge_attrs: physics/quantum_fields/content/qf_particle_edge.yaml
+
+  QF_NODE:
+    rel: has_component
+    edge_attrs: physics/quantum_fields/content/qf_qfn_edge.yaml
