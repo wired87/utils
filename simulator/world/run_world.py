@@ -1,8 +1,5 @@
-import asyncio
-
 import pygame
 
-from bm.logging_custom import cpr
 from bm.settings import TEST_USER_ID
 from physics import STANDARD_MODELC, POSC, GRAVITYC, CORE_LAWS_C
 from physics.particles.particle_updator import ChargedParticleHandler
@@ -130,9 +127,6 @@ class WorldRunner:
                     self_attrs=attrs
                 )
                 self.g.G.nodes[nid].update(self_attrs)
-
-
-    #def get_
 
     def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G

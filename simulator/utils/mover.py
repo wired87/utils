@@ -1,6 +1,8 @@
 from typing import List
 
 import numpy as np
+import bisect
+
 
 class Mover:
     def __init__(self, g):
@@ -23,13 +25,8 @@ class Mover:
 
 
 
-    def find_nearest_neighbor(self, start_pos, neighbors:List[tuple]):
-        #print("find_nearest_neighbor", neighbors)
-        nearest_pos = None
-        nearest_distance = None
-        neareast_neighbor_id = None
-        #print("Nieghbors fnn")
-        #pprint.pp(neighbors)
+    def get_nearest_neighbors(self, start_pos, neighbors:List[tuple], amount_neighbors=10):
+        distances = []
         for neighbor in neighbors:
             if isinstance(neighbor, tuple):
                 neighbor_id = neighbor[0]
@@ -40,24 +37,15 @@ class Mover:
 
             pos = neighbor_attrs.get("pos")
 
-            dx = pos[0] - start_pos[0]
-            dy = pos[1] - start_pos[1]
-            dz = pos[2] - start_pos[2]
+            # Calc distance
+            distance = np.linalg.norm(np.array(pos) - np.array(start_pos))
+            for d in distances:
+                if distance < d:
+                    bisect.insort(distances, neighbor_id)
+                    distances = distances[:amount_neighbors]
+                    break
 
-            distance = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
-            if nearest_distance is None:
-                nearest_distance = distance
-                nearest_pos = pos
-                neareast_neighbor_id = neighbor_id
-
-            else:
-                if distance < nearest_distance:
-                    nearest_distance = distance
-                    nearest_pos = pos
-                    neareast_neighbor_id=neighbor_id
-
-        #print("nearest_pos, nearest_distance, neareast_neighbor_id", nearest_pos, nearest_distance, neareast_neighbor_id)
-        return nearest_pos, nearest_distance, neareast_neighbor_id
+        return distances
 
 
 

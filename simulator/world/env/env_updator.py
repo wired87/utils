@@ -1,10 +1,6 @@
 from bm.settings import TEST_USER_ID
 from itertools import chain, combinations
 
-from physics import STANDARD_MODELC, CORE_LAWS_C, POSC, GRAVITYC
-from physics.putils.calculator import Calculator
-
-
 def powerset_of_keysets(dict1, dict2):
     all_keys = list(dict1.keys()) + list(dict2.keys())
     return list(chain.from_iterable(combinations(all_keys, r) for r in range(len(all_keys) + 1)))
@@ -26,7 +22,6 @@ class QFHandler:
         # Core physics content
         self.user_id = user_id
         # Utility classes
-
         self.g = g
 
     async def update(self, nid, args):
