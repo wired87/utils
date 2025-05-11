@@ -130,11 +130,13 @@ class CreateWorld:
 
         for nid, args in self.g.G.nodes(data=True):
             for nnid, nargs in self.g.G.nodes(data=True):
-                if nid != nnid and args.get("type") != "USERS" and nargs.get("type") != "USERS":
+                if nid != nnid and args.get("type") not in ["USERS", "PARAMETER", "EQUATION"]:
                     src_layer = args.get('type')
                     trgt_layer = nargs.get('type')
+                    """print("src", args)
+                    print("nargs", nargs)"""
 
-                    edge_def = args["EC"].get(trgt_layer)
+                    edge_def = args.get("EC", {}).get(trgt_layer)
                     if not edge_def:
                         continue
 
@@ -155,8 +157,9 @@ class CreateWorld:
 
         # remove the path specs from each node
         for nid, args in self.g.G.nodes(data=True):
-            if args.get("type") != "USERS":
-                args.pop("EC")
+            if args.get("type") not in ["USERS", "PARAMETER", "EQUATION"]:
+                if "EC" in args.keys():
+                    args.pop("EC")
         print("All Nodes Connected")
 
 

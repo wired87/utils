@@ -263,7 +263,7 @@ node_type = attrs.get("type")
 
             if node_type == "PARTICLE":
                 asyncio.run(self.charged_particle_handler.update(nid, attrs))
-            elif node_type == "QF_NODE":
+            elif node_type == "QFN":
                 self.qf_handler.update(
                     nid,
                     attrs

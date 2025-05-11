@@ -133,6 +133,7 @@ class LocalGraphUtils(Utils):
         with open(f"{dest_name}", "w") as f:
             json.dump(data, f)
         print("Graph saved:", dest_name)
+        return data
 
 
 
@@ -195,9 +196,9 @@ class LocalGraphUtils(Utils):
                     v = self.stringify_dict(v)
                 cleaned_attrs[clean_key] = v
 
-            if isinstance(v, dict):
+            """if isinstance(v, dict):
                 # stringify dict
-                cleaned_attrs[k] = json.dumps(v)
+                cleaned_attrs[k] = json.dumps(v)"""
 
         for k, v in cleaned_attrs.items():
             if isinstance(v, str):
