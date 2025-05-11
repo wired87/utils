@@ -195,8 +195,9 @@ class LocalGraphUtils(Utils):
                     v = self.stringify_dict(v)
                 cleaned_attrs[clean_key] = v
 
-            """if isinstance(v, int):
-                cleaned_attrs[k] = str(v)"""
+            if isinstance(v, dict):
+                # stringify dict
+                cleaned_attrs[k] = json.dumps(v)
 
         for k, v in cleaned_attrs.items():
             if isinstance(v, str):
@@ -218,7 +219,7 @@ class LocalGraphUtils(Utils):
                 print(f"Added {table_name} to schema")
 
             if row_id not in [item for item in self.schemas[table_name]["id_map"]]:
-                # print(f"Insert {row_id} into {table_name}")
+                print(f"Insert {row_id} into {table_name}")
                 self.schemas[table_name]["rows"].append(args)
                 self.schemas[table_name]["id_map"].add(row_id)
             # else:
