@@ -25,7 +25,10 @@ class Mover:
 
 
 
-    def get_nearest_neighbors(self, start_pos, neighbors:List[tuple], amount_neighbors=10):
+    def get_nearest_neighbors(self, start_pos, neighbors:List[tuple], amount_neighbors=10, pos_attr_key="pos"):
+        """
+        Get amount_neighbors neares neighbor based on pos_attr_key
+        """
         distances = []
         for neighbor in neighbors:
             if isinstance(neighbor, tuple):
@@ -35,7 +38,7 @@ class Mover:
                 neighbor_id = neighbor
                 neighbor_attrs = self.g.G.nodes[neighbor_id]
 
-            pos = neighbor_attrs.get("pos")
+            pos = neighbor_attrs.get(pos_attr_key)
 
             # Calc distance
             distance = np.linalg.norm(np.array(pos) - np.array(start_pos))

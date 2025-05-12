@@ -1,9 +1,10 @@
+import asyncio
+
 import pygame
 
 from bm.settings import TEST_USER_ID
-from physics import STANDARD_MODELC, POSC, GRAVITYC, CORE_LAWS_C
 from physics.particles.particle_updator import ChargedParticleHandler
-from physics.putils.calculator import Calculator
+from physics.quantum_fields.qf_updator import QFUpdator
 from utils.simulator.world.env.env_updator import QFHandler
 from utils.pygame.renderer import PyGameRenderer
 from utils.simulator.utils.mover import Mover
@@ -68,18 +69,14 @@ class WorldRunner:
         self.mover = Mover(self.g)
         # CLASSES
         # self.env_up = ENVUpdator()
-        self.calculator = Calculator(
-            g,
-            calculations=list(
-                # QF Equations
-                STANDARD_MODELC +
-
-                # Particle Equations
-                CORE_LAWS_C +
-                POSC +
-                GRAVITYC
-            )
+        self.qf_up = QFUpdator(
+            self.g,
+            self.user_id,
         )
+
+        # Particle Equations
+        """CORE_LAWS_C +
+        GRAVITYC"""
         # Particles include in the initial spread process
         self.spread_items_type = [
             "PARTICLE"
@@ -142,35 +139,14 @@ class WorldRunner:
                 index -= (updated_len_stuff - len_stuff)
 
             nid, attrs = stuff[index]
-            node_type=attrs.get("type")
-
-            # Loop through each other item
-            nindex = 0
-            while nindex < len_stuff:
-                # validate item
-                updated_len_stuff = len(stuff)
-                if len_stuff < updated_len_stuff:
-                    nindex -= (updated_len_stuff - len_stuff)
-
-                nnid, nattrs = stuff[nindex]
-                if nid != nnid:
-
-                    # Get Stuff
-                    edge_attrs = self.g.G.edges[nid, nnid]
-
-                    self.calculator.main(
-                        parent=attrs,
-                        child=nattrs,
-                        edge_attrs=edge_attrs,
-                        env_attrs=env_attrs
-                    )
-
-                # todo: impl. check for node type -> see Wasteleands (bottom)
-                # todo implement neuron logic -> connect nearest 10 ->
-
-                nindex += 1
+            print("UPDATE:", nid, attrs)
+            if attrs["type"] in ["QFN", "QF"]:
+                asyncio.run(self.qf_up.update(
+                    nid,
+                    args=attrs
+                ))
             index += 1
-            self.render(node_type, attrs, nid)
+            #self.render(node_type, attrs, nid)
 
     def render(self, node_type, attrs, nid):
 

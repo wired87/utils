@@ -121,7 +121,7 @@ class CreateWorld:
 
         if self.testing:
             self.g.save_graph(dest_name=self.g.g_from_path)
-
+        #time.sleep(5)
 
     def connect_all_nodes(self):
         print("Connect nodes")
@@ -130,7 +130,7 @@ class CreateWorld:
 
         for nid, args in self.g.G.nodes(data=True):
             for nnid, nargs in self.g.G.nodes(data=True):
-                if nid != nnid and args.get("type") not in ["USERS", "PARAMETER", "EQUATION"]:
+                if nid != nnid and args.get("type") in ["ENV", "QF"]:
                     src_layer = args.get('type')
                     trgt_layer = nargs.get('type')
                     """print("src", args)
@@ -160,7 +160,7 @@ class CreateWorld:
             if args.get("type") not in ["USERS", "PARAMETER", "EQUATION"]:
                 if "EC" in args.keys():
                     args.pop("EC")
-        print("All Nodes Connected")
+        print("All Parent Nodes Connected")
 
 
 

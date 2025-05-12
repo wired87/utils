@@ -10,8 +10,8 @@ k_B: 1.380649e-23
 epsilon_0: 8.854187817e-12
 G: 6.67430e-11
 #M: 5.972e24 # default from earth -> useless in a bare/vacuum env
-c: 299792458
-h: 6.62607015e-34
+speed_light: 299792458
+planck_constant: 6.626e-34
 
 m_factor: 10000
 cell_concentration: 16
