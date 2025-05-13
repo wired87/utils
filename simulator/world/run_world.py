@@ -96,8 +96,8 @@ class WorldRunner:
 
         # Init Surface
         print("screen_dim", self.width, self.height)
-        self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("Particle Field Simulation")
+        #self.screen = pygame.display.set_mode((self.width, self.height))
+        #pygame.display.set_caption("Particle Field Simulation")
 
         # Init PG Renderer
         self.pg_renderer = PyGameRenderer(
@@ -127,26 +127,15 @@ class WorldRunner:
 
     def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G
-        stuff = [(nid, attrs) for nid, attrs in self.g.G.nodes(data=True)]
+        """stuff = [(nid, attrs) for nid, attrs in self.g.G.nodes(data=True)]
         len_stuff = len(stuff)
+        """
         env_attrs = self.g.G.nodes[self.env_id]
-        index = 0
 
-        while index < len_stuff:
-            # validate item
-            updated_len_stuff = len(stuff)
-            if len_stuff < updated_len_stuff:
-                index -= (updated_len_stuff - len_stuff)
-
-            nid, attrs = stuff[index]
-            print("UPDATE:", nid, attrs)
-            if attrs["type"] in ["QFN", "QF"]:
-                asyncio.run(self.qf_up.update(
-                    nid,
-                    args=attrs
-                ))
-            index += 1
-            #self.render(node_type, attrs, nid)
+        # Update QFNs
+        asyncio.run(self.qf_up.update(
+            env_attrs
+        ))
 
     def render(self, node_type, attrs, nid):
 
@@ -210,7 +199,7 @@ class WorldRunner:
         index = 0
         while running:
             index += 1
-            # todo get direct cell & ion neighbor from pos -> in feedback loop
+            """# todo get direct cell & ion neighbor from pos -> in feedback loop
             self.clock.tick(self.fps)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -224,11 +213,12 @@ class WorldRunner:
             self.screen.fill((0, 0, 0))  # Black
 
             # Update Objects
-            self.update_loop()
+            
 
             # Render objects
 
-            pygame.display.update()
+            pygame.display.update()"""
+            self.update_loop()
 
         pygame.quit()
 
