@@ -130,7 +130,7 @@ class CreateWorld:
 
         for nid, args in self.g.G.nodes(data=True):
             for nnid, nargs in self.g.G.nodes(data=True):
-                if nid != nnid and args.get("type") in ["ENV", "QF"]:
+                if nid != nnid and args.get("type") in ["ENV", "QF", "QFN"]:
                     src_layer = args.get('type')
                     trgt_layer = nargs.get('type')
                     """print("src", args)
