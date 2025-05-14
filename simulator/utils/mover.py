@@ -25,7 +25,7 @@ class Mover:
 
 
 
-    def get_nearest_neighbors(self, start_pos, neighbors:List[tuple], amount_neighbors=10, pos_attr_key="pos"):
+    def get_nearest_neighbors(self, start_pos, neighbors:List[tuple] or List[str], amount_neighbors=10, pos_attr_key="pos") -> List[tuple]:
         """
         Get amount_neighbors neares neighbor based on pos_attr_key
         """
@@ -44,7 +44,7 @@ class Mover:
             distance = np.linalg.norm(np.array(pos) - np.array(start_pos))
             for d in distances:
                 if distance < d:
-                    bisect.insort(distances, neighbor_id)
+                    bisect.insort(distances, (neighbor_id, neighbor_attrs))
                     distances = distances[:amount_neighbors]
                     break
 

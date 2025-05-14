@@ -125,7 +125,7 @@ class LocalGraphUtils(Utils):
         if G is not None:
             self.G = G
         elif self.G is None:
-            self.G = nx.Graph()
+            self.G = nx.MultiGraph()
         print("Local Graph loaded")
 
     def save_graph(self, dest_name):
