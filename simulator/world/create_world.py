@@ -119,8 +119,8 @@ class CreateWorld:
 
         self.g.print_status_G()
 
-        if self.testing:
-            self.g.save_graph(dest_name=self.g.g_from_path)
+        #if self.testing:
+        #    self.g.save_graph(dest_name=self.g.g_from_path)
         #time.sleep(5)
 
     def connect_all_nodes(self):
