@@ -79,7 +79,7 @@ class WorldRunner:
         GRAVITYC"""
         # Particles include in the initial spread process
         self.spread_items_type = [
-            "PARTICLE"
+            "QFN"
         ]
 
     def init_world(self):
@@ -96,8 +96,8 @@ class WorldRunner:
 
         # Init Surface
         print("screen_dim", self.width, self.height)
-        #self.screen = pygame.display.set_mode((self.width, self.height))
-        #pygame.display.set_caption("Particle Field Simulation")
+        self.screen = pygame.display.set_mode((self.height, self.width))
+        pygame.display.set_caption("Particle Field Simulation")
 
         # Init PG Renderer
         self.pg_renderer = PyGameRenderer(
@@ -107,6 +107,7 @@ class WorldRunner:
         )
 
         # Spread items
+        self.spread_items()
         print("World initialized")
 
     def spread_items(self):
@@ -117,6 +118,7 @@ class WorldRunner:
         for nid, attrs in spread_items:
             init = attrs.get("init")
             if init is True:
+                print("Dpread item", nid)
                 self_attrs = self.mover.spread_objects(
                     amount_items=len(spread_items),
                     screen_width=self.width,
@@ -124,7 +126,8 @@ class WorldRunner:
                     self_attrs=attrs
                 )
                 self.g.G.nodes[nid].update(self_attrs)
-
+            else:
+                print("Item not in init mode -> not spread")
     def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G
         """stuff = [(nid, attrs) for nid, attrs in self.g.G.nodes(data=True)]
@@ -137,10 +140,10 @@ class WorldRunner:
             env_attrs
         ))
 
-    def render(self, node_type, attrs, nid):
-
-        if node_type == "PARTICLE":
-            # todo calc i each run the exact shape of the cell to adapt the sa on it
+    def render(self):
+        field_nodes = [(nid, attrs)  for nid, attrs in self.g.G.nodes(data=True) if attrs.get("type") == "QFN"]
+        # todo calc i each run the exact shape of the cell to adapt the sa on it
+        for nid, attrs in field_nodes:
             self.pg_renderer.render(attrs, nid, scale=self.scale)
 
     def render_edges(self):
@@ -199,27 +202,22 @@ class WorldRunner:
         index = 0
         while running:
             index += 1
-            """# todo get direct cell & ion neighbor from pos -> in feedback loop
+            # todo get direct cell & ion neighbor from pos -> in feedback loop
             self.clock.tick(self.fps)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    x, y = event.pos
+                    mx, my = event.pos
 
             if pygame.key.get_pressed()[pygame.K_ESCAPE]:
                 break
 
             self.screen.fill((0, 0, 0))  # Black
 
-            # Update Objects
-            
-
-            # Render objects
-
-            pygame.display.update()"""
+            pygame.display.update()
             self.update_loop()
-
+            self.render()
         pygame.quit()
 
 

@@ -45,9 +45,6 @@ class ENVCCreator:
                 **self.content,
             )
 
-        print("ENVC")
-        pprint.pp(env_c)
-
         self.g.add_node(
             attrs=env_c
         )
