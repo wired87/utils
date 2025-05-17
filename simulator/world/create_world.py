@@ -11,6 +11,8 @@ r"""
 import asyncio
 import os
 
+from _google.firebase.real_time_database import FirebaseRTDBManager
+from _google.graph.g_utils import GGraphUtils
 from bm.settings import TEST_USER_ID
 from physics.quantum_fields.qf_creator import QFCreator
 from utils.file.yaml import load_yaml
@@ -54,7 +56,7 @@ class CreateWorld:
 
     def __init__(
             self,
-             g:LocalGraphUtils, # or GraphUtils for prod
+             g:LocalGraphUtils or GGraphUtils,
             components,
             world_type="bare",
             user_id=TEST_USER_ID,
@@ -70,6 +72,8 @@ class CreateWorld:
         self.batch_size = 10
         self.graph_name = "BRAINMASTER"
         self.testing = True
+
+        self.custom_firebase = FirebaseRTDBManager(user_id)
 
         self.run_batch_gcp = True
         self.testing = True
@@ -115,26 +119,32 @@ class CreateWorld:
 
         self.g.print_status_G()
 
-        self.connect_all_nodes()
+        self.connect_meta_nodes()
 
         self.g.print_status_G()
 
-        #if self.testing:
-        #    self.g.save_graph(dest_name=self.g.g_from_path)
-        #time.sleep(5)
 
-    def connect_all_nodes(self):
+        # Firebase action
+        self.g.upsert_firebase(
+            env_id=self.env_creator.envc_id,
+            user_id=self.user_id,
+        )
+
+    #if self.testing:
+        #    self.g.save_graph(dest_name=self.g.g_from_path)
+
+
+    def connect_meta_nodes(self):
         print("Connect nodes")
 
         edge_yaml_cache = {}
 
         for nid, args in self.g.G.nodes(data=True):
             for nnid, nargs in self.g.G.nodes(data=True):
-                if nid != nnid and args.get("type") in ["ENV", "QF", "QFN"]:
+                # Just connect Meta/Parent objects here (QF- not QFN)
+                if nid != nnid and args.get("type") in ["ENV", "QF"]:
                     src_layer = args.get('type')
                     trgt_layer = nargs.get('type')
-                    """print("src", args)
-                    print("nargs", nargs)"""
 
                     edge_def = args.get("EC", {}).get(trgt_layer)
                     if not edge_def:

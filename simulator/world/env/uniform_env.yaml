@@ -1,6 +1,6 @@
 dim:
   - 700.0 # w
-  - 1200.0 # h
+  - 700.0 # h
   - 700.0 # d
 
 # STANDARD PARAMS
@@ -14,7 +14,6 @@ speed_light: 299792458
 planck_constant: 6.626e-34
 
 m_factor: 10000
-cell_concentration: 16
 
 
 EC:

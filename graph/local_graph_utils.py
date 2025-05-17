@@ -108,7 +108,7 @@ class LocalGraphUtils(Utils):
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
         except Exception as e:
-            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
+            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e)
 
 
 

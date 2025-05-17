@@ -90,13 +90,13 @@ class WorldRunner:
             if attrs.get("type") == "ENV":
                 print("ENV attrs", attrs)
                 screen_dim = attrs.get("dim")
-                self.height = screen_dim[1]
-                self.width = screen_dim[0]
+                self.height = screen_dim[0]
+                self.width = screen_dim[1]
                 # self.amount_cells = attrs.get("cell_concentration")
 
         # Init Surface
         print("screen_dim", self.width, self.height)
-        self.screen = pygame.display.set_mode((self.height, self.width))
+        self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Particle Field Simulation")
 
         # Init PG Renderer
@@ -107,27 +107,85 @@ class WorldRunner:
         )
 
         # Spread items
-        self.spread_items()
+        self.spread_connect_items()
+
         print("World initialized")
 
-    def spread_items(self):
-        spread_items = [
-            (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
-            attrs.get("type") in self.spread_items_type
-        ]
-        for nid, attrs in spread_items:
-            init = attrs.get("init")
-            if init is True:
-                print("Dpread item", nid)
-                self_attrs = self.mover.spread_objects(
-                    amount_items=len(spread_items),
-                    screen_width=self.width,
-                    screen_height=self.height,
-                    self_attrs=attrs
-                )
-                self.g.G.nodes[nid].update(self_attrs)
-            else:
-                print("Item not in init mode -> not spread")
+    def spread_connect_items(self, connect_nearest=8):
+        average_node_distance = None
+        for item in self.spread_items_type:
+            spread_items = [
+                (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
+                attrs.get("type") == item
+            ]
+            # Briong them to shape
+            for nid, attrs in spread_items:
+                init = attrs.get("init")
+                if init is True:
+                    #print("Dpread item", nid)
+                    self_attrs, dx = self.mover.spread_objects(
+                        amount_items=len(spread_items),
+                        screen_width=self.width,
+                        screen_height=self.height,
+                        self_attrs=attrs
+                    )
+
+                    # Set distance for equations
+                    if average_node_distance is None:
+                        average_node_distance = dx
+                        # Set distance in ENV
+                        # -> used in laplacian_H calc
+                        for env_id, env_attrs in self.g.G.nodes(data=True):
+                            if env_attrs.get("type") == "ENV":
+                                env_attrs["dx"] = dict(
+                                    value=average_node_distance,
+                                    description="Distance between nodes -> used in laplacian_H calc",
+                                    type="np.array",
+                                    origin="measured",
+                                    symbol="dx",
+                                )
+                                self.g.G.nodes[env_id].update(env_attrs)
+                                break
+                    self.g.G.nodes[nid].update(self_attrs)
+                else:
+                    print("Item not in init mode -> not spread")
+
+            # Connect nearest QFN neighbors
+            # Reinit since last changes
+            spread_items = [
+                (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
+                attrs.get("type") == item
+            ]
+            for nid, attrs in spread_items:
+                init = attrs.get("init")
+                if init is True:
+                    nearest_neighbors = self.mover.get_nearest_neighbors(
+                        start_pos=attrs.get("pos"),
+                        neighbors=spread_items,
+                        amount_neighbors=connect_nearest,
+                        pos_attr_key="pos"
+                    )
+
+
+                    # Connect all nodes
+                    for neighbor in nearest_neighbors:
+                        print("Connect ", nid, "->", neighbor[0])
+                        self.g.add_edge(
+                            nid,
+                            neighbor[0],
+                            attrs=dict(
+                                src_layer="QFN",
+                                trgt_layer="QFN",
+                                rel="neighbor"
+                            )
+                        )
+                    attrs["init"] = False
+                    self.g.G.nodes[nid].update(attrs)
+
+        # Save step
+        #self.g.save_graph(dest_name=self.g.g_from_path)
+        #time.sleep(10)
+
     def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G
         """stuff = [(nid, attrs) for nid, attrs in self.g.G.nodes(data=True)]
@@ -140,12 +198,46 @@ class WorldRunner:
             env_attrs
         ))
 
-    def render(self):
-        field_nodes = [(nid, attrs)  for nid, attrs in self.g.G.nodes(data=True) if attrs.get("type") == "QFN"]
+    def _render(self):
+        qfns = [(nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if attrs.get("type") == "QFN"]
         # todo calc i each run the exact shape of the cell to adapt the sa on it
-        for nid, attrs in field_nodes:
+        for nid, attrs in qfns:
             self.pg_renderer.render(attrs, nid, scale=self.scale)
+            self.pg_renderer.render_edges(nid, attrs, trgt_node_type="QFN")
 
+
+    def run(self):
+        """For changes of cell / env (intra<->extra) graph repr way better"""
+
+        # -< einfach ions in cell darstellen ->
+        # asyncio.run(self.wol.load_objects())
+        self.init_world()
+        running = True
+        index = 0
+        while running:
+            index += 1
+            # todo get direct cell & ion neighbor from pos -> in feedback loop
+            self.clock.tick(self.fps)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mx, my = event.pos
+
+            if pygame.key.get_pressed()[pygame.K_ESCAPE]:
+                break
+
+            self.screen.fill((0, 0, 0))  # Black
+
+            self.update_loop()
+            self._render()
+
+            # Call pygame.display.update() last
+            pygame.display.update()
+        pygame.quit()
+
+
+"""
     def render_edges(self):
         for src, trgt in self.g.G.edges():
             # print("src, trgt", src, trgt)
@@ -191,46 +283,4 @@ class WorldRunner:
         # Rm nodes & reset
         self.g.clear_cache()
         self.g.cache_trash = []
-
-    def run(self):
-        """For changes of cell / env (intra<->extra) graph repr way better"""
-
-        # -< einfach ions in cell darstellen ->
-        # asyncio.run(self.wol.load_objects())
-        self.init_world()
-        running = True
-        index = 0
-        while running:
-            index += 1
-            # todo get direct cell & ion neighbor from pos -> in feedback loop
-            self.clock.tick(self.fps)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    mx, my = event.pos
-
-            if pygame.key.get_pressed()[pygame.K_ESCAPE]:
-                break
-
-            self.screen.fill((0, 0, 0))  # Black
-
-            pygame.display.update()
-            self.update_loop()
-            self.render()
-        pygame.quit()
-
-
-
-"""
-node_type = attrs.get("type")
-
-            if node_type == "PARTICLE":
-                asyncio.run(self.charged_particle_handler.update(nid, attrs))
-            elif node_type == "QFN":
-                self.qf_handler.update(
-                    nid,
-                    attrs
-                )
-
 """

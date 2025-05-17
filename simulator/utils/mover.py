@@ -23,13 +23,14 @@ class Mover:
         nearest_index = np.argmin(distances)
         return points[nearest_index], distances[nearest_index]
 
-
-
-    def get_nearest_neighbors(self, start_pos, neighbors:List[tuple] or List[str], amount_neighbors=10, pos_attr_key="pos") -> List[tuple]:
+    def get_nearest_neighbors(self, start_pos, neighbors, amount_neighbors=8, pos_attr_key="pos"):
         """
-        Get amount_neighbors neares neighbor based on pos_attr_key
+        todo build in mechanism to treat corner
+        and nodes @ the edge to vacuum
         """
+
         distances = []
+
         for neighbor in neighbors:
             if isinstance(neighbor, tuple):
                 neighbor_id = neighbor[0]
@@ -39,16 +40,25 @@ class Mover:
                 neighbor_attrs = self.g.G.nodes[neighbor_id]
 
             pos = neighbor_attrs.get(pos_attr_key)
+            if pos is None or neighbor_id == start_pos:
+                continue
 
-            # Calc distance
             distance = np.linalg.norm(np.array(pos) - np.array(start_pos))
-            for d in distances:
-                if distance < d:
-                    bisect.insort(distances, (neighbor_id, neighbor_attrs))
-                    distances = distances[:amount_neighbors]
-                    break
+            distances.append((distance, neighbor_id, neighbor_attrs))
 
-        return distances
+        # Sort by distance
+        distances.sort(key=lambda x: x[0])
+
+        # Return top N
+        result = [(nid, attrs) for _, nid, attrs in distances[:amount_neighbors]]
+
+        print_result = []
+        for r in result:
+            print_result.append((r[0], r[1].get("pos")))
+
+        print("Neareest neighbors identified:", print_result)
+        return result
+
 
 
 
@@ -113,27 +123,54 @@ class Mover:
         #prints each call
         return f"<{self.position.round(2)}>"
 
+
     def spread_objects(self, amount_items, screen_width, screen_height, self_attrs):
         self.cell_index += 1
 
+        # Use square cells for consistent spacing in x and y
         cols = int(amount_items ** 0.5)
         rows = (amount_items + cols - 1) // cols
+        grid_size = min(screen_width / cols, screen_height / rows)  # enforce square spacing
 
-        # Cell index is 1-based right now, fix that:
+        # 1-based to 0-based index
         index = self.cell_index - 1
         row = index // cols
         col = index % cols
 
-        cell_width = screen_width / cols
-        cell_height = screen_height / rows
-
-        x = (col + 0.5) * cell_width
-        y = (row + 0.5) * cell_height
+        x = (col + 0.5) * grid_size
+        y = (row + 0.5) * grid_size
 
         self_attrs["pos"] = [x, y, 0.0]
-        print(f"UPDATED CELL POS cell index {self.cell_index}:", self_attrs["pos"])
-        self_attrs["init"] = False
-        return self_attrs
+        self_attrs["dx"] = grid_size
+
+        print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
+        return self_attrs, grid_size
+
+
+
+"""
+def spread_objects(self, amount_items, screen_width, screen_height, self_attrs):
+    self.cell_index += 1
+    #dim = screen_width if screen_width > screen_height else screen_height
+    cols = int(amount_items ** 0.5)
+    rows = (amount_items + cols - 1) // cols
+
+    # Cell index is 1-based right now, fix that:
+    index = self.cell_index - 1
+    row = index // cols
+    col = index % cols
+
+    cell_width = screen_width / cols
+    cell_height = screen_height / rows
+
+    x = (col + 0.5) * cell_width
+    y = (row + 0.5) * cell_height
+
+    self_attrs["pos"] = [x, y, 0.0]
+
+    print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
+    return self_attrs, cell_width
+"""
 
 
 
