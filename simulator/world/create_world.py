@@ -20,6 +20,7 @@ from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.simulator.world.env.env_creator import ENVCCreator
 
 
+
 class WorldCore:
     def __init__(self, g, user_id=None):
         self.g = g
@@ -130,8 +131,7 @@ class CreateWorld:
             user_id=self.user_id,
         )
 
-    #if self.testing:
-        #    self.g.save_graph(dest_name=self.g.g_from_path)
+        print("Process finished")
 
 
     def connect_meta_nodes(self):

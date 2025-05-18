@@ -4,15 +4,19 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from _google.graph.g_utils import GGraphUtils
 from bm.settings import TEST_USER_ID
 from utils.graph.get_utils import get_graph_utils
 from utils.simulator.world.create_world import CreateWorld
 
-particle_concentration_matrix = {
-    "electron": 5, #1e20,   # 100,000,000,000,000,000,000 electrons per m³
-    "proton":   5, # 1e19,  # 10,000,000,000,000,000,000 protons per m³
-    "neutron":  5, #1e15,   # 1,000,000,000,000,000 neutrons per m³
-
+components= {
+    "electron": 5,  # 1e20,   # 100,000,000,000,000,000,000 electrons per m³
+    "proton": 5,  # 1e19,  # 10,000,000,000,000,000,000 protons per m³
+    "neutron": 5,  # 1e15,   # 1,000,000,000,000,000 neutrons per m³
+    "qf": {
+        "shape": "rect",
+        "dim": [25, 25, 2]
+    }
 }
 
 """
@@ -29,10 +33,7 @@ class S(serializers.Serializer):
         required=False,
         default="bare"
     )
-    particle_conc = serializers.JSONField(
-        help_text="particle concentration",
-        default=particle_concentration_matrix
-    )
+
 
 class CreateWorldView(APIView):
     serializer_class = S
@@ -44,21 +45,28 @@ class CreateWorldView(APIView):
 
         data = request.data
         world_type = data.get("world_type", "bare")  # bare || cellular
-        particle_conc = particle_concentration_matrix#data.get("particle_conc")
 
         # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)
-        g = get_graph_utils(
+        # validate needed Graph
+        g_obj = get_graph_utils(
             local=self.testing,
-            upload_to="bq",
-            database="brainmaster"
         )
 
-        world_creator = CreateWorld(g, particle_conc, world_type, user_id=TEST_USER_ID)
+        # create
+        print("Create Graph")
+        g = GGraphUtils(
+            upload_to="bq",
+            database="brainmaster",
+            nx_only=True,
+            g_from_path=None
+        )
+
+        world_creator = CreateWorld(g, components, world_type, user_id=TEST_USER_ID)
 
         asyncio.run(world_creator.hello_world())
         return Response({"status": "success"}, status=200)
 
-# todo diferenciate needed input params neatly
+
 
 """
 Problem: variable names are not constant -> sys gets highly error prune 

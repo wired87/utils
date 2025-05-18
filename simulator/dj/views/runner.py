@@ -1,12 +1,16 @@
 import asyncio
 import os
+import queue
+import threading
 
+from channels.generic.websocket import AsyncWebsocketConsumer
 from django.http import StreamingHttpResponse
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
+from _google.graph.g_utils import GGraphUtils
 from bm.settings import TEST_USER_ID
 from physics.quantum_fields.qf_updator import QFUpdator
 from utils.graph.get_utils import get_graph_utils
@@ -36,7 +40,7 @@ components= {
     }
 }
 
-class WorldRunnerView2(APIView):
+class InitSimView(APIView):
     serializer_class = S
     testing=True
     def post(self, request):
@@ -67,24 +71,6 @@ class WorldRunnerView2(APIView):
             g_from_path=None
         )
 
-        base_path=f"env/{env_id}"
-        path = f"users/{user_id}/{base_path}/"
-
-        fb_manager=FirebaseRTDBManager(user_id)
-
-        data = fb_manager.get_data(path=path)
-
-
-
-        qf_updator = QFUpdator(
-            g=g,
-            user_id=user_id
-        )
-
-        qf_updator.update(
-            env_attrs
-        )
-
         # Upsert G to FireBase
         g.upsert_firebase(
             user_id=user_id,
@@ -98,74 +84,10 @@ class WorldRunnerView2(APIView):
 
 class SimFrontendView(APIView):
     serializer_class = S
-    def get_script(
-            self,
-            api_key: str,
-            project_id: str,
-            firebase_rtdb: str,
-            sender_id: str,
-            app_id: str,
-            listen_path: str = "nodes",  # Parameter für den Pfad, der per Listener beobachtet wird
-            bubble_data_endpoint: str = "/api/bubble-data/",  # Parameter für den DRF Endpunkt
-            chart_title: str = "Live Simulation Bubble Chart",  # Parameter für den Diagrammtitel
-            chart_width: str = "900px",  # Parameter für die Diagrammbreite (CSS-Format)
-            chart_height: str = "500px",  # Parameter für die Diagrammhöhe (CSS-Format)
-            html_title: str = "Simulation Live Data",  # Parameter für den HTML <title>
-            main_heading: str = "Simulation Live-Daten"  # Parameter für den Haupt-H1-Titel
-    ) -> str:
 
-        return f"""
-               <!DOCTYPE html>
-            <html>
-            <head>
-              <title>Hi</title>
-              <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-              <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-              <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-            </head>
-            <body>
-              <script>
-                
-            
-                // 📊 BUBBLE CHART
-                google.charts.load('current', {{ packages: ['corechart'] }});
-                google.charts.setOnLoadCallback(drawChart);
-            
-                async function drawChart() {{
-                  const response = await fetch('/api/bubble-data/');  // DRF Endpoint
-                  const jsonData = await response.json();
-                  //const dataArray = [['ID', 'X', 'Y', 'Label', 'Size']];
-            
-                  for (const point of jsonData.data) {{
-                    dataArray.push([point.id, point.x, point.y, point.label, point.size]);
-                  }}
-            
-                  const data = google.visualization.arrayToDataTable(dataArray);
-            
-                  const options = {{
-                    title: 'Live Bubble Chart from DRF Backend',
-                    hAxis: {{ title: 'X-Axis' }},
-                    vAxis: {{ title: 'Y-Axis' }},
-                    bubble: {{ textStyle: {{ fontSize: 11 }} }},
-                    animation: {{ duration: 500, easing: 'out', startup: true }}
-                  }};
-            
-                  const chart = new google.visualization.BubbleChart(document.getElementById('chart_div'));
-                  chart.draw(data, options);
-                }}
-              </script>
-            
-              <h1></h1>
-              <div id="log"></div>
-            
-              <h2>Best Brain</h2>
-              <div id="chart_div" style="width: 900px; height: 500px;"></div>
-            </body>
-            </html>
-            """
     def get(self, request):
         """
-        Retrieves stimuli data from firebase wraps it in html and sends it to the frontend
+        Retrieves sim data from firebase wraps it in html and sends it to the frontend
         todo: webhook, spanner
         """
 
@@ -223,51 +145,235 @@ class SimFrontendView(APIView):
         return StreamingHttpResponse({"status": "success"}, status=200)
 
 
-# consumers.py (in your Django app)
+from urllib.parse import parse_qs
 
 import json
 import asyncio
-import networkx as nx # Assuming you have networkx installed
 import random # For simulating data changes
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def create_initial_graph():
-    G = nx.Graph()
-    # Add some nodes with initial positions and types
-    G.add_node("node1", type="typeA", x=50, y=50, label="Node 1", size=10, color="red")
-    G.add_node("node2", type="typeB", x=150, y=100, label="Node 2", size=15, color="blue")
-    G.add_node("node3", type="typeA", x=100, y=200, label="Node 3", size=12, color="green")
-    G.add_node("node4", type="typeC", x=250, y=150, label="Node 4", size=8, color="purple")
-    G.add_edge("node1", "node2")
-    G.add_edge("node1", "node3")
-    G.add_edge("node2", "node4")
-    return G
 
-# Global (or shared) graph instance for simplicity in this example
-# In production, consider a more robust shared state mechanism
-SIM_GRAPH = create_initial_graph()
-# --- End Simulation Placeholder ---
-
-
-class SimulationConsumer(AsyncWebsocketConsumer):
+class SimulationWebsocket(AsyncWebsocketConsumer):
     """
-    WebSocket Consumer to send real-time simulation data updates.
-    Simulates looping through a graph and sending updates.
+    Start- and update Entry for each sim.
     """
+    STOP_SIGNAL=None
+
+
+
+
+
+    def _build_inittial_G(self):
+        # --- Graph aufbauen ---
+        print(f"Thread {threading.current_thread().name}: Baue Graph auf.")
+        env_attrs = None
+        if self.initial_data is not None:  # Stellen Sie sicher, dass Daten vorhanden sind
+            for node_type, node_id_data in self.initial_data.items():
+                if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
+                    for nid, attrs in node_id_data.items():
+                        if node_type == "edges":
+                            parts = nid.split("_")
+                            if len(parts) == 2:  # Grundlegende Validierung
+                                self.g.add_edge(
+                                    parts[0],
+                                    parts[1],
+                                    attrs=attrs
+                                )
+                            else:
+                                print(
+                                    f"Thread {threading.current_thread().name}: Warnung: Ungültiges Kantenformat: {nid}")
+                        elif node_type == "ENV":
+                            env_attrs = attrs
+                            env_id = nid  # Speichern Sie die env_id, falls benötigt
+                        else:
+                            self.g.add_node(
+                                dict(
+                                    id=nid,
+                                    **attrs
+                                )
+                            )
+        print(f"Thread {threading.current_thread().name}: Graph aufgebaut.")
+        return env_attrs, env_id
+
+    def _run_simulation_logic(self):
+
+        print(f"Thread {threading.current_thread().name}: Simulationslogik gestartet für User {self.user_id}, Env {self.env_id}")
+
+        try:
+            print(f"Thread {threading.current_thread().name}: Daten von Firebase erhalten.")
+            env_attrs, env_id=self._build_inittial_G()
+
+            # --- QF Updator nutzen und nach Firebase pushen ---
+            print(f"Thread {threading.current_thread().name}: Starte QF Updator.")
+
+            # run
+            asyncio.run(self.qf_updator.update(env_attrs))
+
+            print(
+                f"Thread {threading.current_thread().name}: Simulationslogik abgeschlossen für User {self.user_id}, Env {self.env_id}")
+
+        except Exception as e:
+            print(f"Thread {threading.current_thread().name}: FEHLER in Simulationslogik: {e}")
+            # Hier können Sie Fehler loggen oder behandeln
+
+    def worker_thread_task(self, q: queue.Queue):
+        """
+        Dies ist die Funktion, die in einem separaten Thread ausgeführt wird.
+        Sie liest Aufgaben aus der Queue und arbeitet sie ab.
+        """
+        print(f"Worker Thread gestartet: {threading.current_thread().name}")
+
+        while True:
+            try:
+                # Holt die nächste Aufgabe aus der Queue.
+                # block=True: Der Thread wartet hier, bis eine Aufgabe verfügbar ist.
+                # timeout=1: Wartet maximal 1 Sekunde, dann wird TimeoutError ausgelöst.
+                # Nützlich, um regelmäßig auf das Stopp-Signal zu prüfen.
+                task = q.get(block=True, timeout=1)
+
+                # Prüfen, ob das Stopp-Signal empfangen wurde
+                if task is self.STOP_SIGNAL:
+                    print(f"Worker Thread {threading.current_thread().name}: Stopp-Signal erhalten, beende.")
+                    break  # Schleife beenden
+
+                print(f"Worker Thread {threading.current_thread().name}: Verarbeite Aufgabe: {task}")
+
+                task_type = task.get('type')
+
+                if task_type == 'firebase_push':
+                    db_path = task.get('path')
+                    data_to_push = task.get('data')
+                    user_id = task.get('user_id')  # Nehmen wir an, der User ID wird auch übergeben
+
+                    if db_path and data_to_push and user_id:
+                        # Hier rufen Sie die synchrone Firebase-Push-Funktion auf.
+                        # Dies ist eine blockierende Operation im Kontext dieses Threads.
+                        # Der Thread gibt den GIL frei, während er auf die Netzwerk-Antwort wartet.
+                        print(f"  Pushing data for user {user_id} to {db_path}...")
+                        try:
+                            # Annahme: _sync_push_local_change wurde wie zuvor definiert
+                            # und nutzt das global initialisierte firebase_admin SDK
+                            self._sync_push_local_change(db_path, data_to_push)
+                            print(f"  Push erfolgreich.")
+                        except Exception as e:
+                            print(f"  Push FEHLER: {e}")
+                        # Nachdem der Push abgeschlossen ist (egal ob Erfolg oder Fehler),
+                        # kehrt die Ausführung hierher zurück, und der Thread kann die nächste Aufgabe holen.
+                    else:
+                        print(f"  FEHLER: Ungültige Daten für firebase_push Aufgabe: {task}")
+
+                elif task_type == 'other_task':
+                    print("  Verarbeite andere Aufgabe...")
+
+                else:
+                    print(f"  FEHLER: Unbekannter Aufgabentyp: {task_type}")
+
+                # Wichtig: Signalisieren, dass die Aufgabe bearbeitet wurde
+                q.task_done()
+
+            except queue.Empty:
+                # Tritt auf, wenn das Timeout in q.get erreicht wurde und die Queue leer war
+                # Ist normal, allows checking for STOP_SIGNAL
+                pass
+            except Exception as e:
+                print(
+                    f"Worker Thread {threading.current_thread().name}: Unerwarteter Fehler bei Aufgabenverarbeitung: {e}")
+                # In einer echten Anwendung müssten Sie hier entscheiden,
+                # ob die Aufgabe als fehlerhaft markiert und q.task_done() trotzdem aufgerufen wird,
+                # um ein Hängenbleiben zu verhindern.
+
+        print(f"Worker Thread {threading.current_thread().name}: Beendet.")
+
+
+
+    async def start_sim(self):
+        """
+        Startet die Simulationslogik in einem separaten Thread.
+        Diese Funktion ist nicht-blockierend für den asyncio Event Loop.
+        """
+        print(f"Main Loop: Starte Simulations-Thread für User {self.user_id}, Env {self.env_id}")
+
+        # Erstellen Sie einen Thread, der die _run_simulation_logic Methode ausführt
+        simulation_thread = threading.Thread(
+            target=self._run_simulation_logic,
+            name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
+            daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
+        )
+
+        # Starten Sie den Thread
+        simulation_thread.start()
+
+        print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
+
+        return True
+
+
+
 
     async def connect(self):
-        """Called when the websocket is handshaking as part of initial connection."""
-        logger.info("WebSocket connected.")
-        await self.accept()
+        query_string = self.scope["query_string"].decode()
+        query_params = parse_qs(query_string)
 
-        # Start the simulation loop in a background task
-        # We pass the graph and the consumer instance to the loop
-        self.simulation_task = asyncio.create_task(
-            self.run_simulation_loop(SIM_GRAPH)
+        self.user_id = query_params.get("user_id", [None])[0]
+        self.env_id = query_params.get("env_id", [None])[0]
+
+        # todo improve auth
+        if not self.user_id or not self.env_id:
+            await self.close()
+            return
+
+        self.db_path = f"users/{self.user_id}/env/{self.env_id}"
+
+        try:
+            self.g = GGraphUtils(
+                table_name="NONE",
+                upload_to="fb",
+                instance=os.environ.get("FIREBASE_RTDB"), # set root of db
+                database=self.db_path, # spec user spec entry (like table)
+                nx_only=False,
+                G=None,
+                g_from_path=None,
+                user_id=self.user_id,
+            )
+
+            self.initial_data = self.g.firebase.get_data(self.db_path)
+
+            if not self.initial_data:
+                await self.close()
+                return
+        except Exception as e:
+            logger.error(f"Firebase error: {e}")
+            await self.close()
+            return
+
+        await self.accept()
+        logger.info(f"WebSocket connection accepted for user {self.user_id}")
+
+        # Init Sim
+
+
+
+
+
+        # Start sim in sepparate thread
+        await self.start_sim()
+
+        self.qf_updator = QFUpdator(
+            g=self.g,
+            user_id=self.user_id,
+            # Eventuell weitere Parameter für Firebase-Pfade im Updator
         )
+
+
+        # Sende initiale Daten direkt nach dem Connect
+        await self.send(text_data=json.dumps({
+            "type": "initial_data",
+            "data": self.initial_data
+        }))
+
 
     async def disconnect(self, close_code):
         """Called when the websocket is disconnected."""
@@ -359,7 +465,7 @@ class SimulationConsumer(AsyncWebsocketConsumer):
 
 
 
-class WorldRunnerView(APIView):
+class WorldRunnerTestView(APIView):
     serializer_class = S
     testing=True
     def post(self, request):

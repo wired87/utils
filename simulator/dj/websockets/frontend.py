@@ -118,11 +118,16 @@ class SimulationConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
         # logger.debug(f"Sent update: {event}") # Use debug level for frequent sends
 
-    def walk_g_tree(self, path, node_attrs):
-        walk_attrs = node_attrs
-        for item in path:
-            walk_attrs = walk_attrs[item]
-        return walk_attrs
+    def change_value(self, node_attrs, path, event_data):
+        parts = path.strip("/").split("/")
+        d = current = {}
+        for part in parts[:-1]:
+            current[part] = {}
+            current = current[part]
+        # Set NEW VALUE
+        if node_attrs != event_data and event_data is not None:
+            current[parts[-1]] = event_data
+        return d
 
 
 
@@ -151,15 +156,18 @@ class SimulationConsumer(AsyncWebsocketConsumer):
 
                 edge_attrs=self.g.G[parts[0]][parts[2]]
                 if edge_attrs:
-                    edge_attrs=self.walk_g_tree(path_from_node, node_attrs=edge_attrs)
-                    if edge_attrs != event.data:
-
+                    edge_attrs=self.change_value(edge_attrs, path_from_node, event.data)
                     self.g.G[parts[0]][parts[2]].update(edge_attrs)
             else:
                 node_attrs=self.g.G.nodes[node_id]
                 if node_attrs:
-                    node_attrs = self.walk_g_tree(path_from_node, node_attrs=node_attrs)
+                    node_attrs = self.change_value(node_attrs, path_from_node, event.data)
                     self.g.G.nodes[node_id].update(node_attrs)
+
+
+
+
+
 
     async def run_simulation_loop(self, graph):
         """
