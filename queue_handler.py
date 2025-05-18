@@ -1,3 +1,4 @@
+import asyncio
 import queue
 import threading
 
@@ -21,7 +22,10 @@ class QueueHandler:
         self.q.put(task)
 
 
-    def working_queue(self):
+    def working_queue(
+            self,
+            loop: asyncio.AbstractEventLoop,
+        ):
         """
         Dies ist die Funktion, die in einem separaten Thread ausgeführt wird.
         Sie liest Aufgaben aus der Queue und arbeitet sie ab.
@@ -66,6 +70,10 @@ class QueueHandler:
 
                 else:
                     print(f"  FEHLER: Unbekannter Aufgabentyp: {task_type}")
+
+
+
+
 
                 # Wichtig: Signalisieren, dass die Aufgabe bearbeitet wurde
                 self.q.task_done()

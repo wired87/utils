@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 
 
@@ -7,13 +6,16 @@ import os
 import threading
 
 from channels.generic.websocket import AsyncWebsocketConsumer
+from firebase_admin import db
 
 from _google.graph.g_utils import GGraphUtils
 from physics.quantum_fields.qf_updator import QFUpdator
 from urllib.parse import parse_qs
 
 import json
-logger = logging.getLogger(__name__)
+
+from utils.logger import LOGGER
+
 
 class SimulationWebsocket(AsyncWebsocketConsumer):
     """
@@ -60,22 +62,23 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 await self.close()
                 return
         except Exception as e:
-            logger.error(f"Firebase error: {e}")
+            LOGGER.error(f"Firebase error: {e}")
             await self.close()
             return
 
         await self.accept()
-        logger.info(f"WebSocket connection accepted for user {self.user_id}")
+        LOGGER.info(f"WebSocket connection accepted for user {self.user_id}")
 
         # Init Sim
+        self.loop = asyncio.get_event_loop()
 
         # Start sim in sepparate thread
         await self.start_sim()
 
         # Sende initiale Daten direkt nach dem Connect
         await self.send(text_data=json.dumps({
-            "type": "initial_data",
-            "data": self.initial_data
+            "type": "status",
+            "message": "success"
         }))
 
 
@@ -138,12 +141,83 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
         )
 
+        # Listen to chnges in firebase
+        self.listener_thread = threading.Thread(
+            target=self._run_firebase_listener,
+            args=(self.db_path, self.loop), # Übergabe des Pfades und des Event Loops
+            name=f"FBListener-{self.user_id}-{self.env_id}",
+            daemon=True # Der Listener-Thread wird beendet, wenn der Hauptprozess endet
+        )
+        self.listener_thread.start()
+
+
         # Start Thread
         simulation_thread.start()
         upsert_thread.start()
 
         print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
         return True
+
+    def _run_firebase_listener(self, db_path: str, loop: asyncio.AbstractEventLoop):
+        """
+        Startet den blockierenden Firebase Realtime Database Listener.
+        Läuft in einem separaten Thread.
+
+        Args:
+            db_path: Der Pfad in der Datenbank, auf den gelauscht werden soll.
+            loop: Eine Referenz auf den asyncio Event Loop des Consumers.
+        """
+        LOGGER.info(f"Listener Thread {threading.current_thread().name}: Starte Listener für Pfad: {db_path}")
+
+        try:
+            # Holen Sie eine Referenz auf den Datenbankpfad
+            ref = db.reference(db_path)
+
+            # Definieren Sie die Callback-Funktion, die bei Datenänderungen aufgerufen wird
+            def on_data_change(event):
+                """
+                Diese Callback-Funktion wird vom Firebase SDK im Listener-Thread aufgerufen,
+                wenn sich Daten am überwachten Pfad ändern.
+                """
+                LOGGER.debug(
+                    f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: {event.event_type} - {event.path}")
+
+                # Stellen Sie sicher, dass die Daten nicht None sind und verarbeiten Sie sie
+                if event.data is not None:
+                    # Datenstruktur für das Frontend vorbereiten
+                    # Passen Sie dies an das Format an, das Ihr Frontend erwartet
+                    update_payload = {
+                        "type": "sim_update",  # Oder ein anderer Typ für Updates
+                        "path": event.path,  # Der spezifische Pfad der Änderung
+                        "data": event.data  # Die geänderten Daten an diesem Pfad
+                        # Eventuell weitere Metadaten hinzufügen
+                    }
+
+                    # Senden Sie die Daten sicher zurück an den Consumer's Event Loop
+                    # loop.call_soon_threadsafe plant die Ausführung einer Coroutine
+                    # im Event Loop des Haupt-Threads.
+                    # Wir nutzen hier eine Hilfs-Methode im Consumer, die await self.send() macht.
+                    loop.call_soon_threadsafe(
+                        asyncio.create_task,  # Erstellt eine Task im Event Loop
+                        self.send_firebase_update_async(update_payload)  # Die Coroutine, die ausgeführt wird
+                    )
+                else:
+                    LOGGER.debug(
+                        f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: Daten sind None.")
+
+            # Starten Sie den blockierenden Listener.
+            # Diese Methode blockiert den aktuellen Thread, bis der Listener gestoppt wird.
+            # Das zurückgegebene Event-Objekt kann zum Stoppen genutzt werden (listener_event.wait()),
+            # aber hier lassen wir den Thread laufen, bis das Programm endet (daemon=True).
+            listener_event = ref.listen(on_data_change)
+
+            # Dieser Teil wird normalerweise nicht erreicht, es sei denn, der Listener stoppt
+            LOGGER.info(f"Listener Thread {threading.current_thread().name}: Listener für Pfad {db_path} beendet.")
+
+        except Exception as e:
+            LOGGER.error(f"Listener Thread {threading.current_thread().name}: FEHLER im Listener: {e}")
+            # In einer Produktionsumgebung möchten Sie hier eventuell versuchen,
+            # den Listener neu zu starten oder eine Benachrichtigung zu senden.
 
     def _run_simulation(self):
 
@@ -173,22 +247,23 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Called when the websocket is disconnected."""
-        logger.info(f"WebSocket disconnected with code: {close_code}")
+        LOGGER.info(f"WebSocket disconnected with code: {close_code}")
         # Cancel the simulation task when the client disconnects
         if hasattr(self, 'simulation_task'):
             self.simulation_task.cancel()
             try:
                 await self.simulation_task # Wait for cancellation to complete
             except asyncio.CancelledError:
-                logger.info("Simulation loop task cancelled.")
+                LOGGER.info("Simulation loop task cancelled.")
         pass
 
     async def receive(self, text_data):
         """
+        for live sim updates
         Called when a message is received from the websocket.
         (Optional: Implement logic to receive commands from the frontend)
         """
-        logger.info(f"Received message from frontend: {text_data}")
+        LOGGER.info(f"Received message from frontend: {text_data}")
         # Example: Parse JSON message from frontend
         # text_data_json = json.loads(text_data)
         # command = text_data_json.get('command')
@@ -199,12 +274,18 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         #        self.simulation_task.cancel()
 
 
-    async def send_data_update(self, event):
+    async def send_firebase_update_async(self, update_payload: dict):
         """
-        Helper method to send a data update message to the frontend.
-        Called by the simulation loop.
+        # todo validate input -> check for datatype -> if objekt: such nach den namen "pos", "color", "id"
+        Empfängt Update-Daten vom Listener-Thread (via call_soon_threadsafe)
+        und sendet sie an das Frontend.
+        Läuft im asyncio Event Loop des Consumers.
         """
-        # 'event' is the dictionary passed from the loop
-        await self.send(text_data=json.dumps(event))
-        # logger.debug(f"Sent update: {event}") # Use debug level for frequent sends
+        try:
+            # Senden Sie die aktualisierten Daten als JSON an das Frontend
+            await self.send(text_data=json.dumps(update_payload))
+            LOGGER.debug(f"Sent Firebase update to frontend: {update_payload.get('type')}")
+        except Exception as e:
+            LOGGER.error(f"FEHLER beim Senden des Firebase-Updates an Frontend: {e}")
+            # Fehlerbehandlung, falls das Senden fehlschlägt (z.B. Verbindung geschlossen)
 

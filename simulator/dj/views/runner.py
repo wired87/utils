@@ -13,9 +13,8 @@ from utils.simulator.world.run_world import WorldRunner
 
 
 import asyncio
-import logging
 
-logger = logging.getLogger(__name__)
+
 LOAD_GRAPHP=r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\local_graph"
 
 class S(serializers.Serializer):
