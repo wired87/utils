@@ -1,4 +1,8 @@
 import queue
+import threading
+
+from firebase_admin import db
+
 
 
 class QueueHandler:
@@ -15,3 +19,66 @@ class QueueHandler:
         }
         print(f"Haupt-Thread: Füge Aufgabe zur Queue hinzu: {task['type']}")
         self.q.put(task)
+
+
+    def working_queue(self):
+        """
+        Dies ist die Funktion, die in einem separaten Thread ausgeführt wird.
+        Sie liest Aufgaben aus der Queue und arbeitet sie ab.
+        """
+        print(f"Worker Thread gestartet: {threading.current_thread().name}")
+
+        while True:
+            try:
+                # Holt die nächste Aufgabe aus der Queue.
+                # block=True: Der Thread wartet hier, bis eine Aufgabe verfügbar ist.
+                # timeout=1: Wartet maximal 1 Sekunde, dann wird TimeoutError ausgelöst.
+                # Nützlich, um regelmäßig auf das Stopp-Signal zu prüfen.
+                task = self.q.get(block=True, timeout=1)
+
+                # Prüfen, ob das Stopp-Signal empfangen wurde
+                if task is None:
+                    print(f"Worker Thread {threading.current_thread().name}: Stopp-Signal erhalten, beende.")
+                    break  # Schleife beenden
+
+                print(f"Worker Thread {threading.current_thread().name}: Verarbeite Aufgabe: {task}")
+
+                task_type = task.get('type')
+
+                if task_type == 'firebase_push':
+                    db_path = task.get('path')
+                    data_to_push = task.get('data')
+
+                    if db_path and data_to_push:
+                        print(f"Pushing data to {db_path}...")
+                        try:
+                            # Push changes to FB
+                            ref = db.reference(db_path)
+                            ref.update(data_to_push)
+                            print(f"  Push erfolgreich.")
+                        except Exception as e:
+                            print(f"  Push FEHLER: {e}")
+                    else:
+                        print(f"FEHLER: Ungültige Daten für firebase_push Aufgabe: {task}")
+
+                elif task_type == 'other_task':
+                    print("  Verarbeite andere Aufgabe...")
+
+                else:
+                    print(f"  FEHLER: Unbekannter Aufgabentyp: {task_type}")
+
+                # Wichtig: Signalisieren, dass die Aufgabe bearbeitet wurde
+                self.q.task_done()
+
+            except queue.Empty:
+                # Tritt auf, wenn das Timeout in q.get erreicht wurde und die Queue leer war
+                # Ist normal, allows checking for STOP_SIGNAL
+                pass
+            except Exception as e:
+                print(
+                    f"Worker Thread {threading.current_thread().name}: Unerwarteter Fehler bei Aufgabenverarbeitung: {e}")
+                # In einer echten Anwendung müssten Sie hier entscheiden,
+                # ob die Aufgabe als fehlerhaft markiert und q.task_done() trotzdem aufgerufen wird,
+                # um ein Hängenbleiben zu verhindern.
+
+        print(f"Worker Thread {threading.current_thread().name}: Beendet.")

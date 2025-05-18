@@ -1,27 +1,43 @@
 import json
 import os
-import pprint
 import re
 from typing import List
 
 import networkx as nx
+
+from _google.firebase.real_time_database import FirebaseRTDBManager
 from utils.file.flatten_dict import flatten_attributes
 
 from bm.logging_custom import cpr
 from utils.gnn.processing.graph_manipulator import Manipulator
+from utils.queue_handler import QueueHandler
 from utils.utils import Utils
 
 
 class LocalGraphUtils(Utils):
 
-    def __init__(self, G=None, g_from_path=None, nx_only=False, **args):
+    def __init__(
+            self,
+            user_id,
+            env_id,
+            G=None,
+            g_from_path=None,
+            nx_only=False,
+            upload_to: str = "fb",  # bq || sp || fb
+
+            **args
+    ):
         super().__init__()
         self.G = None
         self.g_from_path=g_from_path
         self.get_nx_graph(G)
         self.nx_only = nx_only
-        self.manipulator = Manipulator()
 
+        self.firebase = FirebaseRTDBManager(user_id=user_id, env_id=env_id)
+        self.manipulator = Manipulator()
+        self.q_handler = QueueHandler()
+
+        self.upload_to=upload_to
         self.schemas = {}
         """self.table_name: {
         "schema": {},
@@ -116,7 +132,48 @@ class LocalGraphUtils(Utils):
 
 
 
+    def update_node(self, nid, attrs):
+        ntype = attrs.get("type")
+        self.G.nodes[nid].update(attrs)
+        if self.upload_to in ["sp", "bq"]:
+            for item in self.schemas[ntype]["rows"]:
+                if item["id"] == nid:
+                    item.update(attrs)
 
+        else:
+            # Update directly to FB
+            # Load to queue to update FB
+            self.q_handler.add_task(
+                db_path=f"{self.firebase.base_path}/{ntype}/{nid}/",
+                attrs=attrs
+            )
+        return
+
+
+    def update_edge(self, src, trgt, attrs):
+        rel = attrs.get("rel", "").lower().replace(" ", "_")
+        src_layer = attrs.get("src_layer").upper()
+        trgt_layer = attrs.get("trgt_layer").upper()
+        table_name = f"{src_layer}_{rel}_{trgt_layer}"
+        edge_id = f"{src}_{rel}_{trgt}"
+
+        # Update nx
+        self.G.edges[src][trgt].update(attrs)
+
+        # Update dest specific
+        if self.upload_to in ["sp", "bq"]:
+            for item in self.schemas[table_name]["rows"]:
+                if item["id"] == edge_id:
+                    item.update(attrs)
+
+        else:
+            # Load to queue to update FB
+            self.q_handler.add_task(
+                db_path=f"{self.firebase.base_path}/{table_name}/{edge_id}/",
+                attrs=attrs
+            )
+
+        return
 
     ####################################
     # HELPER

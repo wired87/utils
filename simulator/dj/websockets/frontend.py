@@ -1,85 +1,175 @@
-from channels import db
+import asyncio
+import logging
+import os
+
+
+
+import threading
+
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from _google.graph.g_utils import GGraphUtils
+from physics.quantum_fields.qf_updator import QFUpdator
 from urllib.parse import parse_qs
-from firebase_admin import db
 
 import json
-import asyncio
-import random
-import logging
-
-from _google.firebase.real_time_database import FirebaseRTDBManager
-from utils.graph.get_utils import get_graph_utils
-
 logger = logging.getLogger(__name__)
 
-class SimulationConsumer(AsyncWebsocketConsumer):
+class SimulationWebsocket(AsyncWebsocketConsumer):
+    """
+    Start- and update Entry for each sim.
+
+
+
+
+    - Load Graph data from firebase and convert
+        - ceate thread and run the sim (update -> each update push to fb)
+    """
 
     async def connect(self):
-        # Query-Params extrahieren
         query_string = self.scope["query_string"].decode()
         query_params = parse_qs(query_string)
 
         self.user_id = query_params.get("user_id", [None])[0]
         self.env_id = query_params.get("env_id", [None])[0]
+        # todo collect more sim data like len, elements, ...
 
+        # todo improve auth
         if not self.user_id or not self.env_id:
             await self.close()
             return
 
-        self.db_base_path = f"users/{self.user_id}/env/{self.env_id}/"
+        self.db_path = f"users/{self.user_id}/env/{self.env_id}"
 
         try:
-            # Todo improve auth (token, email,...)
-            db_ref = db.reference(self.db_base_path)
-            if not db_ref:
+            self.g = GGraphUtils(
+                table_name="NONE",
+                upload_to="fb",
+                instance=os.environ.get("FIREBASE_RTDB"),  # set root of db
+                database=self.db_path,  # spec user spec entry (like table)
+                nx_only=False,
+                G=None,
+                g_from_path=None,
+                user_id=self.user_id,
+            )
+
+            # Load Graph data from firebase and convert
+            self.initial_data = self.g.firebase.get_data(self.db_path)
+
+            if not self.initial_data:
                 await self.close()
                 return
         except Exception as e:
-            print("Request denied:", e)
+            logger.error(f"Firebase error: {e}")
             await self.close()
             return
 
-
         await self.accept()
+        logger.info(f"WebSocket connection accepted for user {self.user_id}")
 
-        self.firebase = FirebaseRTDBManager(self.user_id)
+        # Init Sim
 
-        # validate needed Graph
-        g_obj = get_graph_utils(
-            local=True,
+        # Start sim in sepparate thread
+        await self.start_sim()
+
+        # Sende initiale Daten direkt nach dem Connect
+        await self.send(text_data=json.dumps({
+            "type": "initial_data",
+            "data": self.initial_data
+        }))
+
+
+    def _build_inittial_G(self):
+        # --- Graph aufbauen ---
+        print(f"Thread {threading.current_thread().name}: Baue Graph auf.")
+        env_attrs = None
+        if self.initial_data is not None:  # Stellen Sie sicher, dass Daten vorhanden sind
+            for node_type, node_id_data in self.initial_data.items():
+                if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
+                    for nid, attrs in node_id_data.items():
+                        if node_type == "edges":
+                            parts = nid.split("_")
+                            if len(parts) == 2:  # Grundlegende Validierung
+                                self.g.add_edge(
+                                    parts[0],
+                                    parts[1],
+                                    attrs=attrs
+                                )
+                            else:
+                                print(
+                                    f"Thread {threading.current_thread().name}: Warnung: Ungültiges Kantenformat: {nid}")
+                        elif node_type == "ENV":
+                            env_attrs = attrs
+                            env_id = nid  # Speichern Sie die env_id, falls benötigt
+                        else:
+                            self.g.add_node(
+                                dict(
+                                    id=nid,
+                                    **attrs
+                                )
+                            )
+        print(f"Thread {threading.current_thread().name}: Graph aufgebaut.")
+        return env_attrs, env_id
+
+
+
+
+
+
+
+    async def start_sim(self):
+        """
+        Startet die Simulationslogik in einem separaten Thread.
+        Diese Funktion ist nicht-blockierend für den asyncio Event Loop.
+        """
+        print(f"Main Loop: Starte Simulations-Thread für User {self.user_id}, Env {self.env_id}")
+
+        # Erstellen Sie einen Thread, der die _run_simulation_logic Methode ausführt
+        simulation_thread = threading.Thread(
+            target=self._run_simulation,
+            name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
+            daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
         )
 
-        # create
-        print("Create Graph")
-        self.g = g_obj(
-            upload_to="fb",
-            database="brainmaster",
-            nx_only=True,
-            g_from_path=None
+        # FB Upsert thread
+        upsert_thread = threading.Thread(
+            target=self.g.q_handler.working_queue,
+            name=f"UpsertThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
+            daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
         )
 
-        self.g, env_id, env_attrs = self.g._request_env_tree(
-            self.g,
-            path=self.db_base_path
+        # Start Thread
+        simulation_thread.start()
+        upsert_thread.start()
+
+        print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
+        return True
+
+    def _run_simulation(self):
+
+        self.qf_updator = QFUpdator(
+            g=self.g,
+            user_id=self.user_id,
+            # Eventuell weitere Parameter für Firebase-Pfade im Updator
         )
+        print(f"Thread {threading.current_thread().name}: Simulationslogik gestartet für User {self.user_id}, Env {self.env_id}")
 
-        self.listener_thread = db_ref.listen(
-            self.handle_data_change
-        )
+        try:
+            print(f"Thread {threading.current_thread().name}: Daten von Firebase erhalten.")
+            env_attrs, env_id=self._build_inittial_G()
 
-        await self.send(
-            text_data=json.dumps({
-                "type": "handshake",
-                "status": "connection established"
-                }
-            )
-        )
+            # --- QF Updator nutzen und nach Firebase pushen ---
+            print(f"Thread {threading.current_thread().name}: Starte QF Updator.")
 
-        self.stream_task = asyncio.create_task(self.stream_firebase_data())
+            # run
+            asyncio.run(self.qf_updator.update(env_attrs))
 
+            print(
+                f"Thread {threading.current_thread().name}: Simulationslogik abgeschlossen für User {self.user_id}, Env {self.env_id}")
 
+        except Exception as e:
+            print(f"Thread {threading.current_thread().name}: FEHLER in Simulationslogik: {e}")
+            # Hier können Sie Fehler loggen oder behandeln
 
     async def disconnect(self, close_code):
         """Called when the websocket is disconnected."""
@@ -117,125 +207,4 @@ class SimulationConsumer(AsyncWebsocketConsumer):
         # 'event' is the dictionary passed from the loop
         await self.send(text_data=json.dumps(event))
         # logger.debug(f"Sent update: {event}") # Use debug level for frequent sends
-
-    def change_value(self, node_attrs, path, event_data):
-        parts = path.strip("/").split("/")
-        d = current = {}
-        for part in parts[:-1]:
-            current[part] = {}
-            current = current[part]
-        # Set NEW VALUE
-        if node_attrs != event_data and event_data is not None:
-            current[parts[-1]] = event_data
-        return d
-
-
-
-    def handle_data_change(self, event):
-        """
-        Diese Funktion wird aufgerufen, wenn sich Daten am beobachteten Pfad ändern.
-        """
-        print("Datenänderung erkannt!")
-        print(f"Event-Typ: {event.event_type}")  # 'put' oder 'patch'
-        print(f"Pfad: {event.path}")  # Der geänderte Unterpfad (relativ zur Referenz)
-        print(f"Neue Daten: {event.data}")  # Die neuen Daten am geänderten Pfad
-
-        # Hier können Sie Ihre Backend-Logik basierend auf der Änderung implementieren
-        self.db_base_path = f"users/{self.user_id}/env/{self.env_id}/"
-
-        # Check for field changes of interest
-        if "pos" in event.path or "color" in event.path:
-            parts = event.path.split("/")
-            node_type = parts[0]
-            node_id = parts[1]
-            path_from_node = parts[1:]
-
-            # Update the local Graph from
-            if node_type == "edge":
-                parts = node_id.split("_")
-
-                edge_attrs=self.g.G[parts[0]][parts[2]]
-                if edge_attrs:
-                    edge_attrs=self.change_value(edge_attrs, path_from_node, event.data)
-                    self.g.G[parts[0]][parts[2]].update(edge_attrs)
-            else:
-                node_attrs=self.g.G.nodes[node_id]
-                if node_attrs:
-                    node_attrs = self.change_value(node_attrs, path_from_node, event.data)
-                    self.g.G.nodes[node_id].update(node_attrs)
-
-
-
-
-
-
-    async def run_simulation_loop(self, graph):
-        """
-        Simulates a loop that processes the graph and sends updates.
-        This runs in a separate task within the consumer's event loop.
-        """
-        logger.info("Simulation loop started.")
-        try:
-            while True:
-                # --- Simulate Graph Processing and Data Update ---
-                # Iterate through nodes and simulate changing some data
-                for node_id, attrs in list(graph.nodes(data=True)): # Iterate over a copy if modifying graph structure
-                    # Simulate a small change in position and size
-                    attrs['x'] += random.uniform(-5, 5)
-                    attrs['y'] += random.uniform(-5, 5)
-                    attrs['size'] = max(5, attrs['size'] + random.uniform(-1, 1)) # Ensure size is not too small
-
-                    # Prepare the update message for this specific node
-                    # The frontend needs the ID to know which bubble to update
-                    update_message = {
-                        'type': 'node_update', # Indicate the type of update
-                        'id': node_id,
-                        'data': {
-                            'x': attrs['x'],
-                            'y': attrs['y'],
-                            'size': attrs['size'],
-                            # Include other relevant data if needed for the frontend
-                            'label': attrs.get('label', node_id),
-                            'color': attrs.get('color', 'gray') # Example: send color too
-                        }
-                    }
-
-                    # Send the update message over the WebSocket
-                    await self.send_data_update(update_message)
-
-                    # Add a small delay between sending updates for nodes
-                    # Adjust this based on how fast you want updates and client capacity
-                    await asyncio.sleep(0.05) # Send update for one node every 50ms
-
-                # Add a longer delay after processing all nodes before the next full iteration
-                await asyncio.sleep(1) # Wait 1 second before the next loop through all nodes
-
-        except asyncio.CancelledError:
-            logger.info("Simulation loop received cancellation signal.")
-            # Clean up if necessary
-        except Exception as e:
-            logger.error(f"Error in simulation loop: {e}")
-            # Optionally send an error message to the client
-            await self.send(text_data=json.dumps({'type': 'error', 'message': f'Backend simulation error: {e}'}))
-
-        logger.info("Simulation loop finished.")
-
-    async def stream_firebase_data(self):
-        logger.info("Starting Firebase polling loop.")
-        try:
-            while True:
-                if updated_data:
-                    await self.send_data_update({
-                        "type": "data_update",
-                        "data": updated_data
-                    })
-        except asyncio.CancelledError:
-            logger.info("Firebase polling cancelled.")
-        except Exception as e:
-            logger.error(f"Error in Firebase stream: {e}")
-            await self.send_data_update({
-                "type": "error",
-                "message": str(e)
-            })
-
 
