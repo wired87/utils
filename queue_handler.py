@@ -23,12 +23,11 @@ class QueueHandler:
 
 
     def working_queue(
-            self,
-            loop: asyncio.AbstractEventLoop,
+            self
         ):
         """
-        Dies ist die Funktion, die in einem separaten Thread ausgeführt wird.
-        Sie liest Aufgaben aus der Queue und arbeitet sie ab.
+
+        Sie liest Aufgaben aus der Queue (in welche add_nodes usw geladen werden) und arbeitet sie ab.
         """
         print(f"Worker Thread gestartet: {threading.current_thread().name}")
 
@@ -65,7 +64,7 @@ class QueueHandler:
                     else:
                         print(f"FEHLER: Ungültige Daten für firebase_push Aufgabe: {task}")
 
-                elif task_type == 'other_task':
+
                     print("  Verarbeite andere Aufgabe...")
 
                 else:

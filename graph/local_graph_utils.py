@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -6,6 +7,7 @@ from typing import List
 import networkx as nx
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
+from bm.settings import TEST_USER_ID
 from utils.file.flatten_dict import flatten_attributes
 
 from bm.logging_custom import cpr
@@ -18,13 +20,14 @@ class LocalGraphUtils(Utils):
 
     def __init__(
             self,
-            user_id,
-            env_id,
+            user_id=TEST_USER_ID,
+            env_id="env_bare_rajtigesomnlhfyqzbvx",
             G=None,
             g_from_path=None,
             nx_only=False,
             upload_to: str = "fb",  # bq || sp || fb
-
+            loop:asyncio.AbstractEventLoop=None,
+            database=None,
             **args
     ):
         super().__init__()
@@ -32,8 +35,8 @@ class LocalGraphUtils(Utils):
         self.g_from_path=g_from_path
         self.get_nx_graph(G)
         self.nx_only = nx_only
-
-        self.firebase = FirebaseRTDBManager(user_id=user_id, env_id=env_id)
+        self.loop=loop
+        self.firebase = FirebaseRTDBManager(base_path=database)
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler()
 
@@ -144,7 +147,7 @@ class LocalGraphUtils(Utils):
             # Update directly to FB
             # Load to queue to update FB
             self.q_handler.add_task(
-                db_path=f"{self.firebase.base_path}/{ntype}/{nid}/",
+                db_path=f"{ntype}/{nid}/",
                 attrs=attrs
             )
         return
@@ -169,11 +172,60 @@ class LocalGraphUtils(Utils):
         else:
             # Load to queue to update FB
             self.q_handler.add_task(
-                db_path=f"{self.firebase.base_path}/{table_name}/{edge_id}/",
+                db_path=f"{table_name}/{edge_id}/",
                 attrs=attrs
             )
 
         return
+
+
+    ####################################
+    # FIREBASE HANDLING
+    ####################################
+
+    def upsert_firebase(
+            self,
+
+            fb_dest=None
+    ):
+        updates = {
+            # Schlüssel: der Ziel-Pfad für den Knoten
+            f"{attrs.get('type')}/{nid}":
+            # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
+                {k: v for k, v in attrs.items() if k not in ["id", "symbol"]}
+
+            # Die Schleife, die die Elemente (nid, attrs) liefert
+            for nid, attrs in self.G.nodes(data=True)
+        }
+
+        for src, trgt in self.G.edges():
+            edge_attrs = self.G[src][trgt]
+
+            path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
+            updates.update(
+                {
+                    path: {k: v for k, v in edge_attrs.items() if k not in ["id", "symbol"]}
+                }
+            )
+        #print("updates", updates)
+        self.firebase.upsert_batch(updates, fb_dest)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     ####################################
     # HELPER
@@ -211,8 +263,8 @@ class LocalGraphUtils(Utils):
 
     def print_status_G(self):
         print(">>>STATUS")
-        print(f"📍 Nodes {len(self.G.nodes)}")
-        print(f"📍 Edges {len(self.G.edges)}")
+        print(f" Nodes {len(self.G.nodes)}")
+        print(f" Edges {len(self.G.edges)}")
 
     def print_status(self):
         print(">>>STATUS")

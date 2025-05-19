@@ -74,13 +74,18 @@ class CreateWorld:
         self.graph_name = "BRAINMASTER"
         self.testing = True
 
-        self.custom_firebase = FirebaseRTDBManager(user_id)
+        self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
+        fb_path = f"users/{user_id}/env/{self.env_creator.envc_id}"
+
+        print("Set fb path", fb_path)
+
+        self.custom_firebase = FirebaseRTDBManager(base_path=fb_path)
 
         self.run_batch_gcp = True
         self.testing = True
         self.current_file = None
+
         self.ion_count = 0
-        self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
         self.overall_modulator_args = {
             "pos_x": 0.0,
             "pos_y": 0.0,
@@ -126,11 +131,8 @@ class CreateWorld:
 
 
         # Firebase action
-        self.g.upsert_firebase(
-            env_id=self.env_creator.envc_id,
-            user_id=self.user_id,
-        )
-
+        self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}")
+        #time.sleep(30)
         print("Process finished")
 
 

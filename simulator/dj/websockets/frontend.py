@@ -16,18 +16,13 @@ import json
 
 from utils.logger import LOGGER
 
-
 class SimulationWebsocket(AsyncWebsocketConsumer):
     """
     Start- and update Entry for each sim.
-
-
-
-
     - Load Graph data from firebase and convert
         - ceate thread and run the sim (update -> each update push to fb)
     """
-
+    testing=True
     async def connect(self):
         query_string = self.scope["query_string"].decode()
         query_params = parse_qs(query_string)
@@ -58,7 +53,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             # Load Graph data from firebase and convert
             self.initial_data = self.g.firebase.get_data(self.db_path)
 
-            if not self.initial_data:
+            if not self.initial_data or not self.initial_data[0]:
                 await self.close()
                 return
         except Exception as e:
@@ -73,7 +68,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         self.loop = asyncio.get_event_loop()
 
         # Start sim in sepparate thread
-        await self.start_sim()
+        await self.start_threads()
 
         # Sende initiale Daten direkt nach dem Connect
         await self.send(text_data=json.dumps({
@@ -81,18 +76,20 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             "message": "success"
         }))
 
-
+    
     def _build_inittial_G(self):
         # --- Graph aufbauen ---
-        print(f"Thread {threading.current_thread().name}: Baue Graph auf.")
+        #print(f"Thread {threading.current_thread().name}: Baue Graph auf. Daten:", self.initial_data)
         env_attrs = None
-        if self.initial_data is not None:  # Stellen Sie sicher, dass Daten vorhanden sind
-            for node_type, node_id_data in self.initial_data.items():
+        if self.initial_data[0] is not None:  # Stellen Sie sicher, dass Daten vorhanden sind
+            for node_type, node_id_data in self.initial_data[0].items():
+                print("node_type,", node_type,)
                 if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                     for nid, attrs in node_id_data.items():
                         if node_type == "edges":
                             parts = nid.split("_")
-                            if len(parts) == 2:  # Grundlegende Validierung
+                            print("parts", parts)
+                            if len(parts) >= 2:  # Grundlegende Validierung
                                 self.g.add_edge(
                                     parts[0],
                                     parts[1],
@@ -100,7 +97,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                                 )
                             else:
                                 print(
-                                    f"Thread {threading.current_thread().name}: Warnung: Ungültiges Kantenformat: {nid}")
+                                    f"Warnung: Ungültiges Kantenformat: {nid} -> Thread {threading.current_thread().name}: ")
                         elif node_type == "ENV":
                             env_attrs = attrs
                             env_id = nid  # Speichern Sie die env_id, falls benötigt
@@ -110,17 +107,13 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                                     id=nid,
                                     **attrs
                                 )
-                            )
-        print(f"Thread {threading.current_thread().name}: Graph aufgebaut.")
-        return env_attrs, env_id
+                        )
+            print(f"Thread {threading.current_thread().name}: Graph aufgebaut.")
+            return env_attrs, env_id
+        else:
+            print(f"Thread {threading.current_thread().name}: Graph FWHLER BEIM aufbau.")
 
-
-
-
-
-
-
-    async def start_sim(self):
+    async def start_threads(self):
         """
         Startet die Simulationslogik in einem separaten Thread.
         Diese Funktion ist nicht-blockierend für den asyncio Event Loop.
@@ -133,27 +126,30 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
             daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
         )
+        if self.testing is True:
+            # FB Upsert thread
+            upsert_thread = threading.Thread(
+                target=self.g.q_handler.working_queue,
+                name=f"UpsertThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
+                daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
+            )
 
-        # FB Upsert thread
-        upsert_thread = threading.Thread(
-            target=self.g.q_handler.working_queue,
-            name=f"UpsertThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
-            daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
-        )
-
-        # Listen to chnges in firebase
-        self.listener_thread = threading.Thread(
-            target=self._run_firebase_listener,
-            args=(self.db_path, self.loop), # Übergabe des Pfades und des Event Loops
-            name=f"FBListener-{self.user_id}-{self.env_id}",
-            daemon=True # Der Listener-Thread wird beendet, wenn der Hauptprozess endet
-        )
-        self.listener_thread.start()
-
+            # Listen to chnges in firebase
+            self.listener_thread = threading.Thread(
+                target=self._run_firebase_listener,
+                args=(self.db_path, self.loop), # Übergabe des Pfades und des Event Loops
+                name=f"FBListener-{self.user_id}-{self.env_id}",
+                daemon=True  # Der Listener-Thread wird beendet, wenn der Hauptprozess endet
+            )
+            upsert_thread.start()
+            self.listener_thread.start()
+        else:
+            #
+            pass
 
         # Start Thread
         simulation_thread.start()
-        upsert_thread.start()
+
 
         print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
         return True
@@ -175,17 +171,12 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
             # Definieren Sie die Callback-Funktion, die bei Datenänderungen aufgerufen wird
             def on_data_change(event):
-                """
-                Diese Callback-Funktion wird vom Firebase SDK im Listener-Thread aufgerufen,
-                wenn sich Daten am überwachten Pfad ändern.
-                """
                 LOGGER.debug(
                     f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: {event.event_type} - {event.path}")
 
                 # Stellen Sie sicher, dass die Daten nicht None sind und verarbeiten Sie sie
                 if event.data is not None:
-                    # Datenstruktur für das Frontend vorbereiten
-                    # Passen Sie dies an das Format an, das Ihr Frontend erwartet
+
                     update_payload = {
                         "type": "sim_update",  # Oder ein anderer Typ für Updates
                         "path": event.path,  # Der spezifische Pfad der Änderung
@@ -193,22 +184,15 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                         # Eventuell weitere Metadaten hinzufügen
                     }
 
-                    # Senden Sie die Daten sicher zurück an den Consumer's Event Loop
-                    # loop.call_soon_threadsafe plant die Ausführung einer Coroutine
-                    # im Event Loop des Haupt-Threads.
-                    # Wir nutzen hier eine Hilfs-Methode im Consumer, die await self.send() macht.
                     loop.call_soon_threadsafe(
                         asyncio.create_task,  # Erstellt eine Task im Event Loop
                         self.send_firebase_update_async(update_payload)  # Die Coroutine, die ausgeführt wird
                     )
+                    #https://vaalentin.github.io/2015/
+                    #https://hajimewatanabe.jp/biography/
                 else:
                     LOGGER.debug(
                         f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: Daten sind None.")
-
-            # Starten Sie den blockierenden Listener.
-            # Diese Methode blockiert den aktuellen Thread, bis der Listener gestoppt wird.
-            # Das zurückgegebene Event-Objekt kann zum Stoppen genutzt werden (listener_event.wait()),
-            # aber hier lassen wir den Thread laufen, bis das Programm endet (daemon=True).
             listener_event = ref.listen(on_data_change)
 
             # Dieser Teil wird normalerweise nicht erreicht, es sei denn, der Listener stoppt
@@ -216,8 +200,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
         except Exception as e:
             LOGGER.error(f"Listener Thread {threading.current_thread().name}: FEHLER im Listener: {e}")
-            # In einer Produktionsumgebung möchten Sie hier eventuell versuchen,
-            # den Listener neu zu starten oder eine Benachrichtigung zu senden.
+
 
     def _run_simulation(self):
 
@@ -267,7 +250,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         # Example: Parse JSON message from frontend
         # text_data_json = json.loads(text_data)
         # command = text_data_json.get('command')
-        # if command == 'start_sim':
+        # if command == 'start_threads':
         #    self.simulation_task = asyncio.create_task(self.run_simulation_loop(SIM_GRAPH))
         # elif command == 'stop_sim':
         #    if hasattr(self, 'simulation_task') and not self.simulation_task.done():
