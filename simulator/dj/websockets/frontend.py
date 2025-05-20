@@ -6,7 +6,6 @@ import os
 import threading
 
 from channels.generic.websocket import AsyncWebsocketConsumer
-from firebase_admin import db
 
 from _google.graph.g_utils import GGraphUtils
 from physics.quantum_fields.qf_updator import QFUpdator
@@ -70,13 +69,13 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         # Start sim in sepparate thread
         await self.start_threads()
 
-        # Sende initiale Daten direkt nach dem Connect
+        # todo filter data before sending
         await self.send(text_data=json.dumps({
-            "type": "status",
-            "message": "success"
+            "type": "initial_data",
+            "message": "success",
+            "data": {k: v for k, v in self.initial_data[0].items() if k not in ["USERS"]}
         }))
 
-    
     def _build_inittial_G(self):
         # --- Graph aufbauen ---
         #print(f"Thread {threading.current_thread().name}: Baue Graph auf. Daten:", self.initial_data)
@@ -87,13 +86,16 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                     for nid, attrs in node_id_data.items():
                         if node_type == "edges":
-                            parts = nid.split("_")
+                            parts = nid.split(f"_{attrs.get('rel', 'None')}_")
                             print("parts", parts)
                             if len(parts) >= 2:  # Grundlegende Validierung
                                 self.g.add_edge(
                                     parts[0],
                                     parts[1],
-                                    attrs=attrs
+                                    attrs=dict(
+                                        # Set edge pos in frontend
+                                        color=attrs.get("color", (255, 255, 255))
+                                    )
                                 )
                             else:
                                 print(
@@ -105,7 +107,10 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                             self.g.add_node(
                                 dict(
                                     id=nid,
-                                    **attrs
+                                    attrs=dict(
+                                        pos=attrs.get("pos"),
+                                        color=attrs.get("color", (255, 255, 255))
+                                    )
                                 )
                         )
             print(f"Thread {threading.current_thread().name}: Graph aufgebaut.")
@@ -126,80 +131,20 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
             daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
         )
-        if self.testing is True:
-            # FB Upsert thread
-            upsert_thread = threading.Thread(
-                target=self.g.q_handler.working_queue,
-                name=f"UpsertThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
-                daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
-            )
-
-            # Listen to chnges in firebase
-            self.listener_thread = threading.Thread(
-                target=self._run_firebase_listener,
-                args=(self.db_path, self.loop), # Übergabe des Pfades und des Event Loops
-                name=f"FBListener-{self.user_id}-{self.env_id}",
-                daemon=True  # Der Listener-Thread wird beendet, wenn der Hauptprozess endet
-            )
-            upsert_thread.start()
-            self.listener_thread.start()
-        else:
-            #
-            pass
+        #if self.testing is True:
+        # FB Upsert thread
+        upsert_thread = threading.Thread(
+            target=self.g.q_handler.working_queue,
+            name=f"UpsertThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
+            daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
+        )
 
         # Start Thread
         simulation_thread.start()
-
+        upsert_thread.start()
 
         print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
         return True
-
-    def _run_firebase_listener(self, db_path: str, loop: asyncio.AbstractEventLoop):
-        """
-        Startet den blockierenden Firebase Realtime Database Listener.
-        Läuft in einem separaten Thread.
-
-        Args:
-            db_path: Der Pfad in der Datenbank, auf den gelauscht werden soll.
-            loop: Eine Referenz auf den asyncio Event Loop des Consumers.
-        """
-        LOGGER.info(f"Listener Thread {threading.current_thread().name}: Starte Listener für Pfad: {db_path}")
-
-        try:
-            # Holen Sie eine Referenz auf den Datenbankpfad
-            ref = db.reference(db_path)
-
-            # Definieren Sie die Callback-Funktion, die bei Datenänderungen aufgerufen wird
-            def on_data_change(event):
-                LOGGER.debug(
-                    f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: {event.event_type} - {event.path}")
-
-                # Stellen Sie sicher, dass die Daten nicht None sind und verarbeiten Sie sie
-                if event.data is not None:
-
-                    update_payload = {
-                        "type": "sim_update",  # Oder ein anderer Typ für Updates
-                        "path": event.path,  # Der spezifische Pfad der Änderung
-                        "data": event.data  # Die geänderten Daten an diesem Pfad
-                        # Eventuell weitere Metadaten hinzufügen
-                    }
-
-                    loop.call_soon_threadsafe(
-                        asyncio.create_task,  # Erstellt eine Task im Event Loop
-                        self.send_firebase_update_async(update_payload)  # Die Coroutine, die ausgeführt wird
-                    )
-                    #https://vaalentin.github.io/2015/
-                    #https://hajimewatanabe.jp/biography/
-                else:
-                    LOGGER.debug(
-                        f"Listener Thread {threading.current_thread().name}: Datenänderung empfangen: Daten sind None.")
-            listener_event = ref.listen(on_data_change)
-
-            # Dieser Teil wird normalerweise nicht erreicht, es sei denn, der Listener stoppt
-            LOGGER.info(f"Listener Thread {threading.current_thread().name}: Listener für Pfad {db_path} beendet.")
-
-        except Exception as e:
-            LOGGER.error(f"Listener Thread {threading.current_thread().name}: FEHLER im Listener: {e}")
 
 
     def _run_simulation(self):
@@ -213,7 +158,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
         try:
             print(f"Thread {threading.current_thread().name}: Daten von Firebase erhalten.")
-            env_attrs, env_id=self._build_inittial_G()
+            env_attrs, env_id = self._build_inittial_G()
 
             # --- QF Updator nutzen und nach Firebase pushen ---
             print(f"Thread {threading.current_thread().name}: Starte QF Updator.")
@@ -257,18 +202,5 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         #        self.simulation_task.cancel()
 
 
-    async def send_firebase_update_async(self, update_payload: dict):
-        """
-        # todo validate input -> check for datatype -> if objekt: such nach den namen "pos", "color", "id"
-        Empfängt Update-Daten vom Listener-Thread (via call_soon_threadsafe)
-        und sendet sie an das Frontend.
-        Läuft im asyncio Event Loop des Consumers.
-        """
-        try:
-            # Senden Sie die aktualisierten Daten als JSON an das Frontend
-            await self.send(text_data=json.dumps(update_payload))
-            LOGGER.debug(f"Sent Firebase update to frontend: {update_payload.get('type')}")
-        except Exception as e:
-            LOGGER.error(f"FEHLER beim Senden des Firebase-Updates an Frontend: {e}")
-            # Fehlerbehandlung, falls das Senden fehlschlägt (z.B. Verbindung geschlossen)
 
+#daphne bm.asgi:application

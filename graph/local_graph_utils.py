@@ -70,9 +70,8 @@ class LocalGraphUtils(Utils):
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False):
         # pprint.pp(attrs)
-
+        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         try:
-
             src_layer = self.replace_special_chars(attrs.get("src_layer")).upper()
             trgt_layer = self.replace_special_chars(attrs.get("trgt_layer")).upper()
 
@@ -185,29 +184,26 @@ class LocalGraphUtils(Utils):
 
     def upsert_firebase(
             self,
-
             fb_dest=None
     ):
-        updates = {
-            # Schlüssel: der Ziel-Pfad für den Knoten
-            f"{attrs.get('type')}/{nid}":
-            # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
-                {k: v for k, v in attrs.items() if k not in ["id", "symbol"]}
 
-            # Die Schleife, die die Elemente (nid, attrs) liefert
-            for nid, attrs in self.G.nodes(data=True)
-        }
+        updates = {}
+        for nid, attrs in self.G.nodes(data=True):
+            ntype = attrs.get("type")
+            if not ntype in updates:
+                updates[ntype] = []
+            if not ntype in ["USERS"]:
+                updates[ntype].append(
+                    {k: v for k, v in attrs.items()}
+                )
 
+        updates["edges"] = []
         for src, trgt in self.G.edges():
-            edge_attrs = self.G[src][trgt]
-
-            path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
-            updates.update(
-                {
-                    path: {k: v for k, v in edge_attrs.items() if k not in ["id", "symbol"]}
-                }
+            edge_attrs = self.G.get_edge_data(src, trgt)
+            updates["edges"].append(
+                edge_attrs
             )
-        #print("updates", updates)
+        # print("updates", updates)
         self.firebase.upsert_batch(updates, fb_dest)
 
 

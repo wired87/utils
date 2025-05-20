@@ -14,8 +14,7 @@ speed_light: 299792458
 planck_constant: 6.626e-34
 
 m_factor: 10000
-
-
+init: True
 EC:
   QF:
     rel: has_component

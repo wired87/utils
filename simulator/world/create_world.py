@@ -144,10 +144,9 @@ class CreateWorld:
         for nid, args in self.g.G.nodes(data=True):
             for nnid, nargs in self.g.G.nodes(data=True):
                 # Just connect Meta/Parent objects here (QF- not QFN)
-                if nid != nnid and args.get("type") in ["ENV", "QF"]:
-                    src_layer = args.get('type')
-                    trgt_layer = nargs.get('type')
-
+                src_layer = args.get('type')
+                trgt_layer = nargs.get('type')
+                if nid != nnid and (src_layer == "ENV" or src_layer == "QF") and (trgt_layer == "ENV" or trgt_layer == "QF"):
                     edge_def = args.get("EC", {}).get(trgt_layer)
                     if not edge_def:
                         continue
@@ -155,7 +154,11 @@ class CreateWorld:
                     edge_key = edge_def["edge_attrs"]
                     if edge_key not in edge_yaml_cache:
                         edge_yaml_cache[edge_key] = load_yaml(os.path.abspath(edge_key))
-
+                    if edge_def.get("rel") is None:
+                        print("edge_def rel", edge_def)
+                        print("edge_def ATTRS", args)
+                    if isinstance(edge_yaml_cache[edge_key], list):
+                        print("LIST RECOGNIZED:", edge_yaml_cache[edge_key])
                     self.g.add_edge(
                         src=nid,
                         trt=nnid,
@@ -172,6 +175,8 @@ class CreateWorld:
             if args.get("type") not in ["USERS", "PARAMETER", "EQUATION"]:
                 if "EC" in args.keys():
                     args.pop("EC")
+                    self.g.G.nodes[nid].update(args)
+
         print("All Parent Nodes Connected")
 
 
