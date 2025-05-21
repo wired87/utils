@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import re
+import time
 from typing import List
 
 import networkx as nx
@@ -40,9 +41,14 @@ class LocalGraphUtils(Utils):
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler()
 
+
+        #history: list[dict[id: list[history]]]
+        self.history = {}
+
+
         self.upload_to=upload_to
         self.schemas = {}
-        """self.table_name: {
+        """table_name: {
         "schema": {},
         "rows": [],
         "id_map": set(),
@@ -133,31 +139,63 @@ class LocalGraphUtils(Utils):
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e)
 
 
+    def add_history_entry(self, nid, ntype, attrs, timestep):
+        print("Extend history")
+        # Load local history
+        if ntype not in self.history:
+            self.history[ntype] = {}
 
-    def update_node(self, nid, attrs):
+        if not self.history[ntype][nid]:
+            self.history[ntype][nid] = {}
+
+        # Include timestep key (for multiple updates / iteration
+        if not self.history[ntype][nid]:
+            self.history[ntype][nid][timestep] = []
+
+        self.history[ntype][nid].append(dict(id=nid, **{k: v for k, v in attrs.items() if k != "id"}))
+
+        if len(self.history[ntype][nid][timestep]) > 10000:
+            print("history limit exceeded -> push batch")
+            # push updates todo: save history alltimes in BQ (after limit increase)
+            self.q_handler.add_task(
+                db_path=f"HIS_{ntype}/{nid}/{timestep}/",
+                attrs=attrs
+            )
+        print("Finished history")
+
+    def update_node(self, nid, attrs, timestep):
+        print("Update node", nid)
         ntype = attrs.get("type")
+
+        self.add_history_entry(nid, ntype, attrs, timestep)
+
         self.G.nodes[nid].update(attrs)
         if self.upload_to in ["sp", "bq"]:
             for item in self.schemas[ntype]["rows"]:
                 if item["id"] == nid:
                     item.update(attrs)
-
         else:
             # Update directly to FB
             # Load to queue to update FB
+            """
             self.q_handler.add_task(
-                db_path=f"{ntype}/{nid}/",
+                db_path=f"HIS_{ntype}/{nid}/",
                 attrs=attrs
             )
+            """
+            pass
         return
 
 
-    def update_edge(self, src, trgt, attrs):
+    def update_edge(self, src, trgt, attrs, timestep):
         rel = attrs.get("rel", "").lower().replace(" ", "_")
         src_layer = attrs.get("src_layer").upper()
         trgt_layer = attrs.get("trgt_layer").upper()
         table_name = f"{src_layer}_{rel}_{trgt_layer}"
         edge_id = f"{src}_{rel}_{trgt}"
+
+        # Add to history
+        self.add_history_entry(edge_id, "edges", attrs, timestep)
 
         # Update nx
         self.G.edges[src][trgt].update(attrs)
@@ -170,10 +208,11 @@ class LocalGraphUtils(Utils):
 
         else:
             # Load to queue to update FB
-            self.q_handler.add_task(
+            """self.q_handler.add_task(
                 db_path=f"{table_name}/{edge_id}/",
                 attrs=attrs
-            )
+            )"""
+            pass
 
         return
 
@@ -181,7 +220,7 @@ class LocalGraphUtils(Utils):
     ####################################
     # FIREBASE HANDLING
     ####################################
-
+    """ 
     def upsert_firebase(
             self,
             fb_dest=None
@@ -204,13 +243,38 @@ class LocalGraphUtils(Utils):
                 edge_attrs
             )
         # print("updates", updates)
+        self.firebase.upsert_batch(updates, fb_dest)"""
+
+    def upsert_firebase(
+            self,
+            fb_dest=None
+    ):
+        updates = {
+            # Schlüssel: der Ziel-Pfad für den Knoten
+            f"{attrs.get('type')}/{nid}":
+            # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
+                {k: v for k, v in attrs.items() if k not in ["id", "symbol"]}
+
+            # Die Schleife, die die Elemente (nid, attrs) liefert
+            for nid, attrs in self.G.nodes(data=True)
+        }
+
+        for src, trgt in self.G.edges():
+            edge_attrs = self.G[src][trgt]
+            print("edge_attrs", edge_attrs)
+
+
+            for key,value in edge_attrs.items():
+                print("Edge value", value)
+
+                path = f"edges/{src}_{value.get('rel')}_{trgt}"
+                updates.update(
+                    {
+                        path: {k: v for k, v in value.items() if k not in ["id", "symbol"]}
+                    }
+                )
+        # print("updates", updates)
         self.firebase.upsert_batch(updates, fb_dest)
-
-
-
-
-
-
 
 
 
@@ -368,3 +432,13 @@ class LocalGraphUtils(Utils):
             if self.G.nodes[neighbor].get('type') in target_type:
                 neighbors.append((neighbor, self.G.nodes[neighbor]))
         return neighbors
+
+
+    def remove_node(self, node_id, ntype):
+        for row in self.schemas[ntype]["rows"]:
+            if row["id"] == node_id:
+                self.schemas[ntype]["rows"].remove(row)
+                break
+        self.G.remove_node(node_id)
+
+

@@ -26,7 +26,6 @@ class QueueHandler:
             self
         ):
         """
-
         Sie liest Aufgaben aus der Queue (in welche add_nodes usw geladen werden) und arbeitet sie ab.
         """
         print(f"Worker Thread gestartet: {threading.current_thread().name}")
@@ -38,6 +37,7 @@ class QueueHandler:
                 # timeout=1: Wartet maximal 1 Sekunde, dann wird TimeoutError ausgelöst.
                 # Nützlich, um regelmäßig auf das Stopp-Signal zu prüfen.
                 task = self.q.get(block=True, timeout=1)
+                print("task", task)
 
                 # Prüfen, ob das Stopp-Signal empfangen wurde
                 if task is None:
@@ -69,10 +69,6 @@ class QueueHandler:
 
                 else:
                     print(f"  FEHLER: Unbekannter Aufgabentyp: {task_type}")
-
-
-
-
 
                 # Wichtig: Signalisieren, dass die Aufgabe bearbeitet wurde
                 self.q.task_done()

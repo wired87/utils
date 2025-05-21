@@ -17,6 +17,7 @@ from bm.settings import TEST_USER_ID
 from physics.quantum_fields.qf_creator import QFCreator
 from utils.file.yaml import load_yaml
 from utils.graph.local_graph_utils import LocalGraphUtils
+from utils.simulator.utils.mover import Mover
 from utils.simulator.world.env.env_creator import ENVCCreator
 
 
@@ -65,7 +66,9 @@ class CreateWorld:
         self.user_id = user_id
         self.world_type=world_type
         self.components = components
-
+        self.spread_items_type = [
+            "QFN"
+        ]
         self.g = g
         self.raw = True  # upload without linking anything
         self.filter_for = "EXPERIMENT_accession_"
@@ -77,10 +80,11 @@ class CreateWorld:
         self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
         fb_path = f"users/{user_id}/env/{self.env_creator.envc_id}"
 
+        self.mover=Mover(g)
+
         print("Set fb path", fb_path)
 
         self.custom_firebase = FirebaseRTDBManager(base_path=fb_path)
-
         self.run_batch_gcp = True
         self.testing = True
         self.current_file = None
@@ -103,7 +107,7 @@ class CreateWorld:
         print("create world")
         
         # ENV
-        self.env_creator.create()
+        self.dim = self.env_creator.create()
 
         #if self.world_type == "bare":
         """particle_creator = ParticleCreator(
@@ -123,15 +127,16 @@ class CreateWorld:
 
         qf_creator.create()
 
-        self.g.print_status_G()
-
         self.connect_meta_nodes()
 
         self.g.print_status_G()
 
+        # Bring in initial shape
+        # todo spread richtet sich nicht nach dim(w-h-d), dim richtet sich nach anzahl und anordnung qfns
+        self.spread_connect_items()
 
         # Firebase action
-        self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}")
+        self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}/")
         #time.sleep(30)
         print("Process finished")
 
@@ -179,45 +184,71 @@ class CreateWorld:
 
         print("All Parent Nodes Connected")
 
+    def spread_connect_items(self, connect_nearest=8):
+        average_node_distance = None
+        for item in self.spread_items_type:
+            spread_items = [
+                (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
+                attrs.get("type") == item
+            ]
 
+            # Briong them to shape
+            for nid, attrs in spread_items:
+                # print("Dpread item", nid)
+                self_attrs, dx = self.mover.spread_objects(
+                    amount_items=len(spread_items),
+                    dim=self.dim[0],
+                    self_attrs=attrs
+                )
 
+                # Set distance for equations
+                if average_node_distance is None:
+                    average_node_distance = dx
+                    # Set distance in ENV
+                    # -> used in laplacian_H calc
+                    for env_id, env_attrs in self.g.G.nodes(data=True):
+                        if env_attrs.get("type") == "ENV":
+                            env_attrs["dx"] = dict(
+                                value=average_node_distance,
+                                description="Distance between nodes -> used in laplacian_H calc",
+                                type="np.array",
+                                origin="measured",
+                                symbol="dx",
+                            )
+                            self.g.G.nodes[env_id].update(env_attrs)
+                            break
+                self.g.G.nodes[nid].update(self_attrs)
+            else:
+                print("Item not in init mode -> not spread")
 
+            # Connect nearest QFN neighbors
+            # Reinit spread_items since last changes
+            spread_items = [
+                (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
+                attrs.get("type") == item
+            ]
+            for nid, attrs in spread_items:
 
+                nearest_neighbors = self.mover.get_nearest_neighbors(
+                    start_pos=attrs.get("pos"),
+                    neighbors=spread_items,
+                    amount_neighbors=connect_nearest,
+                    pos_attr_key="pos"
+                )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    async def reinit(self, tables=True, G=True):
-        await self.g.acreate_session()
-        if G is True:
-            print("del g")
-            await self.g.update_db(self.g.drop_graph_query(self.graph_name))
-        if tables is True:
-            print("Del tables")
-            await asyncio.gather(*[
-                self.g.update_db(
-                    self.g.drop_table_query(k.upper())
-                ) for k, v in self.ecm_creator.content["ion_concentration_mM"].items()
-            ])
-            await asyncio.gather(*[self.g.update_db(self.g.drop_table_query(item.upper())) for item in
-                                   ["MEMBRANE", "ENV", "CELL"]])
-        print("Tables cleared")
-
-
-
+                # Connect all nodes
+                for neighbor in nearest_neighbors:
+                    print("Connect ", nid, "->", neighbor[0])
+                    self.g.add_edge(
+                        nid,
+                        neighbor[0],
+                        attrs=dict(
+                            src_layer="QFN",
+                            trgt_layer="QFN",
+                            rel="neighbor"
+                        )
+                    )
+                self.g.G.nodes[nid].update(attrs)
 
         """# Create Spanner Graph
         print("Create Spanner Graph")

@@ -10,8 +10,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s', # Format mit Thread-Name
     # format='%(asctime)s - %(name)s - %(levelname)s - %(thread)d - %(message)s', # Alternative: Thread-ID
     handlers=[
-        logging.StreamHandler() # Sendet Log-Nachrichten an sys.stderr (Ihre Konsole)
-        # Sie können hier auch FileHandler hinzufügen, um in eine Datei zu loggen
+        logging.StreamHandler()
     ]
 )
 LOGGER = logging.getLogger(__name__)

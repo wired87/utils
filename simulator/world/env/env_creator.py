@@ -37,6 +37,7 @@ class ENVCCreator:
         which manages global fields like temperature, ions, etc.
         """
         print("Creating ENVC...")
+        # todo customize settings -> read from received yaml -> incl tiemsteps
         self.content["id"] = self.envc_id
         env_c= dict(
                 world_type=self.world_type,
@@ -48,6 +49,7 @@ class ENVCCreator:
         self.g.add_node(
             attrs=env_c
         )
+
         print("Link USER to ENV")
         self.g.add_edge(
             src=self.user_id,
@@ -56,9 +58,10 @@ class ENVCCreator:
                 rel="has",
                 src_layer="USERS",
                 trgt_layer=self.layer
-            ),
+            )
         )
-        return self.envc_id
+
+        return self.content["dim"]
 
 
                     

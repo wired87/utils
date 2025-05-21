@@ -124,13 +124,13 @@ class Mover:
         return f"<{self.position.round(2)}>"
 
 
-    def spread_objects(self, amount_items, screen_width, screen_height, self_attrs):
+    def spread_objects(self, amount_items, dim, self_attrs):
         self.cell_index += 1
 
         # Use square cells for consistent spacing in x and y
         cols = int(amount_items ** 0.5)
         rows = (amount_items + cols - 1) // cols
-        grid_size = min(screen_width / cols, screen_height / rows)  # enforce square spacing
+        grid_size = min(dim / cols, dim / rows)  # enforce square spacing
 
         # 1-based to 0-based index
         index = self.cell_index - 1

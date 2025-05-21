@@ -1,19 +1,27 @@
 import asyncio
+
 import os
 
-
+#daphne bm.asgi:application
 
 import threading
+import time
+
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from _google.firebase.real_time_database import FirebaseRTDBManager
 from _google.graph.g_utils import GGraphUtils
+
 from physics.quantum_fields.qf_updator import QFUpdator
 from urllib.parse import parse_qs
 
 import json
 
+from utils.file.yaml import load_yaml, save_yaml
 from utils.logger import LOGGER
+
+
 
 class SimulationWebsocket(AsyncWebsocketConsumer):
     """
@@ -22,20 +30,56 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         - ceate thread and run the sim (update -> each update push to fb)
     """
     testing=True
+    sim_paths = [
+        "QF",
+        "QFN",
+        "ENV",
+        "edges",
+        #"PARTICLE"
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(args, kwargs)
+        self.db_base = None
+
     async def connect(self):
         query_string = self.scope["query_string"].decode()
         query_params = parse_qs(query_string)
 
-        self.user_id = query_params.get("user_id", [None])[0]
-        self.env_id = query_params.get("env_id", [None])[0]
-        # todo collect more sim data like len, elements, ...
+        self.user_id = query_params.get("user_id", None)[0]
+        self.env_id = query_params.get("env_id", None)[0]
+        self.db_base = f"users/{self.user_id}/env/{self.env_id}/"
 
+        # Case, User continues existing session -> If new session: run_session_id = None
+        self.run_session_id = query_params.get("run_session_id", None)
+        if self.run_session_id is None:
+            # Create new session node
+            self.run_session_id = f"session_{time.time()}".replace('.','_')
+            self.db_path = f"{self.db_base}/session/{self.run_session_id}/"
+
+            # Load initial data to
+            firebase = FirebaseRTDBManager(base_path=self.db_base)
+            # Do not upload now the intial state!!!
+            # Initial state gets uploaded just after sim finishes to spec path-> till we have spanner (->todo)
+
+        else:
+            self.db_path = f"{self.db_base}/session/{self.run_session_id}"
+
+            # Load Graph data from firebase and convert
+            firebase = FirebaseRTDBManager(base_path=self.db_path)
+
+        # Get just node-types of interest (EXCLUDE HISTORY)
+        self.initial_data = {}
+        for path in self.sim_paths:
+            data = firebase.get_data(path=f"{path}/")
+            self.initial_data[path] = data[0]
+        #pprint.pp(self.initial_data)
+        #time.sleep(10)
+        # todo collect more sim data like len, elements, ...
         # todo improve auth
         if not self.user_id or not self.env_id:
             await self.close()
             return
-
-        self.db_path = f"users/{self.user_id}/env/{self.env_id}"
 
         try:
             self.g = GGraphUtils(
@@ -48,11 +92,9 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 g_from_path=None,
                 user_id=self.user_id,
             )
+            # check data validity
+            if not self.initial_data:
 
-            # Load Graph data from firebase and convert
-            self.initial_data = self.g.firebase.get_data(self.db_path)
-
-            if not self.initial_data or not self.initial_data[0]:
                 await self.close()
                 return
         except Exception as e:
@@ -73,50 +115,59 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "type": "initial_data",
             "message": "success",
-            "data": {k: v for k, v in self.initial_data[0].items() if k not in ["USERS"]}
         }))
+    # jde zahl hat einen zustand das und die des nachbarn definiert den operator. es muss eine faustregel geben welche operatoren für zustände festlegt (zB "eine 5 und eine 6 ist immer + (alles in mathe ist letzendlich + oder -  ( evtl nicht wichtig -> auf interaktionen zwischenn paaren konzentireren"
 
     def _build_inittial_G(self):
         # --- Graph aufbauen ---
         #print(f"Thread {threading.current_thread().name}: Baue Graph auf. Daten:", self.initial_data)
         env_attrs = None
-        if self.initial_data[0] is not None:  # Stellen Sie sicher, dass Daten vorhanden sind
-            for node_type, node_id_data in self.initial_data[0].items():
-                print("node_type,", node_type,)
-                if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
-                    for nid, attrs in node_id_data.items():
-                        if node_type == "edges":
-                            parts = nid.split(f"_{attrs.get('rel', 'None')}_")
-                            print("parts", parts)
-                            if len(parts) >= 2:  # Grundlegende Validierung
-                                self.g.add_edge(
-                                    parts[0],
-                                    parts[1],
-                                    attrs=dict(
-                                        # Set edge pos in frontend
-                                        color=attrs.get("color", (255, 255, 255))
-                                    )
-                                )
-                            else:
-                                print(
-                                    f"Warnung: Ungültiges Kantenformat: {nid} -> Thread {threading.current_thread().name}: ")
-                        elif node_type == "ENV":
-                            env_attrs = attrs
-                            env_id = nid  # Speichern Sie die env_id, falls benötigt
+        env_id = None
+        #show = True
+        #show2 = True
+        print("self.initial_data.keys()", self.initial_data.keys())
+        for node_type, node_id_data in self.initial_data.items():
+            """if show == True and node_type == "QF":
+                print("1111 nid, attrs", node_id_data)
+                show = False"""
+            print("node_type,", node_type)
+            if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
+                for nid, attrs in node_id_data.items():
+                    """if show2==True:
+                        print("2222 nid, attrs",  nid, attrs)
+                        show2=False"""
+                    if node_type == "edges":
+                        print("Edges", )
+                        parts = nid.split(f"_{attrs.get('rel', 'None')}_")
+                        print("parts", parts)
+                        if len(parts) >= 2:  # Grundlegende Validierung
+                            self.g.add_edge(
+                                parts[0],
+                                parts[1],
+                                attrs=attrs
+                            )
                         else:
-                            self.g.add_node(
-                                dict(
-                                    id=nid,
-                                    attrs=dict(
-                                        pos=attrs.get("pos"),
-                                        color=attrs.get("color", (255, 255, 255))
-                                    )
-                                )
+                            print(f"Warnung: Ungültiges Kantenformat: {nid} Thread {threading.current_thread().name}: ")
+                    elif node_type == "ENV":
+                        print("Env recognized")
+                        env_attrs = attrs
+                        env_id = nid  # Speichern Sie die env_id, falls benötigt
+                    else:
+                        print("Add node", nid)
+                        self.g.add_node(
+                            dict(
+                                id=nid,
+                                **attrs,
+                            )
                         )
+
+            else:
+                print("DATA NOT A DICT:", node_id_data)
+                #time.sleep(10)
             print(f"Thread {threading.current_thread().name}: Graph aufgebaut.")
-            return env_attrs, env_id
-        else:
-            print(f"Thread {threading.current_thread().name}: Graph FWHLER BEIM aufbau.")
+        return env_attrs, env_id
+
+
 
     async def start_threads(self):
         """
@@ -131,17 +182,16 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
             daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
         )
-        #if self.testing is True:
-        # FB Upsert thread
+        """# FB Upsert thread
         upsert_thread = threading.Thread(
             target=self.g.q_handler.working_queue,
             name=f"UpsertThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
             daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
-        )
+        )"""
 
         # Start Thread
         simulation_thread.start()
-        upsert_thread.start()
+        #upsert_thread.start()
 
         print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
         return True
@@ -164,7 +214,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             print(f"Thread {threading.current_thread().name}: Starte QF Updator.")
 
             # run
-            asyncio.run(self.qf_updator.update(env_attrs))
+            asyncio.run(self.qf_updator.update(env_id, env_attrs))
 
             print(
                 f"Thread {threading.current_thread().name}: Simulationslogik abgeschlossen für User {self.user_id}, Env {self.env_id}")
@@ -185,22 +235,39 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 LOGGER.info("Simulation loop task cancelled.")
         pass
 
-    async def receive(self, text_data):
+    async def receive(self, data):
         """
         for live sim updates
         Called when a message is received from the websocket.
         (Optional: Implement logic to receive commands from the frontend)
         """
-        LOGGER.info(f"Received message from frontend: {text_data}")
-        # Example: Parse JSON message from frontend
-        # text_data_json = json.loads(text_data)
-        # command = text_data_json.get('command')
-        # if command == 'start_threads':
-        #    self.simulation_task = asyncio.create_task(self.run_simulation_loop(SIM_GRAPH))
-        # elif command == 'stop_sim':
-        #    if hasattr(self, 'simulation_task') and not self.simulation_task.done():
-        #        self.simulation_task.cancel()
-
+        LOGGER.info(f"Received message from frontend: {data}")
+        # receive stim config
+        data_type= data.get("stim")
+        if data_type == "stim":
+            pass
 
 
 #daphne bm.asgi:application
+
+
+"""
+self.g.add_edge(
+                                parts[0],
+                                parts[1],
+                                attrs=dict(
+                                    # Set edge pos in frontend
+                                    color=attrs.get("color", (255, 255, 255))
+                                )
+                            )
+
+self.g.add_node(
+                            dict(
+                                id=nid,
+                                attrs=dict(
+                                    pos=attrs.get("pos"),
+                                    color=attrs.get("color", (255, 255, 255))
+                                )
+                            )
+                        )
+"""

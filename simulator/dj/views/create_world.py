@@ -1,13 +1,27 @@
-import asyncio
+import os
 
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from _google.graph.g_utils import GGraphUtils
+
 from bm.settings import TEST_USER_ID
-from utils.graph.get_utils import get_graph_utils
-from utils.simulator.world.create_world import CreateWorld
+
+from utils.simulator.test import SimTester
+
+
+LOAD_GRAPHP=r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\local_graph"
+
+class S(serializers.Serializer):
+    user_id = serializers.CharField(
+        required=False,
+        default=TEST_USER_ID
+    )
+    env_id = serializers.CharField(
+        help_text="ID of ENV that should be run",
+        default="env_rajtigesomnlhfyqzbvx"
+    )
+
 
 components= {
     "electron": 5,  # 1e20,   # 100,000,000,000,000,000,000 electrons per m³
@@ -19,22 +33,6 @@ components= {
     }
 }
 
-"""
-"positron": 1e12,   # 1,000,000,000,000 positrons per m³
-"photon":   1e25,   # 10,000,000,000,000,000,000,000,000 photons per m³
-"alpha":    1e16,   # 10,000,000,000,000,000 helium nuclei per m³
-"muon":     1e10,   # 10,000,000,000 muons per m³
-"""
-
-
-class S(serializers.Serializer):
-    world_type = serializers.CharField(
-        help_text="World type ",
-        required=False,
-        default="bare"
-    )
-
-
 class CreateWorldView(APIView):
     serializer_class = S
     testing=True
@@ -42,42 +40,20 @@ class CreateWorldView(APIView):
         """
         Entry is alltimes 2 nodes with a edge connection
         """
-
         data = request.data
-        world_type = data.get("world_type", "bare")  # bare || cellular
+        user_id = data.get("user_id", TEST_USER_ID)
+        env_id = data.get("env_id", "env_bare_rajtigesomnlhfyqzbvx")
+        if env_id is None or len(env_id.strip()) == 0:
+            env_id = "env_bare_rajtigesomnlhfyqzbvx"
 
-        # available_functions = DEF_ARG_EXTRACTOR.match_to_powerset(key_combos)
-        # validate needed Graph
-        g_obj = get_graph_utils(
-            local=self.testing,
-        )
+        g_path = os.path.join(LOAD_GRAPHP, f"{env_id}.json")
+        db_base = f"users/{TEST_USER_ID}/env/env_bare_rajtigesomnlhfyqzbvx/"
+        test=SimTester()
+        test.run(g_path, user_id, env_id, components, database=db_base)
 
-        # create
-        print("Create Graph")
-        g = GGraphUtils(
-            upload_to="bq",
-            database="brainmaster",
-            nx_only=True,
-            g_from_path=None
-        )
-
-        world_creator = CreateWorld(g, components, world_type, user_id=TEST_USER_ID)
-
-        asyncio.run(world_creator.hello_world())
+        # return StreamingHttpResponse({"status": "success"}, status=200)
         return Response({"status": "success"}, status=200)
 
-
-
-"""
-Problem: variable names are not constant -> sys gets highly error prune 
--> embed semantic meaning of each var. 
--> use uniform units in the entire sys (to provide not a value in cm when m is required)
--->> JUST DESIGN IT CONSTANT
-
-BUT 
-how to choose the right var at the right position?
-semantic 
-"""
 
 
 

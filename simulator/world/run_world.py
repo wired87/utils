@@ -40,7 +40,6 @@ class WorldRunner:
         self.height = None
         self.pg_renderer = None
         self.screen = None
-        self.screen = None
 
         """self.wol = WorldObjectLoader(
             g,
@@ -67,6 +66,7 @@ class WorldRunner:
 
         self.testing = True
         self.mover = Mover(self.g)
+
         # CLASSES
         # self.env_up = ENVUpdator()
         self.qf_up = QFUpdator(
@@ -78,9 +78,7 @@ class WorldRunner:
         """CORE_LAWS_C +
         GRAVITYC"""
         # Particles include in the initial spread process
-        self.spread_items_type = [
-            "QFN"
-        ]
+
 
     def init_world(self):
         pygame.init()
@@ -106,81 +104,9 @@ class WorldRunner:
             scale=self.scale
         )
 
-        # Spread items
-        self.spread_connect_items()
-
         print("World initialized")
 
-    def spread_connect_items(self, connect_nearest=8):
-        average_node_distance = None
-        for item in self.spread_items_type:
-            spread_items = [
-                (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
-                attrs.get("type") == item
-            ]
-            # Briong them to shape
-            for nid, attrs in spread_items:
-                init = attrs.get("init")
-                if init is True:
-                    #print("Dpread item", nid)
-                    self_attrs, dx = self.mover.spread_objects(
-                        amount_items=len(spread_items),
-                        screen_width=self.width,
-                        screen_height=self.height,
-                        self_attrs=attrs
-                    )
 
-                    # Set distance for equations
-                    if average_node_distance is None:
-                        average_node_distance = dx
-                        # Set distance in ENV
-                        # -> used in laplacian_H calc
-                        for env_id, env_attrs in self.g.G.nodes(data=True):
-                            if env_attrs.get("type") == "ENV":
-                                env_attrs["dx"] = dict(
-                                    value=average_node_distance,
-                                    description="Distance between nodes -> used in laplacian_H calc",
-                                    type="np.array",
-                                    origin="measured",
-                                    symbol="dx",
-                                )
-                                self.g.G.nodes[env_id].update(env_attrs)
-                                break
-                    self.g.G.nodes[nid].update(self_attrs)
-                else:
-                    print("Item not in init mode -> not spread")
-
-            # Connect nearest QFN neighbors
-            # Reinit since last changes
-            spread_items = [
-                (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
-                attrs.get("type") == item
-            ]
-            for nid, attrs in spread_items:
-                init = attrs.get("init")
-                if init is True:
-                    nearest_neighbors = self.mover.get_nearest_neighbors(
-                        start_pos=attrs.get("pos"),
-                        neighbors=spread_items,
-                        amount_neighbors=connect_nearest,
-                        pos_attr_key="pos"
-                    )
-
-
-                    # Connect all nodes
-                    for neighbor in nearest_neighbors:
-                        print("Connect ", nid, "->", neighbor[0])
-                        self.g.add_edge(
-                            nid,
-                            neighbor[0],
-                            attrs=dict(
-                                src_layer="QFN",
-                                trgt_layer="QFN",
-                                rel="neighbor"
-                            )
-                        )
-                    attrs["init"] = False
-                    self.g.G.nodes[nid].update(attrs)
 
         # Save step
         #self.g.save_graph(dest_name=self.g.g_from_path)
