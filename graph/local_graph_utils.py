@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import pprint
 import re
 import time
 from typing import List
@@ -15,6 +16,7 @@ from bm.logging_custom import cpr
 from utils.gnn.processing.graph_manipulator import Manipulator
 from utils.queue_handler import QueueHandler
 from utils.utils import Utils
+import queue
 
 
 class LocalGraphUtils(Utils):
@@ -29,6 +31,7 @@ class LocalGraphUtils(Utils):
             upload_to: str = "fb",  # bq || sp || fb
             loop:asyncio.AbstractEventLoop=None,
             database=None,
+            queue: queue.Queue or None = None,
             **args
     ):
         super().__init__()
@@ -39,12 +42,10 @@ class LocalGraphUtils(Utils):
         self.loop=loop
         self.firebase = FirebaseRTDBManager(base_path=database)
         self.manipulator = Manipulator()
-        self.q_handler = QueueHandler()
-
+        self.q_handler = QueueHandler(queue)
 
         #history: list[dict[id: list[history]]]
         self.history = {}
-
 
         self.upload_to=upload_to
         self.schemas = {}
@@ -58,7 +59,7 @@ class LocalGraphUtils(Utils):
     # CORE
     ####################################
 
-    def add_node(self, attrs: dict, flatten=False, single_upsert=False):
+    def add_node(self, attrs: dict, flatten=False, single_upsert=False, timestep=None):
         attrs = self.clean_attr_keys(attrs, flatten)
         attrs["type"] = attrs["type"].upper()
         # print(">>NODE FILTERED")
@@ -72,11 +73,19 @@ class LocalGraphUtils(Utils):
             self.local_batch_loader(attrs)
         self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
 
+        # todo just add each entry here results in doubles -> filter at upload process then
+        if timestep:
+            self.add_history_entry(
+                nid=attrs.get("id"),
+                ntype=attrs["type"],
+                attrs=attrs,
+                timestep=timestep
+            )
         return True
 
-    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False):
-        # pprint.pp(attrs)
-        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None):
+        #pprint.pp(attrs)
+        #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         try:
             src_layer = self.replace_special_chars(attrs.get("src_layer")).upper()
             trgt_layer = self.replace_special_chars(attrs.get("trgt_layer")).upper()
@@ -132,27 +141,36 @@ class LocalGraphUtils(Utils):
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
 
-
-
+                if timestep:
+                    self.add_history_entry(
+                        nid=attrs.get("id"),
+                        ntype=attrs["type"],
+                        attrs=attrs,
+                        timestep=timestep
+                    )
 
         except Exception as e:
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e)
 
 
     def add_history_entry(self, nid, ntype, attrs, timestep):
+        """
+        Adds all changes to a local history
+        todo: directly upload here to spanner
+        """
         print("Extend history")
         # Load local history
         if ntype not in self.history:
             self.history[ntype] = {}
 
-        if not self.history[ntype][nid]:
+        if not self.history[ntype].get(nid):
             self.history[ntype][nid] = {}
 
         # Include timestep key (for multiple updates / iteration
-        if not self.history[ntype][nid]:
+        if not self.history[ntype][nid].get(timestep):
             self.history[ntype][nid][timestep] = []
 
-        self.history[ntype][nid].append(dict(id=nid, **{k: v for k, v in attrs.items() if k != "id"}))
+        self.history[ntype][nid][timestep].append(dict(id=nid, **{k: v for k, v in attrs.items() if k != "id"}))
 
         if len(self.history[ntype][nid][timestep]) > 10000:
             print("history limit exceeded -> push batch")
@@ -261,11 +279,11 @@ class LocalGraphUtils(Utils):
 
         for src, trgt in self.G.edges():
             edge_attrs = self.G[src][trgt]
-            print("edge_attrs", edge_attrs)
+            #print("edge_attrs", edge_attrs)
 
 
             for key,value in edge_attrs.items():
-                print("Edge value", value)
+                #print("Edge value", value)
 
                 path = f"edges/{src}_{value.get('rel')}_{trgt}"
                 updates.update(
@@ -393,7 +411,7 @@ class LocalGraphUtils(Utils):
                 print(f"Added {table_name} to schema")
 
             if row_id not in [item for item in self.schemas[table_name]["id_map"]]:
-                print(f"Insert {row_id} into {table_name}")
+                #print(f"Insert {row_id} into {table_name}")
                 self.schemas[table_name]["rows"].append(args)
                 self.schemas[table_name]["id_map"].add(row_id)
             # else:

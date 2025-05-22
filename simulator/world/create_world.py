@@ -17,6 +17,7 @@ from bm.settings import TEST_USER_ID
 from physics.quantum_fields.qf_creator import QFCreator
 from utils.file.yaml import load_yaml
 from utils.graph.local_graph_utils import LocalGraphUtils
+from utils.math import MGLOBALSC
 from utils.simulator.utils.mover import Mover
 from utils.simulator.world.env.env_creator import ENVCCreator
 
@@ -103,6 +104,11 @@ class CreateWorld:
             "cutting_event": {}
         }
 
+        self.m_globals = MGLOBALSC.copy()
+
+
+
+
     async def hello_world(self):
         print("create world")
         
@@ -129,12 +135,11 @@ class CreateWorld:
 
         self.connect_meta_nodes()
 
-        self.g.print_status_G()
-
         # Bring in initial shape
         # todo spread richtet sich nicht nach dim(w-h-d), dim richtet sich nach anzahl und anordnung qfns
         self.spread_connect_items()
 
+        self.g.print_status_G()
         # Firebase action
         self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}/")
         #time.sleep(30)
@@ -185,7 +190,7 @@ class CreateWorld:
         print("All Parent Nodes Connected")
 
     def spread_connect_items(self, connect_nearest=8):
-        average_node_distance = None
+        dx_set = False
         for item in self.spread_items_type:
             spread_items = [
                 (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
@@ -201,22 +206,14 @@ class CreateWorld:
                     self_attrs=attrs
                 )
 
-                # Set distance for equations
-                if average_node_distance is None:
-                    average_node_distance = dx
-                    # Set distance in ENV
-                    # -> used in laplacian_H calc
-                    for env_id, env_attrs in self.g.G.nodes(data=True):
-                        if env_attrs.get("type") == "ENV":
-                            env_attrs["dx"] = dict(
-                                value=average_node_distance,
-                                description="Distance between nodes -> used in laplacian_H calc",
-                                type="np.array",
-                                origin="measured",
-                                symbol="dx",
-                            )
-                            self.g.G.nodes[env_id].update(env_attrs)
-                            break
+                # SET NODE DISTANCE FOR LAPLACIAN
+                if dx_set is False:
+                    for k,v in self.g.G.nodes(data=True):
+                        if v.get("type") == "ENV":
+                            v["dx"] = float(dx) * float(self.m_globals["px_to_meter"])
+                            self.g.G.nodes[k].update(v)
+                            dx_set=True
+
                 self.g.G.nodes[nid].update(self_attrs)
             else:
                 print("Item not in init mode -> not spread")
@@ -238,7 +235,7 @@ class CreateWorld:
 
                 # Connect all nodes
                 for neighbor in nearest_neighbors:
-                    print("Connect ", nid, "->", neighbor[0])
+                    #print("Connect ", nid, "->", neighbor[0])
                     self.g.add_edge(
                         nid,
                         neighbor[0],

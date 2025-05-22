@@ -13,13 +13,16 @@ class QueueHandler:
 
     def add_task(self, db_path, attrs, task_type: str = 'firebase_push'):
         """Fügt eine Firebase Push Aufgabe zur Queue hinzu."""
+        #print("db_path, attrs, task_type", db_path, attrs, task_type)
+
         task = {
             'type': task_type,
             'path': db_path,
             'data': attrs
         }
-        print(f"Haupt-Thread: Füge Aufgabe zur Queue hinzu: {task['type']}")
         self.q.put(task)
+        print(f"Task added to queue: {task['type']}")
+
 
 
     def working_queue(

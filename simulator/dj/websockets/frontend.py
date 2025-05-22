@@ -7,7 +7,7 @@ import os
 import threading
 import time
 
-
+import networkx as nx
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
@@ -18,7 +18,7 @@ from urllib.parse import parse_qs
 
 import json
 
-from utils.file.yaml import load_yaml, save_yaml
+from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.logger import LOGGER
 
 
@@ -81,8 +81,20 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             await self.close()
             return
 
+
+
         try:
             self.g = GGraphUtils(
+                table_name="NONE",
+                upload_to="fb",
+                instance=os.environ.get("FIREBASE_RTDB"),  # set root of db
+                database=self.db_path,  # spec user spec entry (like table)
+                nx_only=False,
+                G=None,
+                g_from_path=None,
+                user_id=self.user_id,
+            )
+            self.frontend_graph = GGraphUtils(
                 table_name="NONE",
                 upload_to="fb",
                 instance=os.environ.get("FIREBASE_RTDB"),  # set root of db
@@ -105,24 +117,32 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         await self.accept()
         LOGGER.info(f"WebSocket connection accepted for user {self.user_id}")
 
+        env_attrs, env_id = self._build_inittial_G()
+
+
         # Init Sim
         self.loop = asyncio.get_event_loop()
 
         # Start sim in sepparate thread
-        await self.start_threads()
+        await self.start_threads(env_attrs, env_id)
 
         # todo filter data before sending
         await self.send(text_data=json.dumps({
             "type": "initial_data",
             "message": "success",
+            "data": json.dumps(nx.node_link_data(self.frontend_graph.G), indent=2)
         }))
+        self.frontend_graph= None
     # jde zahl hat einen zustand das und die des nachbarn definiert den operator. es muss eine faustregel geben welche operatoren für zustände festlegt (zB "eine 5 und eine 6 ist immer + (alles in mathe ist letzendlich + oder -  ( evtl nicht wichtig -> auf interaktionen zwischenn paaren konzentireren"
+
+
 
     def _build_inittial_G(self):
         # --- Graph aufbauen ---
         #print(f"Thread {threading.current_thread().name}: Baue Graph auf. Daten:", self.initial_data)
         env_attrs = None
         env_id = None
+
         #show = True
         #show2 = True
         print("self.initial_data.keys()", self.initial_data.keys())
@@ -137,15 +157,28 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                         print("2222 nid, attrs",  nid, attrs)
                         show2=False"""
                     if node_type == "edges":
-                        print("Edges", )
                         parts = nid.split(f"_{attrs.get('rel', 'None')}_")
-                        print("parts", parts)
+                        #print("parts", parts)
                         if len(parts) >= 2:  # Grundlegende Validierung
                             self.g.add_edge(
                                 parts[0],
                                 parts[1],
                                 attrs=attrs
                             )
+
+                            # Load filtered copy to the frontend graph
+                            self.frontend_graph.add_edge(
+                                parts[0],
+                                parts[1],
+                                attrs=dict(
+                                    # Set edge pos in frontend
+                                    color=attrs.get("color", (255, 255, 255)),
+                                    rel=attrs.get("rel"),
+                                    src_layer=attrs.get("src_layer"),
+                                    trgt_layer=attrs.get("trgt_layer"),
+                                )
+                            )
+
                         else:
                             print(f"Warnung: Ungültiges Kantenformat: {nid} Thread {threading.current_thread().name}: ")
                     elif node_type == "ENV":
@@ -155,9 +188,19 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                     else:
                         print("Add node", nid)
                         self.g.add_node(
-                            dict(
+                            attrs=dict(
                                 id=nid,
                                 **attrs,
+                            )
+                        )
+
+                        # Load filtered copy to the frontend graph
+                        self.frontend_graph.add_node(
+                            dict(
+                                id=nid,
+                                pos=attrs.get("pos"),
+                                color=attrs.get("color", (255, 255, 255)),
+                                type=attrs.get("type")
                             )
                         )
 
@@ -169,7 +212,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
 
 
-    async def start_threads(self):
+    async def start_threads(self, env_attrs, env_id):
         """
         Startet die Simulationslogik in einem separaten Thread.
         Diese Funktion ist nicht-blockierend für den asyncio Event Loop.
@@ -180,7 +223,9 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         simulation_thread = threading.Thread(
             target=self._run_simulation,
             name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
-            daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
+            daemon=True,  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
+            args =(env_attrs, env_id)
+
         )
         """# FB Upsert thread
         upsert_thread = threading.Thread(
@@ -197,8 +242,8 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         return True
 
 
-    def _run_simulation(self):
-
+    def _run_simulation(self, env_attrs, env_id):
+        print("env_attrs, env_id", env_attrs, env_id)
         self.qf_updator = QFUpdator(
             g=self.g,
             user_id=self.user_id,
@@ -207,12 +252,6 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         print(f"Thread {threading.current_thread().name}: Simulationslogik gestartet für User {self.user_id}, Env {self.env_id}")
 
         try:
-            print(f"Thread {threading.current_thread().name}: Daten von Firebase erhalten.")
-            env_attrs, env_id = self._build_inittial_G()
-
-            # --- QF Updator nutzen und nach Firebase pushen ---
-            print(f"Thread {threading.current_thread().name}: Starte QF Updator.")
-
             # run
             asyncio.run(self.qf_updator.update(env_id, env_attrs))
 
@@ -235,17 +274,34 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 LOGGER.info("Simulation loop task cancelled.")
         pass
 
-    async def receive(self, data):
-        """
-        for live sim updates
-        Called when a message is received from the websocket.
-        (Optional: Implement logic to receive commands from the frontend)
-        """
-        LOGGER.info(f"Received message from frontend: {data}")
-        # receive stim config
-        data_type= data.get("stim")
-        if data_type == "stim":
-            pass
+    async def receive(self, text_data=None, bytes_data=None):
+        LOGGER.info(f"Received message from frontend: {text_data}")
+        try:
+            data = json.loads(text_data)
+            data_type = data.get("type")  # assuming 'type' field for command
+            command_details = data.get("payload")  # assuming 'payload' for command data
+
+            if data_type == "stim":
+                # Example: Put a 'stimulus' command with details into the queue
+                self.command_queue.put({"command": "apply_stimulus", "details": command_details})
+                LOGGER.info(f"Frontend command 'stimulus' added to queue.")
+            elif data_type == "pause":
+                self.command_queue.put({"command": "pause_simulation"})
+                LOGGER.info(f"Frontend command 'pause' added to queue.")
+            elif data_type == "resume":
+                self.command_queue.put({"command": "resume_simulation"})
+                LOGGER.info(f"Frontend command 'resume' added to queue.")
+            elif data_type == "stop":
+                self.command_queue.put({"command": "stop_simulation"})
+                LOGGER.info(f"Frontend command 'stop' added to queue.")
+            # Add more command types as needed
+            else:
+                LOGGER.warning(f"Unknown command type received: {data_type}")
+
+        except json.JSONDecodeError:
+            LOGGER.error(f"Failed to decode JSON from frontend: {text_data}")
+        except Exception as e:
+            LOGGER.error(f"Error processing received message: {e}")
 
 
 #daphne bm.asgi:application
@@ -261,13 +317,5 @@ self.g.add_edge(
                                 )
                             )
 
-self.g.add_node(
-                            dict(
-                                id=nid,
-                                attrs=dict(
-                                    pos=attrs.get("pos"),
-                                    color=attrs.get("color", (255, 255, 255))
-                                )
-                            )
-                        )
+self.g
 """

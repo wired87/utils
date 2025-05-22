@@ -1,16 +1,18 @@
-"""
-
-
-
-
-"""
-
-
 import itertools
 import operator
+import os
+
 import numpy as np
 
-# Alle relevanten Python-Operatoren als Funktionen
+from utils.file.yaml import load_yaml
+
+MGLOBALS= r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\math\globals.yaml" if os.name == "nt" else "utils/math/globals.yaml"
+MGLOBALSC = load_yaml(MGLOBALS)
+
+
+
+
+# WICHTIG FÜR MATH G ENGINE Alle relevanten Python-Operatoren als Funktionen
 OPS = {
     '+': operator.add,
     '-': operator.sub,
@@ -51,7 +53,7 @@ def apply_all_operator_combinations(variables):
     return results
 
 # Beispiel: Matrix und Skalarwerte
-x = {
+r"""x = {
     'a': np.array([[1, 2], [3, 4]]),
     'b': np.array([[2, 0], [1, 2]]),
     'c': 5
@@ -62,3 +64,7 @@ results = apply_all_operator_combinations(x)
 # Ausgabe (nur ein paar Ergebnisse)
 for k, v in list(results.items())[:10]:
     print(f"{k}:\n{v}\n")
+"""
+
+
+

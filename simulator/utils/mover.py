@@ -3,6 +3,8 @@ from typing import List
 import numpy as np
 import bisect
 
+from utils.math import MGLOBALSC
+
 
 class Mover:
     def __init__(self, g):
@@ -14,6 +16,9 @@ class Mover:
         self.g = g
         # Time step and movement step
         self.time_step = 0.001  # seconds
+
+
+
 
     def find_nearest_point_from_pos_list(self, start_pos, points):
         start = np.array(start_pos)
@@ -56,12 +61,8 @@ class Mover:
         for r in result:
             print_result.append((r[0], r[1].get("pos")))
 
-        print("Neareest neighbors identified:", print_result)
+        #print("Neareest neighbors identified:", print_result)
         return result
-
-
-
-
 
 
     def move_src_to_trgt(self, pos1, pos2, step_size):
@@ -141,37 +142,8 @@ class Mover:
         y = (row + 0.5) * grid_size
 
         self_attrs["pos"] = [x, y, 0.0]
-        self_attrs["dx"] = grid_size
+
 
         print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
         return self_attrs, grid_size
-
-
-
-"""
-def spread_objects(self, amount_items, screen_width, screen_height, self_attrs):
-    self.cell_index += 1
-    #dim = screen_width if screen_width > screen_height else screen_height
-    cols = int(amount_items ** 0.5)
-    rows = (amount_items + cols - 1) // cols
-
-    # Cell index is 1-based right now, fix that:
-    index = self.cell_index - 1
-    row = index // cols
-    col = index % cols
-
-    cell_width = screen_width / cols
-    cell_height = screen_height / rows
-
-    x = (col + 0.5) * cell_width
-    y = (row + 0.5) * cell_height
-
-    self_attrs["pos"] = [x, y, 0.0]
-
-    print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
-    return self_attrs, cell_width
-"""
-
-
-
 

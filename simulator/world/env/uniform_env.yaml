@@ -16,6 +16,7 @@ time: 0.0 # total time sim is running
 timestep: .01 # time step forward after each iter
 m_factor: 10000
 init: True
+dx: 0.0
 EC:
   QF:
     rel: has_component
