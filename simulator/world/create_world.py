@@ -128,20 +128,20 @@ class CreateWorld:
             particle_conc=self.particle_conc
         )"""
 
-        qf_creator = QFCreator(
+        self.qf_creator = QFCreator(
             g=self.g,
             env_id=self.env_creator.envc_id,
             testing=self.testing,
             specs=self.components["qf"]
         )
 
-        qf_creator.create()
+        self.qf_creator.create()
 
         self.connect_meta_nodes()
 
         # Bring in initial shape
         # todo spread richtet sich nicht nach dim(w-h-d), dim richtet sich nach anzahl und anordnung qfns
-        self.spread_connect_items(qf_creator)
+        self.spread_connect_items()
 
         self.g.print_status_G()
 
@@ -149,7 +149,8 @@ class CreateWorld:
         create_g_visual(self.g.G, dest_path=self.image_path)
 
         # Firebase action
-        self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}/")
+        self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}/", testing=self.testing)
+
         #time.sleep(30)
         print("Process finished")
 
@@ -197,7 +198,7 @@ class CreateWorld:
 
         print("All Parent Nodes Connected")
 
-    def spread_connect_items(self, qf_creator, connect_nearest=8):
+    def spread_connect_items(self, connect_nearest=8):
         dx_set = False
         for item in self.spread_items_type:
             spread_items = [
@@ -253,8 +254,19 @@ class CreateWorld:
                             rel="neighbor"
                         )
                     )
+
+                    # Connect all fields direct
+
+                    neighbor_fields = [intern_neighbor_phi, intern_neighbor_psi, intern_neighbor_g] = self.qf_creator.get_all_node_sub_fields(nid)
+                    for f in neighbor_fields:
+                        # connect fields
+                        self.qf_creator.connect_field_types(
+                            src_qfn_id=nid,
+                            trgt_qfn_id=neighbor[0]
+                        )
+
                     # Connect single fields
-                    qf_creator.connect_field_types(
+                    self.qf_creator.connect_field_types(
                         src_qfn_id=nid,
                         trgt_qfn_id=neighbor[0]
                     )

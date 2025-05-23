@@ -268,33 +268,61 @@ class LocalGraphUtils(Utils):
 
     def upsert_firebase(
             self,
-            fb_dest=None
+            fb_dest=None,
+            testing=False
     ):
-        updates = {
-            # Schlüssel: der Ziel-Pfad für den Knoten
-            f"{attrs.get('type')}/{nid}":
-            # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
-                {k: v for k, v in attrs.items() if k not in ["id", "symbol"]}
 
-            # Die Schleife, die die Elemente (nid, attrs) liefert
-            for nid, attrs in self.G.nodes(data=True)
-        }
+        if testing is False:
+            updates = {
+                # Schlüssel: der Ziel-Pfad für den Knoten
+                f"{attrs.get('type')}/{nid}":
+                # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
+                    {k: v for k, v in attrs.items() if k not in ["id", "symbol"]}
 
-        for src, trgt in self.G.edges():
-            edge_attrs = self.G[src][trgt]
-            #print("edge_attrs", edge_attrs)
+                # Die Schleife, die die Elemente (nid, attrs) liefert
+                for nid, attrs in self.G.nodes(data=True)
+            }
+
+            for src, trgt in self.G.edges():
+                edge_attrs = self.G[src][trgt]
+                #print("edge_attrs", edge_attrs)
 
 
-            for key,value in edge_attrs.items():
-                #print("Edge value", value)
+                for key,value in edge_attrs.items():
+                    #print("Edge value", value)
 
-                path = f"edges/{src}_{value.get('rel')}_{trgt}"
-                updates.update(
-                    {
-                        path: {k: v for k, v in value.items() if k not in ["id", "symbol"]}
-                    }
-                )
-        # print("updates", updates)
+                    path = f"edges/{src}_{value.get('rel')}_{trgt}"
+                    updates.update(
+                        {
+                            path: {k: v for k, v in value.items() if k not in ["id", "symbol"]}
+                        }
+                    )
+            # print("updates", updates)
+        else:
+            updates = {
+                # Schlüssel: der Ziel-Pfad für den Knoten
+                f"{attrs.get('type')}/{nid}":
+                # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
+                    {k: v for k, v in attrs.items() if k in ["id", "pos"]}
+
+                # Die Schleife, die die Elemente (nid, attrs) liefert
+                for nid, attrs in self.G.nodes(data=True)
+            }
+
+            for src, trgt in self.G.edges():
+                edge_attrs = self.G[src][trgt]
+                # print("edge_attrs", edge_attrs)
+
+                for key, value in edge_attrs.items():
+                    # print("Edge value", value)
+
+                    path = f"edges/{src}_{value.get('rel')}_{trgt}"
+                    updates.update(
+                        {
+                            path: {k: v for k, v in value.items() if k not in ["symbol"]}
+                        }
+                    )
+            # print("updates", updates)
         self.firebase.upsert_batch(updates, fb_dest)
 
 
