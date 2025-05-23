@@ -17,6 +17,7 @@ from bm.settings import TEST_USER_ID
 from physics.quantum_fields.qf_creator import QFCreator
 from utils.file.yaml import load_yaml
 from utils.graph.local_graph_utils import LocalGraphUtils
+from utils.graph.visual import create_g_visual
 from utils.math import MGLOBALSC
 from utils.simulator.utils.mover import Mover
 from utils.simulator.world.env.env_creator import ENVCCreator
@@ -67,9 +68,11 @@ class CreateWorld:
         self.user_id = user_id
         self.world_type=world_type
         self.components = components
+
         self.spread_items_type = [
             "QFN"
         ]
+
         self.g = g
         self.raw = True  # upload without linking anything
         self.filter_for = "EXPERIMENT_accession_"
@@ -80,7 +83,7 @@ class CreateWorld:
 
         self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
         fb_path = f"users/{user_id}/env/{self.env_creator.envc_id}"
-
+        self.image_path = r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\world\world01.json"
         self.mover=Mover(g)
 
         print("Set fb path", fb_path)
@@ -91,6 +94,7 @@ class CreateWorld:
         self.current_file = None
 
         self.ion_count = 0
+
         self.overall_modulator_args = {
             "pos_x": 0.0,
             "pos_y": 0.0,
@@ -137,9 +141,13 @@ class CreateWorld:
 
         # Bring in initial shape
         # todo spread richtet sich nicht nach dim(w-h-d), dim richtet sich nach anzahl und anordnung qfns
-        self.spread_connect_items()
+        self.spread_connect_items(qf_creator)
 
         self.g.print_status_G()
+
+        # Save world image for PyVis
+        create_g_visual(self.g.G, dest_path=self.image_path)
+
         # Firebase action
         self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}/")
         #time.sleep(30)
@@ -189,7 +197,7 @@ class CreateWorld:
 
         print("All Parent Nodes Connected")
 
-    def spread_connect_items(self, connect_nearest=8):
+    def spread_connect_items(self, qf_creator, connect_nearest=8):
         dx_set = False
         for item in self.spread_items_type:
             spread_items = [
@@ -197,7 +205,7 @@ class CreateWorld:
                 attrs.get("type") == item
             ]
 
-            # Briong them to shape
+            # SPREAD ITEMS OVER VIRTUAL AREA
             for nid, attrs in spread_items:
                 # print("Dpread item", nid)
                 self_attrs, dx = self.mover.spread_objects(
@@ -224,8 +232,8 @@ class CreateWorld:
                 (nid, attrs) for nid, attrs in self.g.G.nodes(data=True) if
                 attrs.get("type") == item
             ]
-            for nid, attrs in spread_items:
 
+            for nid, attrs in spread_items:
                 nearest_neighbors = self.mover.get_nearest_neighbors(
                     start_pos=attrs.get("pos"),
                     neighbors=spread_items,
@@ -240,10 +248,15 @@ class CreateWorld:
                         nid,
                         neighbor[0],
                         attrs=dict(
-                            src_layer="QFN",
-                            trgt_layer="QFN",
+                            src_layer=item,
+                            trgt_layer=neighbor[1].get("type"),
                             rel="neighbor"
                         )
+                    )
+                    # Connect single fields
+                    qf_creator.connect_field_types(
+                        src_qfn_id=nid,
+                        trgt_qfn_id=neighbor[0]
                     )
                 self.g.G.nodes[nid].update(attrs)
 

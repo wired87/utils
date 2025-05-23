@@ -28,7 +28,7 @@ class LocalGraphUtils(Utils):
             G=None,
             g_from_path=None,
             nx_only=False,
-            upload_to: str = "fb",  # bq || sp || fb
+            upload_to: str = "bq",  # bq || sp || fb
             loop:asyncio.AbstractEventLoop=None,
             database=None,
             queue: queue.Queue or None = None,
@@ -40,7 +40,10 @@ class LocalGraphUtils(Utils):
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.loop=loop
-        self.firebase = FirebaseRTDBManager(base_path=database)
+
+        if upload_to == "fb":
+            self.firebase = FirebaseRTDBManager(base_path=database)
+
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
