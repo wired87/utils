@@ -149,10 +149,10 @@ class CreateWorld:
         create_g_visual(self.g.G, dest_path=self.image_path)
 
         # Firebase action
-        self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}/", testing=self.testing)
+        #self.g.upsert_firebase(fb_dest=f"users/{self.user_id}/env/{self.env_creator.envc_id}/", testing=self.testing)
 
         #time.sleep(30)
-        print("Process finished")
+        print("creation process finished")
 
 
     def connect_meta_nodes(self):
@@ -206,6 +206,8 @@ class CreateWorld:
                 attrs.get("type") == item
             ]
 
+            print(f"spread {len(spread_items)} items")
+
             # SPREAD ITEMS OVER VIRTUAL AREA
             for nid, attrs in spread_items:
                 # print("Dpread item", nid)
@@ -256,27 +258,20 @@ class CreateWorld:
                     )
 
                     # Connect all fields direct
-
-                    neighbor_fields = [intern_neighbor_phi, intern_neighbor_psi, intern_neighbor_g] = self.qf_creator.get_all_node_sub_fields(nid)
-                    for f in neighbor_fields:
-                        # connect fields
-                        self.qf_creator.connect_field_types(
-                            src_qfn_id=nid,
-                            trgt_qfn_id=neighbor[0]
-                        )
-
-                    # Connect single fields
                     self.qf_creator.connect_field_types(
                         src_qfn_id=nid,
                         trgt_qfn_id=neighbor[0]
                     )
+
                 self.g.G.nodes[nid].update(attrs)
 
-        """# Create Spanner Graph
+        """
+        # Create Spanner Graph
         print("Create Spanner Graph")
         node_tables, edge_tables = self.g.filter_table_names(self.g.schemas.keys())
         self.g.create_graph(
             node_tables=node_tables,
             edge_tables=edge_tables,
             graph_name=self.graph_name,
-        )"""
+        )
+        """

@@ -28,8 +28,13 @@ class S(serializers.Serializer):
     )
 
 class GraphLookup(APIView):
+    serializer_class=S
 
-    def get(self, request, *args, **kwargs):
+
+
+
+
+    def post(self, request, *args, **kwargs):
         image_path = request.data.get("image_path")
         try:
             with open(image_path, "r", encoding="utf-8") as f:
