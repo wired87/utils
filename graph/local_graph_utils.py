@@ -153,7 +153,7 @@ class LocalGraphUtils(Utils):
                     )
 
         except Exception as e:
-            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e)
+            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
 
     def add_history_entry(self, nid, ntype, attrs, timestep):
@@ -347,7 +347,7 @@ class LocalGraphUtils(Utils):
         if G is not None:
             self.G = G
         elif self.G is None:
-            self.G = nx.MultiGraph()
+            self.G = nx.Graph() # Multi
         print("Local Graph loaded")
 
     def save_graph(self, dest_name):

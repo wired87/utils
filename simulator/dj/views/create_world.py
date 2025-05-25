@@ -29,7 +29,7 @@ components= {
     "neutron": 5,  # 1e15,   # 1,000,000,000,000,000 neutrons per m³
     "qf": {
         "shape": "rect",
-        "dim": [25, 25, 2]
+        "dim": [5, 5, 2]
     }
 }
 

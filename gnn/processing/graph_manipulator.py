@@ -190,24 +190,27 @@ class Manipulator:
     def __init__(self):
         self.key_validator = NodeLayerValidator()
 
-    def manipulator_dictribnutor(self, attrs):
+    def manipulator_dictribnutor(self, attrs, gene=False):
         nt = attrs.get("type")
         src_layer=attrs.get("src_layer", None)
         trgt_layer=attrs.get("trgt_layer", None)
+        #print("nt, src_layer, trgt_layer", nt, src_layer, trgt_layer)
 
         if src_layer:
-            attrs["src_layer"] = self.key_validator.layer_from_key(src_layer)
+            attrs["src_layer"] = src_layer.upper().replace(" ", "_")
         if trgt_layer:
-            attrs["trgt_layer"] = self.key_validator.layer_from_key(trgt_layer)
+            attrs["trgt_layer"] = trgt_layer.upper().replace(" ", "_")
         if nt:
-            attrs["type"] = self.key_validator.layer_from_key(nt)
+            attrs["type"] = nt.upper().replace(" ", "_")
 
-        nt = attrs.get("type")
-        if nt:
-            if nt.upper() == "RHSA":
-                self.refine_reactome(attrs)
-            elif nt.upper() in ["TRANSCRIPT", "GENE", "TRANSLATION"]:
-                self.refine_gene_or_anchestors(attrs)
+        if gene is True:
+            nt = attrs.get("type")
+            if nt:
+                if nt.upper() == "RHSA":
+                    self.refine_reactome(attrs)
+                elif nt.upper() in ["TRANSCRIPT", "GENE", "TRANSLATION"]:
+                    self.refine_gene_or_anchestors(attrs)
+
         return attrs
 
 

@@ -147,3 +147,26 @@ class Mover:
         print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
         return self_attrs, grid_size
 
+    def spread_objects_3d(self, amount_items, dim, self_attrs):
+        self.cell_index += 1
+
+        # Berechne Würfelgitter: gleich viele Zellen in x, y, z Richtung
+        per_side = int(round(amount_items ** (1 / 3)))  # cube root
+        if per_side ** 3 < amount_items:
+            per_side += 1
+
+        grid_size = dim / per_side
+
+        index = self.cell_index - 1
+        x_idx = index % per_side
+        y_idx = (index // per_side) % per_side
+        z_idx = index // (per_side * per_side)
+
+        x = (x_idx + 0.5) * grid_size
+        y = (y_idx + 0.5) * grid_size
+        z = (z_idx + 0.5) * grid_size
+
+        self_attrs["pos"] = [x, y, z]
+
+        print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
+        return self_attrs, grid_size

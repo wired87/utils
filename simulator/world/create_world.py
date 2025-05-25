@@ -211,7 +211,7 @@ class CreateWorld:
             # SPREAD ITEMS OVER VIRTUAL AREA
             for nid, attrs in spread_items:
                 # print("Dpread item", nid)
-                self_attrs, dx = self.mover.spread_objects(
+                self_attrs, dx = self.mover.spread_objects_3d(
                     amount_items=len(spread_items),
                     dim=self.dim[0],
                     self_attrs=attrs
@@ -264,14 +264,3 @@ class CreateWorld:
                     )
 
                 self.g.G.nodes[nid].update(attrs)
-
-        """
-        # Create Spanner Graph
-        print("Create Spanner Graph")
-        node_tables, edge_tables = self.g.filter_table_names(self.g.schemas.keys())
-        self.g.create_graph(
-            node_tables=node_tables,
-            edge_tables=edge_tables,
-            graph_name=self.graph_name,
-        )
-        """
