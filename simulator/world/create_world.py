@@ -6,9 +6,6 @@ r"""
 - the keys to intelligence lies in ion interaction
 """
 
-
-
-import asyncio
 import os
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
@@ -81,7 +78,7 @@ class CreateWorld:
         self.graph_name = "BRAINMASTER"
         self.testing = True
 
-        self.env_creator=ENVCCreator(self.g, user_id, world_type=world_type)
+        self.env_creator=ENVCCreator(self.g, TEST_USER_ID, world_type=world_type)
         fb_path = f"users/{user_id}/env/{self.env_creator.envc_id}"
         self.image_path = r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\world\world01.json"
         self.mover=Mover(g)
@@ -117,7 +114,7 @@ class CreateWorld:
         print("create world")
         
         # ENV
-        self.dim = self.env_creator.create()
+        self.dim, env_c = self.env_creator.create()
 
         #if self.world_type == "bare":
         """particle_creator = ParticleCreator(
@@ -153,7 +150,7 @@ class CreateWorld:
 
         #time.sleep(30)
         print("creation process finished")
-
+        return env_c
 
     def connect_meta_nodes(self):
         print("Connect nodes")

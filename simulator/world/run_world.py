@@ -26,7 +26,6 @@ class WorldRunner:
     """
 
     def __init__(self, g, env_id: str, user_id=TEST_USER_ID, local_g_path=None):
-
         self.g = g
 
         self.env_id = env_id
@@ -105,12 +104,6 @@ class WorldRunner:
         )
 
         print("World initialized")
-
-
-
-        # Save step
-        #self.g.save_graph(dest_name=self.g.g_from_path)
-        #time.sleep(10)
 
     def update_loop(self):
         # todo added nodes while loop jsut added after finish -> check after each iter for changes -> continue loop with switched G

@@ -49,6 +49,7 @@ class ENVCCreator:
         self.g.add_node(
             attrs=env_c
         )
+        print("Node added", self.envc_id, self.g.G.nodes[self.content["id"]])
 
         print("Link USER to ENV")
         self.g.add_edge(
@@ -61,7 +62,7 @@ class ENVCCreator:
             )
         )
 
-        return self.content["dim"]
+        return self.content["dim"], env_c
 
 
                     

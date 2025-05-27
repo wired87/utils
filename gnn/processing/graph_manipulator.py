@@ -189,7 +189,15 @@ class GraphAttrOptimizer:
 class Manipulator:
     def __init__(self):
         self.key_validator = NodeLayerValidator()
+    def replace_special_chars(self, s):
+        """
+        Replaces all special characters in a string with "_".
+        Keeps only alphanumeric characters and underscores.
 
+        :param s: Input string
+        :return: Cleaned string with special characters replaced
+        """
+        return re.sub(r'[^a-zA-Z0-9_]', '', s)
     def manipulator_dictribnutor(self, attrs, gene=False):
         nt = attrs.get("type")
         src_layer=attrs.get("src_layer", None)
@@ -212,7 +220,52 @@ class Manipulator:
                     self.refine_gene_or_anchestors(attrs)
 
         return attrs
+    
+    
+    def clean_attr_keys(self, attrs, flatten=True, stringify=False):
+        """
+        Cleans attribute dictionary by:
+        - Flattening nested attributes.
+        - Removing duplicate keys after replacing special characters.
+        - Ensuring consistency in column names.
+        """
 
+        cleaned_attrs = {}
+        if flatten:
+            attrs = flatten_attributes(attrs)
+
+        for k, v in attrs.items():
+            clean_key = self.replace_special_chars(k)
+            if clean_key in cleaned_attrs:
+                continue
+            else:
+                if stringify is True:
+                    v = self.stringify_dict(v)
+                cleaned_attrs[clean_key] = v
+
+            """if isinstance(v, dict):
+                # stringify dict
+                cleaned_attrs[k] = json.dumps(v)"""
+
+        for k, v in cleaned_attrs.items():
+            if isinstance(v, str):
+                cleaned_attrs[k] = v.replace("'", "")
+
+        cleaned_attrs = self.manipulator_dictribnutor(cleaned_attrs)
+        return cleaned_attrs
+    
+    def stringify_dict(self, v):
+        if isinstance(v, dict):
+            v = json.dumps(v)
+        elif isinstance(v, list):
+            new_v = []
+            for value in v:
+                if isinstance(value, dict):
+                    new_v.append(json.dumps(value))
+                else:
+                    new_v.append(value)
+            v = new_v
+        return v
 
     def refine_gene_or_anchestors(self, attrs):
         """

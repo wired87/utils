@@ -1,0 +1,8 @@
+dx:
+  value: average_node_distance
+  description: "Distance between nodes -> used in laplacian_H calc"
+  type: float
+  origin: measured
+  symbol: dx
+  unit: m
+  stored: global

@@ -144,7 +144,8 @@ class Mover:
         self_attrs["pos"] = [x, y, 0.0]
 
 
-        print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
+        #print(f"UPDATED POS {self.cell_index}:", self_attrs["pos"])
+        print(self_attrs["pos"])
         return self_attrs, grid_size
 
     def spread_objects_3d(self, amount_items, dim, self_attrs):

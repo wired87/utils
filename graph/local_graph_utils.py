@@ -15,6 +15,7 @@ from utils.file.flatten_dict import flatten_attributes
 from bm.logging_custom import cpr
 from utils.gnn.processing.graph_manipulator import Manipulator
 from utils.queue_handler import QueueHandler
+from utils.simulator.utils.data_handler import DataHandler
 from utils.utils import Utils
 import queue
 
@@ -48,9 +49,13 @@ class LocalGraphUtils(Utils):
         self.q_handler = QueueHandler(queue)
 
         #history: list[dict[id: list[history]]]
-        self.history = {}
 
         self.upload_to=upload_to
+        self.data_handler = DataHandler(
+            upload_to,
+            self.q_handler
+        )
+
         self.schemas = {}
         """table_name: {
         "schema": {},
@@ -63,10 +68,11 @@ class LocalGraphUtils(Utils):
     ####################################
 
     def add_node(self, attrs: dict, flatten=False, single_upsert=False, timestep=None):
-        attrs = self.clean_attr_keys(attrs, flatten)
+        attrs = self.manipulator.clean_attr_keys(attrs, flatten)
         attrs["type"] = attrs["type"].upper()
+
         # print(">>NODE FILTERED")
-        # print(f"Add {attrs['id']} -> layer: {attrs['type']}")
+        print(f"Add {attrs['id']} -> layer: {attrs['type']}")
         """if single_upsert is True:
             await self.g.upsert_row(
                 table=f"{edge_attrs['src_layer'].upper()}_{edge_attrs['rel']}_{edge_attrs['trgt_layer'].upper()}",
@@ -78,7 +84,7 @@ class LocalGraphUtils(Utils):
 
         # todo just add each entry here results in doubles -> filter at upload process then
         if timestep:
-            self.add_history_entry(
+            self.data_handler.add_history_entry(
                 nid=attrs.get("id"),
                 ntype=attrs["type"],
                 attrs=attrs,
@@ -88,10 +94,10 @@ class LocalGraphUtils(Utils):
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None):
         #pprint.pp(attrs)
-        #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         try:
-            src_layer = self.replace_special_chars(attrs.get("src_layer")).upper()
-            trgt_layer = self.replace_special_chars(attrs.get("trgt_layer")).upper()
+            src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
+            trgt_layer = self.manipulator.replace_special_chars(attrs.get("trgt_layer")).upper()
 
             # print("src_layer", src_layer)
             # print("trgt_layer", trgt_layer)
@@ -107,7 +113,7 @@ class LocalGraphUtils(Utils):
                     trt = str(trt)
                 # print("int conv...")
 
-                attrs = self.clean_attr_keys(attrs, flatten)
+                attrs = self.manipulator.clean_attr_keys(attrs, flatten)
                 # print("attrs_new", attrs )
                 rel = attrs.get("rel", "").lower().replace(" ", "_")
 
@@ -145,7 +151,7 @@ class LocalGraphUtils(Utils):
                 self.G.add_node(trt, **trgt_node_attr)
 
                 if timestep:
-                    self.add_history_entry(
+                    self.data_handler.add_history_entry(
                         nid=attrs.get("id"),
                         ntype=attrs["type"],
                         attrs=attrs,
@@ -156,56 +162,18 @@ class LocalGraphUtils(Utils):
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
 
-    def add_history_entry(self, nid, ntype, attrs, timestep):
-        """
-        Adds all changes to a local history
-        todo: directly upload here to spanner
-        """
-        print("Extend history")
-        # Load local history
-        if ntype not in self.history:
-            self.history[ntype] = {}
 
-        if not self.history[ntype].get(nid):
-            self.history[ntype][nid] = {}
-
-        # Include timestep key (for multiple updates / iteration
-        if not self.history[ntype][nid].get(timestep):
-            self.history[ntype][nid][timestep] = []
-
-        self.history[ntype][nid][timestep].append(dict(id=nid, **{k: v for k, v in attrs.items() if k != "id"}))
-
-        if len(self.history[ntype][nid][timestep]) > 10000:
-            print("history limit exceeded -> push batch")
-            # push updates todo: save history alltimes in BQ (after limit increase)
-            self.q_handler.add_task(
-                db_path=f"HIS_{ntype}/{nid}/{timestep}/",
-                attrs=attrs
-            )
-        print("Finished history")
 
     def update_node(self, nid, attrs, timestep):
         print("Update node", nid)
         ntype = attrs.get("type")
 
-        self.add_history_entry(nid, ntype, attrs, timestep)
+        self.data_handler.add_history_entry(nid, ntype, attrs, timestep)
 
         self.G.nodes[nid].update(attrs)
-        if self.upload_to in ["sp", "bq"]:
-            for item in self.schemas[ntype]["rows"]:
-                if item["id"] == nid:
-                    item.update(attrs)
-        else:
-            # Update directly to FB
-            # Load to queue to update FB
-            """
-            self.q_handler.add_task(
-                db_path=f"HIS_{ntype}/{nid}/",
-                attrs=attrs
-            )
-            """
-            pass
-        return
+
+        # todo handle async rt spanner || fbrtdb
+
 
 
     def update_edge(self, src, trgt, attrs, timestep):
@@ -215,56 +183,13 @@ class LocalGraphUtils(Utils):
         table_name = f"{src_layer}_{rel}_{trgt_layer}"
         edge_id = f"{src}_{rel}_{trgt}"
 
-        # Add to history
-        self.add_history_entry(edge_id, "edges", attrs, timestep)
+        # Add to history -> will update intern
+        self.data_handler.add_history_entry(edge_id, "edges", attrs, timestep)
 
         # Update nx
         self.G.edges[src][trgt].update(attrs)
 
-        # Update dest specific
-        if self.upload_to in ["sp", "bq"]:
-            for item in self.schemas[table_name]["rows"]:
-                if item["id"] == edge_id:
-                    item.update(attrs)
-
-        else:
-            # Load to queue to update FB
-            """self.q_handler.add_task(
-                db_path=f"{table_name}/{edge_id}/",
-                attrs=attrs
-            )"""
-            pass
-
-        return
-
-
-    ####################################
-    # FIREBASE HANDLING
-    ####################################
-    """ 
-    def upsert_firebase(
-            self,
-            fb_dest=None
-    ):
-
-        updates = {}
-        for nid, attrs in self.G.nodes(data=True):
-            ntype = attrs.get("type")
-            if not ntype in updates:
-                updates[ntype] = []
-            if not ntype in ["USERS"]:
-                updates[ntype].append(
-                    {k: v for k, v in attrs.items()}
-                )
-
-        updates["edges"] = []
-        for src, trgt in self.G.edges():
-            edge_attrs = self.G.get_edge_data(src, trgt)
-            updates["edges"].append(
-                edge_attrs
-            )
-        # print("updates", updates)
-        self.firebase.upsert_batch(updates, fb_dest)"""
+        # todo handle async rt spanner || fbrtdb
 
     def upsert_firebase(
             self,
@@ -375,59 +300,7 @@ class LocalGraphUtils(Utils):
         print(f" Nodes {len(self.G.nodes)}")
         print(f" Edges {len(self.G.edges)}")
 
-    def print_status(self):
-        print(">>>STATUS")
-        for k, v in self.schemas.items():
-            print(f"Table {k}: \n{len(v['rows'])} rows \n")
 
-    def get_edge_attrs(self, parent, child):
-        edge_attrs = self.G[parent["id"]][child["id"]]
-        # Todo fetch directly form sp or bq
-        print("Attrs fetched", edge_attrs)
-
-    def replace_special_chars(self, s):
-        """
-        Replaces all special characters in a string with "_".
-        Keeps only alphanumeric characters and underscores.
-
-        :param s: Input string
-        :return: Cleaned string with special characters replaced
-        """
-        return re.sub(r'[^a-zA-Z0-9_]', '', s)
-
-
-
-    def clean_attr_keys(self, attrs, flatten=True, stringify=False):
-        """
-        Cleans attribute dictionary by:
-        - Flattening nested attributes.
-        - Removing duplicate keys after replacing special characters.
-        - Ensuring consistency in column names.
-        """
-
-        cleaned_attrs = {}
-        if flatten:
-            attrs = flatten_attributes(attrs)
-
-        for k, v in attrs.items():
-            clean_key = self.replace_special_chars(k)
-            if clean_key in cleaned_attrs:
-                continue
-            else:
-                if stringify is True:
-                    v = self.stringify_dict(v)
-                cleaned_attrs[clean_key] = v
-
-            """if isinstance(v, dict):
-                # stringify dict
-                cleaned_attrs[k] = json.dumps(v)"""
-
-        for k, v in cleaned_attrs.items():
-            if isinstance(v, str):
-                cleaned_attrs[k] = v.replace("'", "")
-
-        cleaned_attrs = self.manipulator.manipulator_dictribnutor(cleaned_attrs)
-        return cleaned_attrs
 
     def local_batch_loader(self, args):
         table_name = args.get("type")
@@ -450,18 +323,7 @@ class LocalGraphUtils(Utils):
         # print("Added args")
 
 
-    def stringify_dict(self, v):
-        if isinstance(v, dict):
-            v = json.dumps(v)
-        elif isinstance(v, list):
-            new_v = []
-            for value in v:
-                if isinstance(value, dict):
-                    new_v.append(json.dumps(value))
-                else:
-                    new_v.append(value)
-            v = new_v
-        return v
+
 
 
     def get_single_neighbor_nx(self, node, target_type):

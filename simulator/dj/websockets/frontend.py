@@ -13,14 +13,12 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from _google.firebase.real_time_database import FirebaseRTDBManager
 from _google.graph.g_utils import GGraphUtils
 
-from physics.quantum_fields.qf_updator import QFUpdator
 from urllib.parse import parse_qs
 
 import json
 
-from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.logger import LOGGER
-
+from utils.simulator.test import SimCore
 
 
 class SimulationWebsocket(AsyncWebsocketConsumer):
@@ -41,6 +39,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
         self.db_base = None
+        self.sim = SimCore()
 
     async def connect(self):
         query_string = self.scope["query_string"].decode()
@@ -73,6 +72,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         for path in self.sim_paths:
             data = firebase.get_data(path=f"{path}/")
             self.initial_data[path] = data[0]
+
         #pprint.pp(self.initial_data)
         #time.sleep(10)
         # todo collect more sim data like len, elements, ...
@@ -80,7 +80,6 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         if not self.user_id or not self.env_id:
             await self.close()
             return
-
 
 
         try:
@@ -221,7 +220,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
         # Erstellen Sie einen Thread, der die _run_simulation_logic Methode ausführt
         simulation_thread = threading.Thread(
-            target=self._run_simulation,
+            target=self.sim.run,
             name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
             daemon=True,  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
             args =(env_attrs, env_id)
@@ -242,25 +241,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         return True
 
 
-    def _run_simulation(self, env_attrs, env_id):
-        print("env_attrs, env_id", env_attrs, env_id)
-        self.qf_updator = QFUpdator(
-            g=self.g,
-            user_id=self.user_id,
-            # Eventuell weitere Parameter für Firebase-Pfade im Updator
-        )
-        print(f"Thread {threading.current_thread().name}: Simulationslogik gestartet für User {self.user_id}, Env {self.env_id}")
 
-        try:
-            # run
-            asyncio.run(self.qf_updator.update(env_id, env_attrs))
-
-            print(
-                f"Thread {threading.current_thread().name}: Simulationslogik abgeschlossen für User {self.user_id}, Env {self.env_id}")
-
-        except Exception as e:
-            print(f"Thread {threading.current_thread().name}: FEHLER in Simulationslogik: {e}")
-            # Hier können Sie Fehler loggen oder behandeln
 
     async def disconnect(self, close_code):
         """Called when the websocket is disconnected."""
@@ -279,20 +260,20 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
             data_type = data.get("type")  # assuming 'type' field for command
-            command_details = data.get("payload")  # assuming 'payload' for command data
+
 
             if data_type == "stim":
-                # Example: Put a 'stimulus' command with details into the queue
-                self.command_queue.put({"command": "apply_stimulus", "details": command_details})
+
                 LOGGER.info(f"Frontend command 'stimulus' added to queue.")
             elif data_type == "pause":
-                self.command_queue.put({"command": "pause_simulation"})
+                # todo later
                 LOGGER.info(f"Frontend command 'pause' added to queue.")
             elif data_type == "resume":
-                self.command_queue.put({"command": "resume_simulation"})
+                # todo later
                 LOGGER.info(f"Frontend command 'resume' added to queue.")
             elif data_type == "stop":
-                self.command_queue.put({"command": "stop_simulation"})
+                # save logik
+                # bye
                 LOGGER.info(f"Frontend command 'stop' added to queue.")
             # Add more command types as needed
             else:
@@ -306,16 +287,3 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
 #daphne bm.asgi:application
 
-
-"""
-self.g.add_edge(
-                                parts[0],
-                                parts[1],
-                                attrs=dict(
-                                    # Set edge pos in frontend
-                                    color=attrs.get("color", (255, 255, 255))
-                                )
-                            )
-
-self.g
-"""
