@@ -13,10 +13,7 @@ class DataHandler:
         pass
 
 
-
     def upsert_batch(self):
-
-
         return
 
 
