@@ -18,7 +18,8 @@ MARK: ALLTIES / BEFOR FILENAME
 import os
 from pathlib import Path
 
-OS_NAME = os.name
+from bm.settings import OS_NAME
+
 BASE=r"C:\Users\wired\OneDrive\Desktop\Projects\bm" if OS_NAME == "nt" else "./"
 LOCAL_LAYERS = rf"{BASE}\uutils\gnn\model\layer\all_layers_custom.json"
 L_NX_GRAPH = rf"{BASE}\data\main_ckpt\nx\graph.json" if OS_NAME == "nt" else "data/model_graph/nx/graph.json"
