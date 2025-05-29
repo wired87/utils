@@ -14,7 +14,7 @@ from gnn.processing.layer.reactome_layer import ReactomeLayer
 
 class LayerProcessor:
 
-    def __init__(self, bucket, success_list):
+    def __init__.py(self, bucket, success_list):
 
         self.bucket = bucket
         self.spanner_batch = SpannerFromNx()

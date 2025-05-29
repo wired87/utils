@@ -32,6 +32,10 @@ OPS = {
     '^': operator.xor,
     '<<': operator.lshift,
     '>>': operator.rshift,
+    "(": None,
+    ")": None,
+    "@": None,
+    "=": None,
 }
 
 def apply_all_operator_combinations(variables):

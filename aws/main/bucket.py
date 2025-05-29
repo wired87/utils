@@ -14,7 +14,7 @@ from cloud.AWS import ACCESS_ID, SECRET_KEY, REGION
 
 class AWSBucket:
 
-    def __init__(
+    def __init__.py(
             self,
             user_id: str,
             bucket_name: str,

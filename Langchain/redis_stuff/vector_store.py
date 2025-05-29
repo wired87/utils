@@ -6,7 +6,7 @@ from langchain_core.documents import Document
 from Dashboard.bot.Langchain import embeddings
 from chat_bot_webite.settings import REDIS_BROKER_URL
 """
-    Redis.__init__ - Initialize directly
+    Redis.__init__.py - Initialize directly
     Redis.from_documents - Initialize from a list of Langchain.docstore.Document objects
     Redis.from_texts - Initialize from a list of texts (optionally with metadata)
     Redis.from_texts_return_keys - Initialize from a list of texts (optionally with metadata) and return the keys
