@@ -38,12 +38,18 @@ class LocalGraphUtils(Utils):
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.loop=loop
-
+        self.history= {}
         if upload_to == "fb":
             self.firebase = FirebaseRTDBManager(base_path=database)
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
+
+        # DATA
+        self.data_handler=DataHandler(
+            upload_to, user_id, env_id, database, self.q_handler
+        )
+
 
         #history: list[dict[id: list[history]]]
 
@@ -187,6 +193,24 @@ class LocalGraphUtils(Utils):
         self.G.edges[src][trgt].update(attrs)
 
         # todo handle async rt spanner || fbrtdb
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def upsert_firebase(
             self,

@@ -17,6 +17,7 @@ from urllib.parse import parse_qs
 
 import json
 
+from physics.putils.calculator_creator import CalcCreator
 from utils.logger import LOGGER
 from utils.simulator.test import SimCore
 from utils.utils import Utils
@@ -24,12 +25,11 @@ GRAPH_URL=""#
 
 class SimulationWebsocket(AsyncWebsocketConsumer):
     """
-    Start- and update Entry for each sim.
-    - Load Graph data from firebase and convert
-        - ceate thread and run the sim (update -> each update push to fb)
+    Get single node data Process in multithread and upload directly to DB.
     """
     testing=True
     utils = Utils()
+
     sim_paths = [
         "QF",
         "QFN",
@@ -40,6 +40,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
+        self.calc_creator = None
         self.run = True
         self.db_base = None
         self.sim = SimCore()
@@ -50,40 +51,32 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
         self.user_id = query_params.get("user_id", None)[0]
         self.env_id = query_params.get("env_id", None)[0]
+
+        # Receive sigle QFN
+        self.node = query_params.get("node", None)[0]
+        # check data validity
+        if not self.node or not self.user_id or not self.env_id: # todo
+            await self.close()
+            return
+
         self.db_base = f"users/{self.user_id}/env/{self.env_id}/"
 
         # Case, User continues existing session -> If new session: run_session_id = None
         self.run_session_id = query_params.get("run_session_id", None)
+
+
         if self.run_session_id is None:
             # Create new session node
             self.run_session_id = f"session_{time.time()}".replace('.','_')
             self.db_path = f"{self.db_base}/session/{self.run_session_id}/"
 
-            # Load initial data to
-            firebase = FirebaseRTDBManager(base_path=self.db_base)
-            # Do not upload now the intial state!!!
-            # Initial state gets uploaded just after sim finishes to spec path-> till we have spanner (->todo)
-
         else:
             self.db_path = f"{self.db_base}/session/{self.run_session_id}"
 
             # Load Graph data from firebase and convert
-            firebase = FirebaseRTDBManager(base_path=self.db_path)
+        firebase = FirebaseRTDBManager(base_path=self.db_path)
 
-        # Get just node-types of interest (EXCLUDE HISTORY)
-        self.initial_data = {}
-        for path in self.sim_paths:
-            data = firebase.get_data(path=f"{path}/")
-            self.initial_data[path] = data[0]
-
-        #pprint.pp(self.initial_data)
-        #time.sleep(10)
-        # todo collect more sim data like len, elements, ...
-        # todo improve auth
-        if not self.user_id or not self.env_id:
-            await self.close()
-            return
-
+        # todo fetch neighbors from either spanner or backend01 -> still build threre initial graph
 
         try:
             self.g = GGraphUtils(
@@ -96,20 +89,8 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 g_from_path=None,
                 user_id=self.user_id,
             )
-            self.frontend_graph = GGraphUtils(
-                table_name="NONE",
-                upload_to="fb",
-                instance=os.environ.get("FIREBASE_RTDB"),  # set root of db
-                database=self.db_path,  # spec user spec entry (like table)
-                nx_only=False,
-                G=None,
-                g_from_path=None,
-                user_id=self.user_id,
-            )
-            # check data validity
-            if not self.initial_data:
-                await self.close()
-                return
+
+
         except Exception as e:
             LOGGER.error(f"Firebase error: {e}")
             await self.close()
@@ -124,7 +105,10 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         # Init Sim
         self.loop = asyncio.get_event_loop()
 
+        self.calc_creator = CalcCreator(self.g)
+
         # Start sim in sepparate thread
+        # todo bei batch processing (einzelne qfns || ferm, higgs usw) in sepparate threads aufteilen
         await self.start_threads(env_attrs, env_id)
 
         # todo filter data before sending
@@ -139,11 +123,9 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
     async def start_loop(self):
         print("Start loop")
         while self.run:
-            # todo auslagern in sepparaten thread
-            # solang kein Spanner: speicer nachbarn in jedem node (fb) entrag
             await asyncio.gather(*[
                 self.utils.apost(url=GRAPH_URL, data=node_id_data)
-
+                for node_type, node_id_data in self.initial_data.items()
             ])
 
     def _build_inittial_G(self):
@@ -161,63 +143,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 print("1111 nid, attrs", node_id_data)
                 show = False"""
             print("node_type,", node_type)
-            if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
-                for nid, attrs in node_id_data.items():
-                    """if show2==True:
-                        print("2222 nid, attrs",  nid, attrs)
-                        show2=False"""
-                    if node_type == "edges":
-                        parts = nid.split(f"_{attrs.get('rel', 'None')}_")
-                        #print("parts", parts)
-                        if len(parts) >= 2:  # Grundlegende Validierung
-                            self.g.add_edge(
-                                parts[0],
-                                parts[1],
-                                attrs=attrs
-                            )
-
-                            # Load filtered copy to the frontend graph
-                            self.frontend_graph.add_edge(
-                                parts[0],
-                                parts[1],
-                                attrs=dict(
-                                    # Set edge pos in frontend
-                                    color=attrs.get("color", (255, 255, 255)),
-                                    rel=attrs.get("rel"),
-                                    src_layer=attrs.get("src_layer"),
-                                    trgt_layer=attrs.get("trgt_layer"),
-                                )
-                            )
-
-                        else:
-                            print(f"Warnung: Ungültiges Kantenformat: {nid} Thread {threading.current_thread().name}: ")
-                    elif node_type == "ENV":
-                        print("Env recognized")
-                        env_attrs = attrs
-                        env_id = nid  # Speichern Sie die env_id, falls benötigt
-                    else:
-                        print("Add node", nid)
-                        self.g.add_node(
-                            attrs=dict(
-                                id=nid,
-                                **attrs,
-                            )
-                        )
-
-                        # Load filtered copy to the frontend graph
-                        self.frontend_graph.add_node(
-                            dict(
-                                id=nid,
-                                pos=attrs.get("pos"),
-                                color=attrs.get("color", (255, 255, 255)),
-                                type=attrs.get("type")
-                            )
-                        )
-
-            else:
-                print("DATA NOT A DICT:", node_id_data)
-                #time.sleep(10)
-            print(f"Thread {threading.current_thread().name}: Graph aufgebaut.")
+            self.create_quantum_fields()
         return env_attrs, env_id
 
 
@@ -235,8 +161,8 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
             daemon=True,  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
             args =(env_attrs, env_id)
-
         )
+
         """# FB Upsert thread
         upsert_thread = threading.Thread(
             target=self.g.q_handler.working_queue,
@@ -296,5 +222,4 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             LOGGER.error(f"Error processing received message: {e}")
 
 
-#daphne bm.asgi:application
 
