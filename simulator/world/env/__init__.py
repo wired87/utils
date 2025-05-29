@@ -1,10 +1,13 @@
-import os
+from bm.settings import OS_NAME
 from utils.file.yyaml import load_yaml
-
-HERE = os.path.dirname(__file__)
-print("ENV", HERE)
-ENV = os.path.abspath(os.path.join(HERE, "data", "uniform_env.yaml"))
-ENV_LEX = os.path.abspath(os.path.join(HERE, "data", "env_lex.yaml"))
-
+if OS_NAME == "nt":
+    ENV=r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\world\env\data\uniform_env.yaml"
+    ENV_LEX=r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\simulator\world\env\data\env_lex.yaml"
+else:
+    ENV ="utils/simulator/world/env/data/uniform_env.yaml"
+    ENV_LEX = "utils/simulator/world/env/data/env_lex.yaml"
+print(f"Attempting to load ENV from: {ENV}")
+print(f"Attempting to load ENV_LEX from: {ENV_LEX}")
 ENV = load_yaml(ENV)
 ENV_LEX = load_yaml(ENV_LEX)
+
