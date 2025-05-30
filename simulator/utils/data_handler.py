@@ -16,7 +16,8 @@ class DataHandler:
         self.history = {}
         self.schemas = {}
         self.q_handler=q_handler
-        self.fb = FirebaseRTDBManager(base_path=database)
+        if upload_to == "fb":
+            self.fb = FirebaseRTDBManager(base_path=database)
 
 
 

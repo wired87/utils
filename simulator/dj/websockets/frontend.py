@@ -8,6 +8,7 @@ import threading
 import time
 
 import networkx as nx
+import websockets
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
@@ -17,6 +18,7 @@ from urllib.parse import parse_qs
 
 import json
 
+from bm.settings import WS_URL
 from utils.logger import LOGGER
 from utils.simulator.test import SimCore
 from utils.utils import Utils
@@ -40,6 +42,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
+        self.loop = None
         self.run = True
         self.db_base = None
         self.sim = SimCore()
@@ -119,13 +122,13 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         LOGGER.info(f"WebSocket connection accepted for user {self.user_id}")
 
         # Build G and load in self.g
-        env_attrs, env_id = self._build_inittial_G()
+        self.env_attrs, self.env_id = self._build_inittial_G()
 
         # Init Sim
         self.loop = asyncio.get_event_loop()
 
         # Start sim in sepparate thread
-        await self.start_threads(env_attrs, env_id)
+        await self.start_threads()
 
         # todo filter data before sending
         await self.send(text_data=json.dumps({
@@ -136,36 +139,19 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         self.frontend_graph= None
     # jde zahl hat einen zustand das und die des nachbarn definiert den operator. es muss eine faustregel geben welche operatoren für zustände festlegt (zB "eine 5 und eine 6 ist immer + (alles in mathe ist letzendlich + oder -  ( evtl nicht wichtig -> auf interaktionen zwischenn paaren konzentireren"
 
-    async def start_loop(self):
-        print("Start loop")
-        while self.run:
-            # todo auslagern in sepparaten thread
-            # solang kein Spanner: speicer nachbarn in jedem node (fb) entrag
-            await asyncio.gather(*[
-                self.utils.apost(url=GRAPH_URL, data=node_id_data)
 
-            ])
 
     def _build_inittial_G(self):
         # --- Graph aufbauen ---
-        #print(f"Thread {threading.current_thread().name}: Baue Graph auf. Daten:", self.initial_data)
         env_attrs = None
         env_id = None
 
-        #show = True
-        #show2 = True
         print("self.initial_data.keys()", self.initial_data.keys())
 
         for node_type, node_id_data in self.initial_data.items():
-            """if show == True and node_type == "QF":
-                print("1111 nid, attrs", node_id_data)
-                show = False"""
             print("node_type,", node_type)
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                 for nid, attrs in node_id_data.items():
-                    """if show2==True:
-                        print("2222 nid, attrs",  nid, attrs)
-                        show2=False"""
                     if node_type == "edges":
                         parts = nid.split(f"_{attrs.get('rel', 'None')}_")
                         #print("parts", parts)
@@ -213,7 +199,6 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                                 type=attrs.get("type")
                             )
                         )
-
             else:
                 print("DATA NOT A DICT:", node_id_data)
                 #time.sleep(10)
@@ -222,7 +207,7 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
 
 
-    async def start_threads(self, env_attrs, env_id):
+    async def start_threads(self):
         """
         Startet die Simulationslogik in einem separaten Thread.
         Diese Funktion ist nicht-blockierend für den asyncio Event Loop.
@@ -231,10 +216,10 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
         # Erstellen Sie einen Thread, der die _run_simulation_logic Methode ausführt
         simulation_thread = threading.Thread(
-            target=self.sim.run,
+            target=self.distribute,
             name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
             daemon=True,  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
-            args =(env_attrs, env_id)
+
 
         )
         """# FB Upsert thread
@@ -251,6 +236,23 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
         return True
 
+    async def send_node(self, uri, user_id, env, node):
+        async with websockets.connect(uri) as websocket:
+            await websocket.send(json.dumps({
+                "user_id": user_id,
+                "env": env,
+                "node": node
+            }))
+            return await websocket.recv()
+
+    async def distribute(self):
+        uri = WS_URL
+        tasks = [
+            self.send_node(uri, self.user_id, {"id": self.env_id, **self.env_attrs}, {"id": nid, **attrs})
+            for nid, attrs in self.g.G.nodes(data=True)
+        ]
+        responses = await asyncio.gather(*tasks)
+        print("Done", responses)
 
 
 

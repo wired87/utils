@@ -54,10 +54,6 @@ class LocalGraphUtils(Utils):
         #history: list[dict[id: list[history]]]
 
         self.upload_to=upload_to
-        self.data_handler = DataHandler(
-            upload_to,
-            self.q_handler
-        )
 
         self.schemas = {}
         """table_name: {

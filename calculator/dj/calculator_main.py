@@ -7,7 +7,6 @@ import os
 import threading
 import time
 
-import networkx as nx
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
@@ -18,12 +17,13 @@ from urllib.parse import parse_qs
 import json
 
 from physics.putils.calculator_creator import CalcCreator
+from physics.quantum_fields.qf_updator import QFUpdator
 from utils.logger import LOGGER
 from utils.simulator.test import SimCore
 from utils.utils import Utils
 GRAPH_URL=""#
 
-class SimulationWebsocket(AsyncWebsocketConsumer):
+class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
     """
     Get single node data Process in multithread and upload directly to DB.
     """
@@ -40,43 +40,45 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
+        self.simulation_thread = None
+        self.upsert_thread = None
+        self.qfh = None
+        self.firebase = None
+        self.specs = None
+        self.frontend_graph = None
+        self.g = None
+        self.loop = None
+        self.node = None
+        self.env = None
+        self.user_id = None
+        self.run_session_id = None
+        self.db_path = None
         self.calc_creator = None
         self.run = True
         self.db_base = None
         self.sim = SimCore()
 
     async def connect(self):
+
         query_string = self.scope["query_string"].decode()
         query_params = parse_qs(query_string)
 
         self.user_id = query_params.get("user_id", None)[0]
-        self.env_id = query_params.get("env_id", None)[0]
+        self.env = query_params.get("env", None)[0]
+        env_id=self.env.get("id")
 
         # Receive sigle QFN
         self.node = query_params.get("node", None)[0]
+
+        self.specs = query_params.get("single_cfg", None)[0]
+
         # check data validity
-        if not self.node or not self.user_id or not self.env_id: # todo
+        if not self.node or not self.user_id or not self.env:
             await self.close()
             return
 
-        self.db_base = f"users/{self.user_id}/env/{self.env_id}/"
-
-        # Case, User continues existing session -> If new session: run_session_id = None
-        self.run_session_id = query_params.get("run_session_id", None)
-
-
-        if self.run_session_id is None:
-            # Create new session node
-            self.run_session_id = f"session_{time.time()}".replace('.','_')
-            self.db_path = f"{self.db_base}/session/{self.run_session_id}/"
-
-        else:
-            self.db_path = f"{self.db_base}/session/{self.run_session_id}"
-
-            # Load Graph data from firebase and convert
-        firebase = FirebaseRTDBManager(base_path=self.db_path)
-
-        # todo fetch neighbors from either spanner or backend01 -> still build threre initial graph
+        # init FireBase
+        self.set_fb(env_id, query_params)
 
         try:
             self.g = GGraphUtils(
@@ -90,65 +92,51 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
                 user_id=self.user_id,
             )
 
-
         except Exception as e:
             LOGGER.error(f"Firebase error: {e}")
             await self.close()
             return
 
-        await self.accept()
-        LOGGER.info(f"WebSocket connection accepted for user {self.user_id}")
-
-        # Build G and load in self.g
-        env_attrs, env_id = self._build_inittial_G()
-
+        # Create G
+        self.calc_creator = CalcCreator(self.g)
+        self.calc_creator.create_quantum_fields(
+            src_qfn_id=self.node.get("id")
+        )
+        self.qfh = QFUpdator(
+            g=self.g,
+            env_id=env_id,
+            testing=True,
+            specs=self.specs,
+            user_id=self.user_id
+        )
         # Init Sim
         self.loop = asyncio.get_event_loop()
 
-        self.calc_creator = CalcCreator(self.g)
-
         # Start sim in sepparate thread
         # todo bei batch processing (einzelne qfns || ferm, higgs usw) in sepparate threads aufteilen
-        await self.start_threads(env_attrs, env_id)
+        await self.start_threads(env_id)
+
+        await self.accept()
+        LOGGER.info(f"WebSocket connection accepted for user {self.user_id}")
 
         # todo filter data before sending
         await self.send(text_data=json.dumps({
-            "type": "initial_data",
+            "type": "handshake",
             "message": "success",
-            "data": json.dumps(nx.node_link_data(self.frontend_graph.G), indent=2)
+            "token": "hi"
         }))
-        self.frontend_graph= None
+
     # jde zahl hat einen zustand das und die des nachbarn definiert den operator. es muss eine faustregel geben welche operatoren für zustände festlegt (zB "eine 5 und eine 6 ist immer + (alles in mathe ist letzendlich + oder -  ( evtl nicht wichtig -> auf interaktionen zwischenn paaren konzentireren"
 
-    async def start_loop(self):
+    async def update(self):
         print("Start loop")
         while self.run:
-            await asyncio.gather(*[
-                self.utils.apost(url=GRAPH_URL, data=node_id_data)
-                for node_type, node_id_data in self.initial_data.items()
-            ])
+            await self.qfh.update_process(
+                env_attrs=self.env,
+                attrs=self.node,
+            )
 
-    def _build_inittial_G(self):
-        # --- Graph aufbauen ---
-        #print(f"Thread {threading.current_thread().name}: Baue Graph auf. Daten:", self.initial_data)
-        env_attrs = None
-        env_id = None
-
-        #show = True
-        #show2 = True
-        print("self.initial_data.keys()", self.initial_data.keys())
-
-        for node_type, node_id_data in self.initial_data.items():
-            """if show == True and node_type == "QF":
-                print("1111 nid, attrs", node_id_data)
-                show = False"""
-            print("node_type,", node_type)
-            self.create_quantum_fields()
-        return env_attrs, env_id
-
-
-
-    async def start_threads(self, env_attrs, env_id):
+    async def start_threads(self, env_id):
         """
         Startet die Simulationslogik in einem separaten Thread.
         Diese Funktion ist nicht-blockierend für den asyncio Event Loop.
@@ -156,28 +144,25 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
         print(f"Main Loop: Starte Simulations-Thread für User {self.user_id}, Env {self.env_id}")
 
         # Erstellen Sie einen Thread, der die _run_simulation_logic Methode ausführt
-        simulation_thread = threading.Thread(
-            target=self.sim.run,
-            name=f"SimThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
+        self.simulation_thread = threading.Thread(
+            target=self.update,
+            name=f"SimThread-{self.user_id}-{env_id}",
             daemon=True,  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
-            args =(env_attrs, env_id)
         )
 
-        """# FB Upsert thread
-        upsert_thread = threading.Thread(
+        # FB Upsert thread
+        self.upsert_thread = threading.Thread(
             target=self.g.q_handler.working_queue,
-            name=f"UpsertThread-{self.user_id}-{self.env_id}",  # Optional: Benennen Sie den Thread
+            name=f"UpsertThread-{self.user_id}-{env_id}",  # Optional: Benennen Sie den Thread
             daemon=True  # Optional: Der Thread wird beendet, wenn das Hauptprogramm endet
-        )"""
+        )
 
         # Start Thread
-        simulation_thread.start()
-        #upsert_thread.start()
+        self.simulation_thread.start()
+        self.upsert_thread.start()
 
         print(f"Main Loop: Simulations-Thread gestartet. Kehre sofort zurück.")
         return True
-
-
 
 
     async def disconnect(self, close_code):
@@ -188,6 +173,12 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             self.simulation_task.cancel()
             try:
                 await self.simulation_task # Wait for cancellation to complete
+            except asyncio.CancelledError:
+                LOGGER.info("Simulation loop task cancelled.")
+        if hasattr(self, 'upsert_thread'):
+            self.upsert_thread.cancel()
+            try:
+                await self.upsert_thread
             except asyncio.CancelledError:
                 LOGGER.info("Simulation loop task cancelled.")
         pass
@@ -222,4 +213,19 @@ class SimulationWebsocket(AsyncWebsocketConsumer):
             LOGGER.error(f"Error processing received message: {e}")
 
 
+    def set_fb(self, env_id, query_params):
+        self.db_base = f"users/{self.user_id}/env/{env_id}/"
 
+        # Case, User continues existing session -> If new session: run_session_id = None
+        self.run_session_id = query_params.get("run_session_id", None)
+
+        if self.run_session_id is None:
+            # Create new session node
+            self.run_session_id = f"session_{time.time()}".replace('.', '_')
+            self.db_path = f"{self.db_base}/session/{self.run_session_id}/"
+
+        else:
+            self.db_path = f"{self.db_base}/session/{self.run_session_id}"
+
+            # Load Graph data from firebase and convert
+        self.firebase = FirebaseRTDBManager(base_path=self.db_path)
