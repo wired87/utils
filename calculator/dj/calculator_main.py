@@ -16,8 +16,8 @@ from urllib.parse import parse_qs
 
 import json
 
-from physics.putils.calculator_creator import CalcCreator
-from physics.quantum_fields.qf_updator import QFUpdator
+from qf_sim.physics.putils.calculator_creator import CalcCreator
+from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
 from utils.logger import LOGGER
 from utils.simulator.test import SimCore
 from utils.utils import Utils

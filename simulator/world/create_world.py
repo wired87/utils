@@ -11,7 +11,7 @@ import os
 from _google.firebase.real_time_database import FirebaseRTDBManager
 from _google.graph.g_utils import GGraphUtils
 from bm.settings import TEST_USER_ID
-from physics.quantum_fields.qf_creator import QFCreator
+from qf_sim.physics.quantum_fields.qf_creator import QFCreator
 from utils.file.yyaml import load_yaml
 from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.graph.visual import create_g_visual

@@ -2,7 +2,7 @@ import asyncio
 import os
 
 from bm.settings import TEST_USER_ID
-from physics.quantum_fields.qf_updator import QFUpdator
+from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
 from utils.graph.get_utils import get_graph_utils
 from utils.simulator.world.create_world import CreateWorld
 import threading

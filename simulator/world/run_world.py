@@ -3,8 +3,8 @@ import asyncio
 import pygame
 
 from bm.settings import TEST_USER_ID
-from physics.particles.particle_updator import ChargedParticleHandler
-from physics.quantum_fields.qf_updator import QFUpdator
+from qf_sim.physics.particles.particle_updator import ChargedParticleHandler
+from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
 from utils.simulator.world.env.env_updator import QFHandler
 from utils.pygame.renderer import PyGameRenderer
 from utils.simulator.utils.mover import Mover

@@ -10,7 +10,7 @@ from bm.settings import BASE_DIR
 from rest_framework.views import APIView
 from pyvis.network import Network  # Import Network explicitly
 
-from physics.quantum_fields.qf_creator import QFCreator
+from qf_sim.physics.quantum_fields.qf_creator import QFCreator
 from utils.graph.local_graph_utils import LocalGraphUtils
 from utils.graph.visual import create_g_visual
 
