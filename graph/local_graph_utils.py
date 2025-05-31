@@ -352,13 +352,16 @@ class LocalGraphUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
-    def get_neighbor_list(self, node, target_type: str or list) -> List[tuple] or None:
+    def get_neighbor_list(self, node, target_type: str or list, just_id=False) -> List[tuple] or None:
         neighbors = []
         if isinstance(target_type, str):
             target_type = [target_type]
         for neighbor in self.G.neighbors(node):
             if self.G.nodes[neighbor].get('type') in target_type:
-                neighbors.append((neighbor, self.G.nodes[neighbor]))
+                if just_id is True:
+                    neighbors.append((neighbor, self.G.nodes[neighbor]))
+                else:
+                    neighbors.append((neighbor, self.G.nodes[neighbor]))
         return neighbors
 
 
