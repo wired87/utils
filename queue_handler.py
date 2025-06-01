@@ -10,7 +10,7 @@ class QueueHandler:
     def __init__(self, q: queue.Queue or None =None):
         self.q = q or queue.Queue()
 
-    def add_task(self, db_path, attrs, task_type: str = 'firebase_push'):
+    def add_task(self, attrs, task_type: str = 'firebase_push', db_path=None):
         """Fügt eine Firebase Push Aufgabe zur Queue hinzu."""
         #print("db_path, attrs, task_type", db_path, attrs, task_type)
 
@@ -68,6 +68,13 @@ class QueueHandler:
 
 
                     print("  Verarbeite andere Aufgabe...")
+
+
+                #elif task_type == "neighbor_update":
+
+
+
+
 
                 else:
                     print(f"  FEHLER: Unbekannter Aufgabentyp: {task_type}")
