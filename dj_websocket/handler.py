@@ -61,6 +61,7 @@ class WebsocketHandler:
             trgt_node_id,
             data,
             msg_type="neighbor_update",
+            process_key=None,
     ):
         channel_layer = get_channel_layer()
         await channel_layer.send(
@@ -69,6 +70,7 @@ class WebsocketHandler:
                 "type": msg_type,
                 "data": data,
                 "key": nid,
+                "process_key": process_key
                 # todo secret key
             }
         )

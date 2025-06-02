@@ -63,7 +63,7 @@ class LocalGraphUtils(Utils):
         },"""
 
     ####################################
-    # CORE
+    # CORE                             #
     ####################################
 
     def add_node(self, attrs: dict, flatten=False, single_upsert=False, timestep=None):
