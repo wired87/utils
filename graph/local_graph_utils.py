@@ -12,7 +12,7 @@ from bm.settings import TEST_USER_ID
 from bm.logging_custom import cpr
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
-from utils.simulator.utils.data_handler import DataHandler
+from qf_sim.utils.data_handler import DataHandler
 from utils.utils import Utils
 import queue
 

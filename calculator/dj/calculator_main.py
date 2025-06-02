@@ -19,7 +19,7 @@ import json
 from qf_sim.physics.putils.calculator_creator import CalcCreator
 from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
 from utils.logger import LOGGER
-from utils.simulator.test import SimCore
+from qf_sim.test import SimCore
 from utils.utils import Utils
 GRAPH_URL=""#
 
