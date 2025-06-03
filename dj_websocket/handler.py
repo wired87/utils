@@ -27,7 +27,7 @@ class WebsocketHandler:
     ):
         tasks = [
             self.send_node(
-                uri=f"{WS_URL}qf-sim/run/single/node_id={nid}/",
+                uri=f"{WS_URL}qf-sim/run/single/node_id={nid}",
                 user_id=user_id,
                 env=env,
                 message_handler=message_handler,
