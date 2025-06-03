@@ -51,8 +51,7 @@ class WebsocketHandler:
                 "neighbors": neighbors
             }))
             print("connection to", uri, "established")
-            while True:
-                msg = await websocket.recv()
+            async for msg in websocket:
                 message_handler(msg)
 
     async def send_intern_message_pool(

@@ -39,6 +39,7 @@ class LocalGraphUtils(Utils):
         self.nx_only = nx_only
         self.loop=loop
         self.history= {}
+
         if upload_to == "fb":
             self.firebase = FirebaseRTDBManager(base_path=database)
 
@@ -49,7 +50,6 @@ class LocalGraphUtils(Utils):
         self.data_handler=DataHandler(
             upload_to, user_id, env_id, database, self.q_handler
         )
-
 
         #history: list[dict[id: list[history]]]
 
@@ -216,20 +216,15 @@ class LocalGraphUtils(Utils):
 
         if testing is False:
             updates = {
-                # Schlüssel: der Ziel-Pfad für den Knoten
                 f"{attrs.get('type')}/{nid}":
-                # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
-                    {k: v for k, v in attrs.items() if k not in ["id", "symbol"]}
+                    {k: v for k, v in attrs.items()}
 
-                # Die Schleife, die die Elemente (nid, attrs) liefert
                 for nid, attrs in self.G.nodes(data=True)
             }
 
             for src, trgt in self.G.edges():
                 edge_attrs = self.G[src][trgt]
                 #print("edge_attrs", edge_attrs)
-
-
                 for key,value in edge_attrs.items():
                     #print("Edge value", value)
 
@@ -242,28 +237,20 @@ class LocalGraphUtils(Utils):
             # print("updates", updates)
         else:
             updates = {
-                # Schlüssel: der Ziel-Pfad für den Knoten
-                f"{attrs.get('type')}/{nid}":
-                # Wert: das Attribut-Dictionary des Knotens, ohne den Schlüssel 'id'
-                    {k: v for k, v in attrs.items() if k in ["id", "pos"]}
-
-                # Die Schleife, die die Elemente (nid, attrs) liefert
-                for nid, attrs in self.G.nodes(data=True)
+                f"{attrs.get('type')}/{nid}": {k: v for k, v in attrs.items()}
+                for nid, attrs in self.G.nodes(data=True) if attrs.get("type") not in ["USERS"]
             }
 
             for src, trgt in self.G.edges():
                 edge_attrs = self.G[src][trgt]
-                # print("edge_attrs", edge_attrs)
+                print("edge_attrs", edge_attrs)
 
-                for key, value in edge_attrs.items():
-                    # print("Edge value", value)
-
-                    path = f"edges/{src}_{value.get('rel')}_{trgt}"
-                    updates.update(
-                        {
-                            path: {k: v for k, v in value.items() if k not in ["symbol"]}
-                        }
-                    )
+                path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
+                updates.update(
+                    {
+                        path: {k: v for k, v in edge_attrs.items() if k not in ["symbol"]}
+                    }
+                )
             # print("updates", updates)
         self.firebase.upsert_batch(updates, fb_dest)
 
