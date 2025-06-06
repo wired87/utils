@@ -16,7 +16,7 @@ from urllib.parse import parse_qs
 
 import json
 
-from qf_sim.physics.putils.calculator_creator import CalcCreator
+from qf_sim.calculator.calculator_creator import CalcCreator
 from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
 from utils.logger import LOGGER
 from qf_sim.test import SimCore
@@ -99,7 +99,7 @@ class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
 
         # Create G
         self.calc_creator = CalcCreator(self.g)
-        self.calc_creator.create_quantum_fields(
+        self.calc_creator.create_quantum_fields_from_base_G(
             src_qfn_id=self.node.get("id")
         )
         self.qfh = QFUpdator(

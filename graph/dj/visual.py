@@ -8,11 +8,6 @@ from rest_framework import serializers
 
 from bm.settings import BASE_DIR
 from rest_framework.views import APIView
-from pyvis.network import Network  # Import Network explicitly
-
-from qf_sim.physics.quantum_fields.qf_creator import QFCreator
-from utils.graph.local_graph_utils import LocalGraphUtils
-from utils.graph.visual import create_g_visual
 
 
 def event_stream(html):
@@ -35,12 +30,12 @@ class GraphLookup(APIView):
 
 
     def post(self, request, *args, **kwargs):
-        image_path = request.data.get("image_path")
+        image_path = request.data.get("image_path", r"C:\Users\wired\OneDrive\Desktop\BestBrain\qf_sim\physics\quantum_fields\nodes\qf\graphs\g.json")
         try:
-            with open(image_path, "r", encoding="utf-8") as f:
+            with open(r"C:\Users\wired\OneDrive\Desktop\BestBrain\qf_sim\physics\quantum_fields\nodes\qf\graphs\g.json", "r", encoding="utf-8") as f:
                 html_content = f.read()
 
-            return HttpResponse(html_content, content_type="text/html")
+            return StreamingHttpResponse(html_content, content_type="text/html")
         except FileNotFoundError:
             return HttpResponse("File not found", status=404)
         except Exception as e:

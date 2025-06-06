@@ -93,7 +93,7 @@ class LocalGraphUtils(Utils):
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None):
         #pprint.pp(attrs)
-        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         try:
             src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
             trgt_layer = self.manipulator.replace_special_chars(attrs.get("trgt_layer")).upper()

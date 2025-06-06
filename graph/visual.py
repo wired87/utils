@@ -37,7 +37,4 @@ def create_g_visual(G, dest_path):
         net.html.encode("ascii", "ignore").decode()  # Removes unsupported characters
         net.html.encode("ascii", "replace").decode()
         f.write(net.html)
-    print("html created")
-    """net.template_dir = os.path.dirname(os.path.abspath(dest_path))
-
-    net.save_graph(dest_path)"""
+    print("html created and saved under:", dest_path)
