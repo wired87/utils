@@ -15,6 +15,7 @@ def create_g_visual(G, dest_path):
           }
         }
         '''
+
     net = Network(notebook=False,
                   cdn_resources='in_line',
                   height='1000px',
