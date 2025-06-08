@@ -93,7 +93,7 @@ class LocalGraphUtils(Utils):
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None):
         #pprint.pp(attrs)
-        #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         try:
             src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
             trgt_layer = self.manipulator.replace_special_chars(attrs.get("trgt_layer")).upper()
@@ -276,7 +276,7 @@ class LocalGraphUtils(Utils):
         if G is not None:
             self.G = G
         elif self.G is None:
-            self.G = nx.Graph() # Multi
+            self.G = nx.MultiGraph() # Multi
         print("Local Graph loaded")
 
     def save_graph(self, dest_name):
@@ -339,16 +339,29 @@ class LocalGraphUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
-    def get_neighbor_list(self, node, target_type: str or list, just_id=False) -> List[tuple] or None:
+    def get_neighbor_list(self, node, target_type: str or list or None=None, just_id=False, trgt_rel: str or list or None=None) -> List[tuple] or None:
         neighbors = []
+        # Filter Input
         if isinstance(target_type, str):
             target_type = [target_type]
+        if isinstance(trgt_rel, str):
+            trgt_rel = [trgt_rel]
+
         for neighbor in self.G.neighbors(node):
-            if self.G.nodes[neighbor].get('type') in target_type:
-                if just_id is True:
-                    neighbors.append((neighbor, self.G.nodes[neighbor]))
-                else:
-                    neighbors.append((neighbor, self.G.nodes[neighbor]))
+            # Get neighbor from type
+            if target_type is not None:
+                if self.G.nodes[neighbor].get('type') in target_type:
+                    if just_id is True:
+                        neighbors.append((neighbor, self.G.nodes[neighbor]))
+                    else:
+                        neighbors.append((neighbor, self.G.nodes[neighbor]))
+            # Get neighbor from rel
+            elif trgt_rel is not None:
+                if self.G.nodes[neighbor].get('rel') in trgt_rel:
+                    if just_id is True:
+                        neighbors.append((neighbor, self.G.nodes[neighbor]))
+                    else:
+                        neighbors.append((neighbor, self.G.nodes[neighbor]))
         return neighbors
 
 

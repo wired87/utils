@@ -1,13 +1,20 @@
 import asyncio
+import json
 import os
+import pprint
+from pathlib import Path
 from time import sleep
 
 import networkx as nx
 from django.http import HttpResponse, StreamingHttpResponse
+from networkx import node_link_data, node_link_graph
+from networkx.readwrite import json_graph
 from rest_framework import serializers
 
 from bm.settings import BASE_DIR
 from rest_framework.views import APIView
+
+from utils.graph.visual import create_g_visual
 
 
 def event_stream(html):
@@ -17,29 +24,36 @@ def event_stream(html):
         sleep(.025)
 
 class S(serializers.Serializer):
-    image_path = serializers.CharField(
-        default="image_path",
-        label="image_path",
+    g_path = serializers.CharField(
+        default="g_path",
+        label="g_path",
     )
 
 class GraphLookup(APIView):
     serializer_class=S
 
-
-
-
-
     def post(self, request, *args, **kwargs):
-        image_path = request.data.get("image_path", r"C:\Users\wired\OneDrive\Desktop\BestBrain\qf_sim\physics\quantum_fields\nodes\qf\graphs\g.json")
-        try:
-            with open(r"C:\Users\wired\OneDrive\Desktop\BestBrain\qf_sim\physics\quantum_fields\nodes\qf\graphs\g.json", "r", encoding="utf-8") as f:
-                html_content = f.read()
 
-            return StreamingHttpResponse(html_content, content_type="text/html")
-        except FileNotFoundError:
-            return HttpResponse("File not found", status=404)
-        except Exception as e:
-            return HttpResponse(f"An error occurred: {e}", status=500)
+        # 1. Definiere den Pfad zur JSON-Datei
+        # ACHTUNG: Hardcodierte Pfade sind schlecht. Besser wäre es, diesen Pfad aus
+        # den Django-Settings oder einer Konfiguration zu laden.
+        json_file_path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\qf_sim\calculator\tree.json"
+
+        # 2. Öffne die JSON-Datei und lade ihren Inhalt in ein Python-Dictionary
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            graph_data_dict = json.load(f)
+        print("1")
+        #pprint.pp(graph_data_dict)
+
+        print("2")
+        graph_object = json_graph.node_link_graph(graph_data_dict)
+        #pprint.pp(graph_object)
+
+        print("3")
+        html = create_g_visual(graph_object, dest_path=None)
+        #print("html", html)
+        print("4")
+        return StreamingHttpResponse(html, content_type="text/html")
 
 """StreamingHttpResponse(
                 event_stream(html_content),
