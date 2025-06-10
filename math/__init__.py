@@ -14,29 +14,30 @@ MGLOBALSC = load_yaml(MGLOBALS)
 
 # WICHTIG FÜR MATH G ENGINE Alle relevanten Python-Operatoren als Funktionen
 OPS = {
-    '+': operator.add,
-    '-': operator.sub,
-    '*': operator.mul,
-    '/': lambda x, y: np.divide(x, y, where=y!=0),
-    '**': operator.pow,
-    '%': operator.mod,
-    '//': lambda x, y: np.floor_divide(x, y, where=y!=0),
-    '==': operator.eq,
-    '!=': operator.ne,
-    '>': operator.gt,
-    '<': operator.lt,
-    '>=': operator.ge,
-    '<=': operator.le,
-    '&': operator.and_,
-    '|': operator.or_,
-    '^': operator.xor,
-    '<<': operator.lshift,
-    '>>': operator.rshift,
-    "(": None,
-    ")": None,
-    "@": None,
-    "=": None,
+    '+': "add",
+    '-': "sub",
+    '*': "mul",
+    '/': "div",
+    '**': "pow",
+    '%': "mod",
+    '//': "floordiv",
+    '==': "eq",
+    '!=': "neq",
+    '>': "gt",
+    '<': "lt",
+    '>=': "ge",
+    '<=': "le",
+    '&': "and",
+    '|': "or",
+    '^': "xor",
+    '<<': "lshift",
+    '>>': "rshift",
+    '(': "lparen",
+    ')': "rparen",
+    '@': "matmul",
+    '=': "assign"
 }
+
 
 def apply_all_operator_combinations(variables):
     results = {}

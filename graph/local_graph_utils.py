@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import pprint
 
 from typing import List
 
@@ -91,15 +92,25 @@ class LocalGraphUtils(Utils):
             )
         return True
 
-    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None):
-        #pprint.pp(attrs)
+    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
+        pprint.pp(attrs)
         print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+
+        # Color
+        color = None
+
+        if index is None:
+            index = attrs.get("index", None)
+        if index is not None:
+            color = f"rgb({index + .5}, {index + .5}, {index + .5})"
+        print("color set:", color)
+
         try:
             src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
             trgt_layer = self.manipulator.replace_special_chars(attrs.get("trgt_layer")).upper()
 
-            # print("src_layer", src_layer)
-            # print("trgt_layer", trgt_layer)
+            print("src_layer", src_layer)
+            print("trgt_layer", trgt_layer)
             if src is None:
                 src = attrs.get("src")
             if trt is None:
@@ -120,31 +131,32 @@ class LocalGraphUtils(Utils):
                     **attrs,
                     "src": src,
                     "trgt": trt,
-                    "id": f"{src}_{rel}_{trt}"
+                    "id": f"{src}_{rel}_{trt}",
+                    "color": color,
                 }
 
                 # print(">>FILTERED EDGE")
                 # pprint.pp(attrs)
 
-                src_layer = attrs.get("src_layer").upper()
+                """src_layer = attrs.get("src_layer").upper()
                 trgt_layer = attrs.get("trgt_layer").upper()
+                """
 
-                # print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
-
+                #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
                 attrs["type"] = edge_table_name
-
                 src_node_attr = {"id": src, "type": src_layer}
-
                 trgt_node_attr = {"id": trt, "type": trgt_layer}
-                # print(f"Add {src} -> trgt: {trt}")
+                #print(f"Add {src} -> trgt: {trt}")
 
                 if self.nx_only is False:
                     # todo run in executor
+                    print("Upsert Local Batch Loader")
                     self.local_batch_loader(src_node_attr)
                     self.local_batch_loader(trgt_node_attr)
                     self.local_batch_loader(attrs)
 
+                print("Upsert to NX")
                 self.G.add_edge(src, trt, **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]})
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)

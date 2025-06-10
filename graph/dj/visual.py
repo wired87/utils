@@ -1,17 +1,10 @@
-import asyncio
 import json
-import os
-import pprint
-from pathlib import Path
 from time import sleep
 
-import networkx as nx
-from django.http import HttpResponse, StreamingHttpResponse
-from networkx import node_link_data, node_link_graph
+from django.http import StreamingHttpResponse
 from networkx.readwrite import json_graph
 from rest_framework import serializers
 
-from bm.settings import BASE_DIR
 from rest_framework.views import APIView
 
 from utils.graph.visual import create_g_visual
