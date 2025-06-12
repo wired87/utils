@@ -94,7 +94,7 @@ class LocalGraphUtils(Utils):
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         pprint.pp(attrs)
-        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
 
         # Color
         color = None
@@ -109,8 +109,8 @@ class LocalGraphUtils(Utils):
             src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
             trgt_layer = self.manipulator.replace_special_chars(attrs.get("trgt_layer")).upper()
 
-            print("src_layer", src_layer)
-            print("trgt_layer", trgt_layer)
+            #print("src_layer", src_layer)
+            #print("trgt_layer", trgt_layer)
             if src is None:
                 src = attrs.get("src")
             if trt is None:
@@ -151,12 +151,12 @@ class LocalGraphUtils(Utils):
 
                 if self.nx_only is False:
                     # todo run in executor
-                    print("Upsert Local Batch Loader")
+                    #print("Upsert Local Batch Loader")
                     self.local_batch_loader(src_node_attr)
                     self.local_batch_loader(trgt_node_attr)
                     self.local_batch_loader(attrs)
 
-                print("Upsert to NX")
+                #print("Upsert to NX")
                 self.G.add_edge(src, trt, **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]})
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
@@ -313,8 +313,18 @@ class LocalGraphUtils(Utils):
 
     def print_status_G(self):
         print(">>>STATUS")
-        print(f" Nodes {len(self.G.nodes)}")
-        print(f" Edges {len(self.G.edges)}")
+        everything = {}
+        for k,v in self.G.nodes(data=True):
+            ntype = v.get("type")
+            if ntype not in everything:
+                everything[ntype] = 0
+            everything[ntype] += 1
+
+        for k, v in everything.items():
+            print(f"{k}:{v}")
+
+
+
 
 
 
@@ -351,7 +361,7 @@ class LocalGraphUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
-    def get_neighbor_list(self, node, target_type: str or list or None=None, just_id=False, trgt_rel: str or list or None=None) -> List[tuple] or None:
+    def get_neighbor_list(self, node, target_type: str or list or None = None, just_id = False, trgt_rel: str or list or None=None) -> List[tuple] or None:
         neighbors = []
         # Filter Input
         if isinstance(target_type, str):
