@@ -72,7 +72,7 @@ class LocalGraphUtils(Utils):
         attrs["type"] = attrs["type"].upper()
 
         # print(">>NODE FILTERED")
-        print(f"Add {attrs['id']} -> layer: {attrs['type']}")
+        #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
         """if single_upsert is True:
             await self.g.upsert_row(
                 table=f"{edge_attrs['src_layer'].upper()}_{edge_attrs['rel']}_{edge_attrs['trgt_layer'].upper()}",
@@ -93,7 +93,7 @@ class LocalGraphUtils(Utils):
         return True
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
-        pprint.pp(attrs)
+        #pprint.pp(attrs)
         #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
 
         # Color
@@ -103,7 +103,7 @@ class LocalGraphUtils(Utils):
             index = attrs.get("index", None)
         if index is not None:
             color = f"rgb({index + .5}, {index + .5}, {index + .5})"
-        print("color set:", color)
+        #print("color set:", color)
 
         try:
             src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
@@ -177,6 +177,8 @@ class LocalGraphUtils(Utils):
 
     def update_node(self, nid, attrs, timestep):
         print("Update node", nid)
+        #print("Update attrs", attrs)
+        #print("@ timestep", timestep)
         ntype = attrs.get("type")
 
         self.data_handler.add_history_entry(nid, ntype, attrs, timestep)
@@ -184,7 +186,6 @@ class LocalGraphUtils(Utils):
         self.G.nodes[nid].update(attrs)
 
         # todo handle async rt spanner || fbrtdb
-
 
 
     def update_edge(self, src, trgt, attrs, timestep):
@@ -231,7 +232,7 @@ class LocalGraphUtils(Utils):
                 f"{attrs.get('type')}/{nid}":
                     {k: v for k, v in attrs.items()}
 
-                for nid, attrs in self.G.nodes(data=True)
+                for nid, attrs in self.G.nodes(data=True) if attrs.get("type") not in ["USERS"]
             }
 
             for src, trgt in self.G.edges():
@@ -265,15 +266,6 @@ class LocalGraphUtils(Utils):
                 )
             # print("updates", updates)
         self.firebase.upsert_batch(updates, fb_dest)
-
-
-
-
-
-
-
-
-
 
 
 
@@ -362,6 +354,7 @@ class LocalGraphUtils(Utils):
         return None, None  # No neighbor of that type found
 
     def get_neighbor_list(self, node, target_type: str or list or None = None, just_id = False, trgt_rel: str or list or None=None) -> List[tuple] or None:
+        print(f"Get neighbors from {node}")
         neighbors = []
         # Filter Input
         if isinstance(target_type, str):
@@ -384,6 +377,7 @@ class LocalGraphUtils(Utils):
                         neighbors.append((neighbor, self.G.nodes[neighbor]))
                     else:
                         neighbors.append((neighbor, self.G.nodes[neighbor]))
+        print(f"Neighbors extracted: {len(neighbors)}")
         return neighbors
 
 
