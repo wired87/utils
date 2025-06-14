@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import pprint
+import time
 
 from typing import List
 
@@ -11,14 +12,14 @@ from _google.firebase.real_time_database import FirebaseRTDBManager
 from bm.settings import TEST_USER_ID
 
 from bm.logging_custom import cpr
+from qf_sim.utils.data_handler import DataHandler
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
-from qf_sim.utils.data_handler import DataHandler
 from utils.utils import Utils
 import queue
 
 
-class LocalGraphUtils(Utils):
+class GUtils(Utils):
 
     def __init__(
             self,
@@ -35,26 +36,32 @@ class LocalGraphUtils(Utils):
     ):
         super().__init__()
         self.G = None
+        self.user_id = user_id
         self.g_from_path=g_from_path
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.loop=loop
         self.history= {}
-
+        self.database = database
+        self.upload_to = upload_to
         if upload_to == "fb":
             self.firebase = FirebaseRTDBManager(base_path=database)
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
-        # DATA
-        self.data_handler=DataHandler(
-            upload_to, user_id, env_id, database, self.q_handler
+        self.data_handler = DataHandler(
+            self.upload_to,
+            self.user_id,
+            self.database
         )
+
+        # Sim timestep must be updated externally for each loop
+        self.timestep = None
 
         #history: list[dict[id: list[history]]]
 
-        self.upload_to=upload_to
+        self.q = queue.Queue()
 
         self.schemas = {}
         """table_name: {
@@ -67,10 +74,10 @@ class LocalGraphUtils(Utils):
     # CORE                             #
     ####################################
 
-    def add_node(self, attrs: dict, flatten=False, single_upsert=False, timestep=None):
+    def add_node(self, attrs: dict, flatten=False, single_upsert=False,):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
         attrs["type"] = attrs["type"].upper()
-
+        nid = attrs["id"]
         # print(">>NODE FILTERED")
         #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
         """if single_upsert is True:
@@ -82,13 +89,12 @@ class LocalGraphUtils(Utils):
             self.local_batch_loader(attrs)
         self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
 
-        # todo just add each entry here results in doubles -> filter at upload process then
-        if timestep:
-            self.data_handler.add_history_entry(
-                nid=attrs.get("id"),
-                ntype=attrs["type"],
+        if self.timestep:
+            self.data_handler.h_entry(
+                nid=nid,
+                graph_item="edge",
                 attrs=attrs,
-                timestep=timestep
+                timestep=self.timestep
             )
         return True
 
@@ -126,12 +132,12 @@ class LocalGraphUtils(Utils):
                 attrs = self.manipulator.clean_attr_keys(attrs, flatten)
                 # print("attrs_new", attrs )
                 rel = attrs.get("rel", "").lower().replace(" ", "_")
-
+                edge_id = f"{src}_{rel}_{trt}"
                 attrs = {
                     **attrs,
                     "src": src,
                     "trgt": trt,
-                    "id": f"{src}_{rel}_{trt}",
+                    "id": edge_id,
                     "color": color,
                 }
 
@@ -161,13 +167,15 @@ class LocalGraphUtils(Utils):
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
 
-                if timestep:
-                    self.data_handler.add_history_entry(
-                        nid=attrs.get("id"),
-                        ntype=attrs["type"],
+                if self.timestep:
+                    self.data_handler.h_entry(
+                        nid=edge_id,
+                        graph_item="edge",
                         attrs=attrs,
-                        timestep=timestep
+                        timestep=self.timestep
                     )
+
+
 
         except Exception as e:
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
@@ -175,20 +183,25 @@ class LocalGraphUtils(Utils):
 
 
 
-    def update_node(self, nid, attrs, timestep):
+    def update_node(self, nid, attrs):
         print("Update node", nid)
         #print("Update attrs", attrs)
         #print("@ timestep", timestep)
-        ntype = attrs.get("type")
 
-        self.data_handler.add_history_entry(nid, ntype, attrs, timestep)
+        if self.timestep:
+            self.data_handler.h_entry(
+                nid=nid,
+                graph_item="node",
+                attrs=attrs,
+                timestep=self.timestep
+            )
 
         self.G.nodes[nid].update(attrs)
 
         # todo handle async rt spanner || fbrtdb
 
 
-    def update_edge(self, src, trgt, attrs, timestep):
+    def update_edge(self, src, trgt, attrs):
         rel = attrs.get("rel", "").lower().replace(" ", "_")
         src_layer = attrs.get("src_layer").upper()
         trgt_layer = attrs.get("trgt_layer").upper()
@@ -196,7 +209,13 @@ class LocalGraphUtils(Utils):
         edge_id = f"{src}_{rel}_{trgt}"
 
         # Add to history -> will update intern
-        self.data_handler.add_history_entry(edge_id, "edges", attrs, timestep)
+        if self.timestep:
+            self.data_handler.h_entry(
+                nid=self.G.edges[src][trgt]["id"],
+                graph_item="edge",
+                attrs=attrs,
+                timestep=self.timestep
+            )
 
         # Update nx
         self.G.edges[src][trgt].update(attrs)
@@ -361,6 +380,7 @@ class LocalGraphUtils(Utils):
             target_type = [target_type]
         if isinstance(trgt_rel, str):
             trgt_rel = [trgt_rel]
+
 
         for neighbor in self.G.neighbors(node):
             # Get neighbor from type

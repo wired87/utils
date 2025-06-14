@@ -104,7 +104,6 @@ class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
         )
         self.qfh = QFUpdator(
             g=self.g,
-            env_id=env_id,
             testing=True,
             specs=self.specs,
             user_id=self.user_id
