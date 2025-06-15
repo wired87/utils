@@ -74,7 +74,7 @@ class GUtils(Utils):
     # CORE                             #
     ####################################
 
-    def add_node(self, attrs: dict, flatten=False, single_upsert=False,):
+    def add_node(self, attrs: dict, timestep, flatten=False):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
@@ -94,7 +94,7 @@ class GUtils(Utils):
                 nid=nid,
                 graph_item="edge",
                 attrs=attrs,
-                timestep=self.timestep
+                timestep=timestep
             )
         return True
 
@@ -172,7 +172,7 @@ class GUtils(Utils):
                         nid=edge_id,
                         graph_item="edge",
                         attrs=attrs,
-                        timestep=self.timestep
+                        timestep=timestep
                     )
 
 
@@ -183,7 +183,7 @@ class GUtils(Utils):
 
 
 
-    def update_node(self, nid, attrs):
+    def update_node(self, nid, attrs, timestep):
         print("Update node", nid)
         #print("Update attrs", attrs)
         #print("@ timestep", timestep)
@@ -193,7 +193,7 @@ class GUtils(Utils):
                 nid=nid,
                 graph_item="node",
                 attrs=attrs,
-                timestep=self.timestep
+                timestep=timestep
             )
 
         self.G.nodes[nid].update(attrs)
@@ -201,7 +201,7 @@ class GUtils(Utils):
         # todo handle async rt spanner || fbrtdb
 
 
-    def update_edge(self, src, trgt, attrs):
+    def update_edge(self, src, trgt, attrs, timestep):
         rel = attrs.get("rel", "").lower().replace(" ", "_")
         src_layer = attrs.get("src_layer").upper()
         trgt_layer = attrs.get("trgt_layer").upper()
@@ -214,7 +214,7 @@ class GUtils(Utils):
                 nid=self.G.edges[src][trgt]["id"],
                 graph_item="edge",
                 attrs=attrs,
-                timestep=self.timestep
+                timestep=timestep
             )
 
         # Update nx
