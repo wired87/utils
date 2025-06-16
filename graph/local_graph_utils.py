@@ -74,7 +74,7 @@ class GUtils(Utils):
     # CORE                             #
     ####################################
 
-    def add_node(self, attrs: dict, timestep, flatten=False):
+    def add_node(self, attrs: dict, timestep=None, flatten=False):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]

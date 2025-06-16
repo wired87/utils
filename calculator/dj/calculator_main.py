@@ -10,7 +10,7 @@ import time
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
-from _google.graph.g_utils import GGraphUtils
+from _google.graph.g_utils import GGUtils
 
 from urllib.parse import parse_qs
 
@@ -81,7 +81,7 @@ class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
         self.set_fb(env_id, query_params)
 
         try:
-            self.g = GGraphUtils(
+            self.g = GGUtils(
                 table_name="NONE",
                 upload_to="fb",
                 instance=os.environ.get("FIREBASE_RTDB"),  # set root of db
