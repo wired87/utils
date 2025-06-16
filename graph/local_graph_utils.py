@@ -59,17 +59,13 @@ class GUtils(Utils):
         # Sim timestep must be updated externally for each loop
         self.timestep = None
 
-        #history: list[dict[id: list[history]]]
-
-        self.q = queue.Queue()
-
         self.schemas = {}
         """table_name: {
         "schema": {},
         "rows": [],
         "id_map": set(),
         },"""
-
+        print("GUtils initialized")
     ####################################
     # CORE                             #
     ####################################

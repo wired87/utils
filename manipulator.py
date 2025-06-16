@@ -172,6 +172,11 @@ class GraphAttrOptimizer:
 
 class Manipulator:
 
+    def __init__(self):
+        print("Manipulator initialized")
+
+
+
     def replace_special_chars(self, s):
         """
         Replaces all special characters in a string with "_".

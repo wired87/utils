@@ -9,7 +9,7 @@ class QueueHandler:
 
     def __init__(self, q: queue.Queue or None =None):
         self.q = q or queue.Queue()
-
+        print("QueueHandler initialized")
     def add_task(self, attrs, task_type: str = 'firebase_push', db_path=None):
         """Fügt eine Firebase Push Aufgabe zur Queue hinzu."""
         #print("db_path, attrs, task_type", db_path, attrs, task_type)
