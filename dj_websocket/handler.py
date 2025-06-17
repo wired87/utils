@@ -1,58 +1,69 @@
 import asyncio
 import json
+import os
 
 import websockets
 from channels.layers import get_channel_layer
 
-from bm.settings import WS_URL
+from fastapi import WebSocket
+
+class ConnectionManager:
+    def __init__(self, host_id):
+        self.host_id = host_id
+        local_origins = ["127.0.0.1", "localhost"]
+        prod_origins =  ["bestbrain.tech"]
+        self.allowed_origins = local_origins if os.name == "nt" else prod_origins
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket, env_id):
+        granted = await self._validate_origin(env_id, websocket)
+        if granted:
+            self.active_connections.append(websocket)
+
+    async def _validate_origin(self, env_id, websocket: WebSocket):
+        print(f"validate received WS request to Host {self.host_id} ")
+        def validate_sender_url():
+            ok = False
+            for item in self.allowed_origins:
+                if websocket.url.hostname.startswith(item):
+                    ok=True
+            return ok
+
+        if env_id == self.host_id and validate_sender_url():
+            print("connection accepted")
+            await websocket.accept()
+            return websocket.url.hostname
+        else:
+            print("connection declined")
+            await websocket.close(code=1008)
+            return None
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
 
 
 class WebsocketHandler:
     """
-
-
-
     """
 
-    def __init__(self,g):
-        self.g=g
+    def __init__(self, uri):
+        self.uri=uri
+        print("WS handler initialized")
 
-    async def distribute(
-            self,
-            data,
-            node,
-            message_handler,
-            user_id=None,
-            env=None
-    ):
-        tasks = [
-            self.send_node(
-                uri=f"{WS_URL}qf-sim/run/single/node_id={nid}",
-                user_id=user_id,
-                env=env,
-                message_handler=message_handler,
-                # Sends loop item if no node provided
-                node=node or {"id": nid, **attrs}
-            )
-            for nid, attrs in data
-        ]
-        responses = await asyncio.gather(*tasks)
-        print("Done", responses)
-        return
-
-    async def send_node(self, uri, node, message_handler, user_id=None, env=None):
-        neighbors = self.g.get_neighbor_list(node.get("id"), "QFN")
-
-        async with websockets.connect(uri) as websocket:
-            await websocket.send(json.dumps({
-                "user_id": user_id,
-                "env": env,
-                "node": node,
-                "neighbors": neighbors
-            }))
-            print("connection to", uri, "established")
-            async for msg in websocket:
-                message_handler(msg)
+    async def establish_connection(self):
+        try:
+            print(f"Establish connection to {self.uri}")
+            return websockets.connect(self.uri)
+        except Exception as e:
+            print("WS couldn't be established:", e)
 
     async def send_intern_message_pool(
             self,
