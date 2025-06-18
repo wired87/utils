@@ -13,12 +13,12 @@ class ConnectionManager:
         local_origins = ["127.0.0.1", "localhost"]
         prod_origins =  ["bestbrain.tech"]
         self.allowed_origins = local_origins if os.name == "nt" else prod_origins
-        self.active_connections: list[WebSocket] = []
+        self.active_connections ={}
 
     async def connect(self, websocket: WebSocket, env_id):
         granted = await self._validate_origin(env_id, websocket)
-        if granted:
-            self.active_connections.append(websocket)
+        if granted and env_id not in self.active_connections:
+            self.active_connections[env_id] = websocket
 
     async def _validate_origin(self, env_id, websocket: WebSocket):
         print(f"validate received WS request to Host {self.host_id} ")
