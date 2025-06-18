@@ -1,5 +1,4 @@
 import queue
-import threading
 
 from firebase_admin import db
 
@@ -8,8 +7,6 @@ from firebase_admin import db
 class QueueHandler:
     """
     todo include parallel
-
-
     """
     def __init__(self, q: queue.Queue or None =None):
         self.q = q or queue.Queue()
@@ -35,7 +32,7 @@ class QueueHandler:
         """
         Sie liest Aufgaben aus der Queue (in welche add_nodes usw geladen werden) und arbeitet sie ab.
         """
-        print(f"Worker Thread gestartet: {threading.current_thread().name}")
+        #print(f"Worker Thread gestartet: {threading.current_thread().name}")
 
         while True:
             try:
@@ -48,10 +45,10 @@ class QueueHandler:
 
                 # Prüfen, ob das Stopp-Signal empfangen wurde
                 if task is None:
-                    print(f"Worker Thread {threading.current_thread().name}: Stopp-Signal erhalten, beende.")
+                    print(f"Worker Stopp-Signal erhalten, beende.")
                     break  # Schleife beenden
 
-                print(f"Worker Thread {threading.current_thread().name}: Verarbeite Aufgabe: {task}")
+                print(f"Worker Thread: Verarbeite Aufgabe: {task}")
 
                 task_type = task.get('type')
 
@@ -93,9 +90,9 @@ class QueueHandler:
                 pass
             except Exception as e:
                 print(
-                    f"Worker Thread {threading.current_thread().name}: Unerwarteter Fehler bei Aufgabenverarbeitung: {e}")
+                    f"Worker: Unerwarteter Fehler bei Aufgabenverarbeitung: {e}")
                 # In einer echten Anwendung müssten Sie hier entscheiden,
                 # ob die Aufgabe als fehlerhaft markiert und q.task_done() trotzdem aufgerufen wird,
                 # um ein Hängenbleiben zu verhindern.
 
-        print(f"Worker Thread {threading.current_thread().name}: Beendet.")
+        print(f"Worker: Beendet.")

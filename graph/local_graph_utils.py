@@ -1,18 +1,17 @@
-import asyncio
 import json
 import os
 import pprint
-import time
 
 from typing import List
 
 import networkx as nx
 
-from _google.firebase.real_time_database import FirebaseRTDBManager
 from bm.settings import TEST_USER_ID
 
 from bm.logging_custom import cpr
-from qf_sim.utils.data_handler import DataHandler
+from qf_sim.physics.quantum_fields.nodes import ALL_SUBS
+from qf_sim.utils.data_handler import LocalDataManager
+from utils.logger import LOGGER
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
 from utils.utils import Utils
@@ -20,7 +19,13 @@ import queue
 
 
 class GUtils(Utils):
-
+    """
+    Handles State G local and 
+    History G through DataManager
+    
+    ALERT:
+    DB Pushs need to be ahndled externally (DBManager -> _google) 
+    """
     def __init__(
             self,
             user_id=TEST_USER_ID,
@@ -28,11 +33,7 @@ class GUtils(Utils):
             G=None,
             g_from_path=None,
             nx_only=False,
-            upload_to: str = "bq",  # bq || sp || fb
-            loop:asyncio.AbstractEventLoop=None,
-            database=None,
-            queue: queue.Queue or None = None,
-            **args
+            #queue: queue.Queue or None = None,
     ):
         super().__init__()
         self.G = None
@@ -40,20 +41,13 @@ class GUtils(Utils):
         self.g_from_path=g_from_path
         self.get_nx_graph(G)
         self.nx_only = nx_only
-        self.loop=loop
         self.history= {}
-        self.database = database
-        self.upload_to = upload_to
-        if upload_to == "fb":
-            self.firebase = FirebaseRTDBManager(base_path=database)
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
-        self.data_handler = DataHandler(
-            self.upload_to,
+        self.data_handler = LocalDataManager(
             self.user_id,
-            self.database
         )
 
         # Sim timestep must be updated externally for each loop
@@ -65,7 +59,9 @@ class GUtils(Utils):
         "rows": [],
         "id_map": set(),
         },"""
+
         print("GUtils initialized")
+
     ####################################
     # CORE                             #
     ####################################
@@ -171,8 +167,6 @@ class GUtils(Utils):
                         timestep=timestep
                     )
 
-
-
         except Exception as e:
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
@@ -217,71 +211,6 @@ class GUtils(Utils):
         self.G.edges[src][trgt].update(attrs)
 
         # todo handle async rt spanner || fbrtdb
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def upsert_firebase(
-            self,
-            fb_dest=None,
-            testing=False
-    ):
-
-        if testing is False:
-            updates = {
-                f"{attrs.get('type')}/{nid}":
-                    {k: v for k, v in attrs.items()}
-
-                for nid, attrs in self.G.nodes(data=True) if attrs.get("type") not in ["USERS"]
-            }
-
-            for src, trgt in self.G.edges():
-                edge_attrs = self.G[src][trgt]
-                #print("edge_attrs", edge_attrs)
-                for key,value in edge_attrs.items():
-                    #print("Edge value", value)
-
-                    path = f"edges/{src}_{value.get('rel')}_{trgt}"
-                    updates.update(
-                        {
-                            path: {k: v for k, v in value.items() if k not in ["id", "symbol"]}
-                        }
-                    )
-            # print("updates", updates)
-        else:
-            updates = {
-                f"{attrs.get('type')}/{nid}": {k: v for k, v in attrs.items()}
-                for nid, attrs in self.G.nodes(data=True) if attrs.get("type") not in ["USERS"]
-            }
-
-            for src, trgt in self.G.edges():
-                edge_attrs = self.G[src][trgt]
-                print("edge_attrs", edge_attrs)
-
-                path = f"edges/{src}_{edge_attrs.get('rel')}_{trgt}"
-                updates.update(
-                    {
-                        path: {k: v for k, v in edge_attrs.items() if k not in ["symbol"]}
-                    }
-                )
-            # print("updates", updates)
-        self.firebase.upsert_batch(updates, fb_dest)
-
 
 
     ####################################
@@ -405,3 +334,82 @@ class GUtils(Utils):
         self.G.remove_node(node_id)
 
 
+    def cleanup_self_schema(self):
+        # print("Cleanup schema")
+        for k, v in self.schemas.items():
+            v["rows"] = []
+
+
+    def build_G_from_data(
+            self,
+            initial_data,
+            initial_frontend_data,
+    ):
+        # --- Graph aufbauen ---
+        env = None
+        env_id = None
+
+        LOGGER.info("initial_data.keys()", initial_data.keys())
+        for node_type, node_id_data in initial_data.items():
+            LOGGER.info(f"node_type, {node_type}")
+            if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
+                for nid, attrs in node_id_data.items():
+
+                    if node_type not in initial_frontend_data:
+                        initial_frontend_data[node_type] = {}
+
+                    if node_type == "edges":
+                        parts = nid.split(f"_{attrs.get('rel')}_")
+
+                        src_layer = attrs.get("src_layer")
+                        trgt_layer = attrs.get("trgt_layer")
+
+                        # LOGGER.info("parts", parts)
+                        # check 2 ids in id and
+                        if len(parts) >= 2:
+                            self.add_edge(
+                                parts[0],
+                                parts[1],
+                                attrs=attrs
+                            )
+
+                            # just include edges between sub-fields in frontend graph
+                            if src_layer in ALL_SUBS and trgt_layer in ALL_SUBS:
+                                initial_frontend_data[node_type].update(
+                                    {
+                                        attrs["id"]: {
+                                            "src": parts[0],
+                                            "trgt": parts[1],
+                                            "color": attrs.get("color")
+                                        }
+                                    }
+                                )
+                        else:
+                            print("something else!!!")
+                    elif node_type == "ENV":
+                        LOGGER.info("Env recognized")
+                        env = attrs
+                        env_id = nid  # Speichern Sie die env_id, falls benötigt
+                    elif node_type == "QFN":
+                        LOGGER.info(f"Add node {nid}")
+                        self.add_node(
+                            attrs=attrs,
+                            timestep=None,
+                        )
+                        initial_frontend_data[node_type].update(
+                            {
+                                attrs["id"]: {
+                                    "pos": attrs["pos"],
+                                    "color": attrs.get("color", "(0,0,0)"),
+                                }
+                            }
+                        )
+                    else:
+                        self.add_node(
+                            attrs=attrs,
+                        )
+            else:
+                LOGGER.info("DATA NOT A DICT:", node_id_data)
+                pprint.pp(node_id_data)
+                # time.sleep(10)
+        return env, env_id

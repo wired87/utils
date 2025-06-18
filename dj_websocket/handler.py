@@ -8,7 +8,7 @@ from channels.layers import get_channel_layer
 from fastapi import WebSocket
 
 class ConnectionManager:
-    def __init__(self, host_id):
+    def __init__(self, host_id="123"):
         self.host_id = host_id
         local_origins = ["127.0.0.1", "localhost"]
         prod_origins =  ["bestbrain.tech"]
