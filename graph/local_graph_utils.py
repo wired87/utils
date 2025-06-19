@@ -101,6 +101,10 @@ class GUtils(Utils):
         # Color
         color = None
 
+        # Check
+        if attrs.get("id") is None:
+            print(">>>EDGE ATTRS NONE:", attrs)
+
         if index is None:
             index = attrs.get("index", None)
         if index is not None:
@@ -374,17 +378,19 @@ class GUtils(Utils):
                         # LOGGER.info("parts", parts)
                         # check 2 ids in id and
                         if len(parts) >= 2:
+
                             self.add_edge(
                                 parts[0],
                                 parts[1],
                                 attrs=attrs
                             )
 
+                            edge_id = f"{parts[0]}_{attrs.get('rel')}_{parts[1]}"
                             # just include edges between sub-fields in frontend graph
                             if src_layer in ALL_SUBS and trgt_layer in ALL_SUBS:
                                 initial_frontend_data[node_type].update(
                                     {
-                                        attrs["id"]: {
+                                        attrs.get("id", edge_id): {
                                             "src": parts[0],
                                             "trgt": parts[1],
                                             "color": attrs.get("color")
