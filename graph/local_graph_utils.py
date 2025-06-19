@@ -348,12 +348,15 @@ class GUtils(Utils):
             self,
             initial_data,
             initial_frontend_data,
+            env_id
     ):
         # --- Graph aufbauen ---
         env = None
-        env_id = None
 
-        LOGGER.info(f"initial_data.keys():{[k for k in initial_data.keys() if len(initial_data.keys())]}")
+        LOGGER.info(f"INITIAL DATA KEYS: {[k for k in initial_data.keys() if len(initial_data.keys())]}")
+        if env_id in initial_data:
+            initial_data=initial_data[env_id]
+
         for node_type, node_id_data in initial_data.value().items():
             LOGGER.info(f">>>NODE TYPE, {node_type}")
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
