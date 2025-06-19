@@ -68,9 +68,9 @@ class GUtils(Utils):
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
-
         if attrs.get("type") is None:
-            print("NEW NODE ATTRS", attrs)
+            print("NEW NODE ATTRS")
+            pprint.pp(attrs)
 
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
@@ -85,13 +85,13 @@ class GUtils(Utils):
             self.local_batch_loader(attrs)
         self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
 
-        if self.timestep:
+        """if self.timestep:
             self.data_handler.h_entry(
                 nid=nid,
                 graph_item="edge",
                 attrs=attrs,
                 timestep=timestep
-            )
+            )"""
         return True
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
