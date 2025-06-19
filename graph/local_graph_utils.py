@@ -353,12 +353,12 @@ class GUtils(Utils):
         env = None
         env_id = None
 
-        LOGGER.info(f"initial_data.keys():{initial_data.keys()}")
-        for node_type, node_id_data in initial_data.items():
-            LOGGER.info(f"node_type, {node_type}")
+        LOGGER.info(f"initial_data.keys():{[k for k in initial_data.keys() if len(initial_data.keys())]}")
+        for node_type, node_id_data in initial_data.value().items():
+            LOGGER.info(f">>>NODE TYPE, {node_type}")
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                 for nid, attrs in node_id_data.items():
-
+                    LOGGER.info(f">>>NID, {nid}")
                     if node_type not in initial_frontend_data:
                         initial_frontend_data[node_type] = {}
 
