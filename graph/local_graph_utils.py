@@ -97,6 +97,7 @@ class GUtils(Utils):
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         #pprint.pp(attrs)
         #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        # todo externa nd intern couplings no edge id after creation
 
         # Color
         color = None
