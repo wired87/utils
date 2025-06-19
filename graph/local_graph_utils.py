@@ -366,7 +366,7 @@ class GUtils(Utils):
             LOGGER.info(f">>>NODE TYPE, {node_type}")
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                 for nid, attrs in node_id_data.items():
-                    LOGGER.info(f">>>NID, {nid}")
+                    #LOGGER.info(f">>>NID, {nid}")
                     if node_type not in initial_frontend_data:
                         initial_frontend_data[node_type] = {}
 
