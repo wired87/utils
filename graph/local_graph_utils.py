@@ -349,7 +349,7 @@ class GUtils(Utils):
         env = None
         env_id = None
 
-        LOGGER.info("initial_data.keys()", initial_data.keys())
+        LOGGER.info(f"initial_data.keys():{initial_data.keys()}")
         for node_type, node_id_data in initial_data.items():
             LOGGER.info(f"node_type, {node_type}")
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
