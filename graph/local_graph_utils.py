@@ -103,9 +103,9 @@ class GUtils(Utils):
         color = None
 
         # Check
-        if attrs.get("id") is None:
+        """if attrs.get("id") is None:
             print(">>>EDGE ATTRS NONE:", attrs)
-
+        """
         if index is None:
             index = attrs.get("index", None)
         if index is not None:
@@ -363,7 +363,7 @@ class GUtils(Utils):
             initial_data=initial_data[env_id]
 
         for node_type, node_id_data in initial_data.items():
-            LOGGER.info(f">>>NODE TYPE, {node_type}")
+            #LOGGER.info(f">>>NODE TYPE, {node_type}")
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                 for nid, attrs in node_id_data.items():
                     #LOGGER.info(f">>>NID, {nid}")
@@ -407,7 +407,7 @@ class GUtils(Utils):
                         env_id = nid  # Speichern Sie die env_id, falls benötigt
 
                     elif node_type == "QFN":
-                        LOGGER.info(f"Add node {nid}")
+                        #LOGGER.info(f"Add node {nid}")
                         self.add_node(
                             attrs=attrs,
                             timestep=None,
