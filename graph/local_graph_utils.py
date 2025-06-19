@@ -428,5 +428,5 @@ class GUtils(Utils):
                 LOGGER.info("DATA NOT A DICT:", node_id_data)
                 pprint.pp(node_id_data)
                 # time.sleep(10)
-
+        LOGGER.info("Graph successfully build")
         return env, env_id
