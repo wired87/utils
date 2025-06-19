@@ -357,7 +357,7 @@ class GUtils(Utils):
         if env_id in initial_data:
             initial_data=initial_data[env_id]
 
-        for node_type, node_id_data in initial_data.value().items():
+        for node_type, node_id_data in initial_data.items():
             LOGGER.info(f">>>NODE TYPE, {node_type}")
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                 for nid, attrs in node_id_data.items():
