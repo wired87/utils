@@ -68,6 +68,10 @@ class GUtils(Utils):
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
+
+        if attrs.get("type") is None:
+            print("NEW NODE ATTRS", attrs)
+
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
         # print(">>NODE FILTERED")
@@ -386,10 +390,12 @@ class GUtils(Utils):
                                 )
                         else:
                             print("something else!!!")
+
                     elif node_type == "ENV":
                         LOGGER.info("Env recognized")
                         env = attrs
                         env_id = nid  # Speichern Sie die env_id, falls benötigt
+
                     elif node_type == "QFN":
                         LOGGER.info(f"Add node {nid}")
                         self.add_node(
@@ -412,4 +418,5 @@ class GUtils(Utils):
                 LOGGER.info("DATA NOT A DICT:", node_id_data)
                 pprint.pp(node_id_data)
                 # time.sleep(10)
+
         return env, env_id
