@@ -10,7 +10,6 @@ import time
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from _google.firebase.real_time_database import FirebaseRTDBManager
-from _google.graph.g_utils import DataManager
 
 from urllib.parse import parse_qs
 
@@ -18,6 +17,7 @@ import json
 
 from qf_sim.calculator.calculator_creator import CalcCreator
 from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
+from qf_sim.utils.data_handler import DataManager
 from utils.logger import LOGGER
 from qf_sim.test import SimCore
 from utils.utils import Utils
@@ -81,16 +81,7 @@ class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
         self.set_fb(env_id, query_params)
 
         try:
-            self.g = DataManager(
-                table_name="NONE",
-                upload_to="fb",
-                instance=os.environ.get("FIREBASE_RTDB"),  # set root of db
-                database=self.db_path,  # spec user spec entry (like table)
-                nx_only=False,
-                G=None,
-                g_from_path=None,
-                user_id=self.user_id,
-            )
+            self.g = None
 
         except Exception as e:
             LOGGER.error(f"Firebase error: {e}")

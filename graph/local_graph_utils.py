@@ -10,7 +10,7 @@ from bm.settings import TEST_USER_ID
 
 from bm.logging_custom import cpr
 from qf_sim.physics.quantum_fields.nodes import ALL_SUBS
-from qf_sim.utils.data_handler import LocalDataManager
+from qf_sim.utils.data_handler import DataManager
 from utils.logger import LOGGER
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
@@ -34,9 +34,11 @@ class GUtils(Utils):
             g_from_path=None,
             nx_only=False,
             #queue: queue.Queue or None = None,
+            enable_data_manager=True
     ):
         super().__init__()
         self.G = None
+        self.enable_data_manager=enable_data_manager
         self.user_id = user_id
         self.g_from_path=g_from_path
         self.get_nx_graph(G)
@@ -46,9 +48,10 @@ class GUtils(Utils):
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
-        self.data_handler = LocalDataManager(
-            self.user_id,
-        )
+        if self.enable_data_manager is True:
+            self.data_manager = DataManager(
+                user_id
+            )
 
         # Sim timestep must be updated externally for each loop
         self.timestep = None
@@ -84,6 +87,10 @@ class GUtils(Utils):
         if self.nx_only is False:
             self.local_batch_loader(attrs)
         self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
+
+        if self.enable_data_manager is True:
+            # Add history entry
+            self.data_manager.h_entry(attrs["id"], {k: v for k, v in attrs.items() if k != "id"})
 
         """if self.timestep:
             self.data_handler.h_entry(
@@ -168,12 +175,12 @@ class GUtils(Utils):
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
 
-                if self.timestep:
-                    self.data_handler.h_entry(
-                        nid=edge_id,
-                        graph_item="edge",
-                        attrs=attrs,
-                        timestep=timestep
+                if self.enable_data_manager is True:
+                    # Add history entry
+                    self.data_manager.h_entry(
+                        attrs["id"],
+                        {k: v for k, v in attrs.items() if k != "id"},
+                        graph_item="edge"
                     )
 
         except Exception as e:
@@ -181,39 +188,30 @@ class GUtils(Utils):
 
 
 
-
-    def update_node(self, nid, attrs, timestep):
-        print("Update node", nid)
-        #print("Update attrs", attrs)
-        #print("@ timestep", timestep)
-
-        if self.timestep:
-            self.data_handler.h_entry(
-                nid=nid,
-                graph_item="node",
-                attrs=attrs,
-                timestep=timestep
+    def update_node(self, attrs):
+        if self.enable_data_manager is True:
+            # Add history entry
+            self.data_manager.h_entry(
+                attrs["id"],
+                **{k: v for k, v in attrs.items() if k != "id"},
+                graph_item="node"
             )
 
-        self.G.nodes[nid].update(attrs)
-
-        # todo handle async rt spanner || fbrtdb
 
 
-    def update_edge(self, src, trgt, attrs, timestep):
+    def update_edge(self, src, trgt, attrs):
         rel = attrs.get("rel", "").lower().replace(" ", "_")
         src_layer = attrs.get("src_layer").upper()
         trgt_layer = attrs.get("trgt_layer").upper()
         table_name = f"{src_layer}_{rel}_{trgt_layer}"
         edge_id = f"{src}_{rel}_{trgt}"
 
-        # Add to history -> will update intern
-        if self.timestep:
-            self.data_handler.h_entry(
-                nid=self.G.edges[src][trgt]["id"],
-                graph_item="edge",
-                attrs=attrs,
-                timestep=timestep
+        if self.enable_data_manager is True:
+            # Add history entry
+            self.data_manager.h_entry(
+                attrs["id"],
+                **{k: v for k, v in attrs.items() if k != "id"},
+                graph_item="edge"
             )
 
         # Update nx
