@@ -1,6 +1,7 @@
 import json
 import os
 import pprint
+import time
 
 from typing import List
 
@@ -10,7 +11,6 @@ from bm.settings import TEST_USER_ID
 
 from bm.logging_custom import cpr
 from qf_sim.physics.quantum_fields.nodes import ALL_SUBS
-from qf_sim.utils.data_handler import DataManager
 from utils.logger import LOGGER
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
@@ -35,24 +35,25 @@ class GUtils(Utils):
             g_from_path=None,
             nx_only=False,
             # queue: queue.Queue or None = None,
-            enable_data_manager=True
+            enable_data_store=True
     ):
         super().__init__()
         self.G = None
-        self.enable_data_manager = enable_data_manager
+        self.enable_data_store = enable_data_store
         self.user_id = user_id
         self.g_from_path = g_from_path
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.history = {}
-
+        self.history_types=ALL_SUBS + ["ENV"]
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
-        if self.enable_data_manager is True:
-            self.data_manager = DataManager(
-                user_id
-            )
+        if self.enable_data_store is True:
+            self.datastore = nx.MultiGraph()
+
+
+
 
         # Sim timestep must be updated externally for each loop
         self.timestep = None
@@ -87,20 +88,37 @@ class GUtils(Utils):
 
         if self.nx_only is False:
             self.local_batch_loader(attrs)
-        self.G.add_node(attrs["id"], **{k: v for k, v in attrs.items() if k != "id"})
+        self.G.add_node(nid, **{k: v for k, v in attrs.items() if k != "id"})
 
-        if self.enable_data_manager is True:
-            # Add history entry
-            self.data_manager.h_entry(attrs["id"], {k: v for k, v in attrs.items() if k != "id"})
+        # Add history entry
+        self.h_entry(nid, {k: v for k, v in attrs.items() if k != "id"})
 
-        """if self.timestep:
-            self.data_handler.h_entry(
-                nid=nid,
-                graph_item="edge",
-                attrs=attrs,
-                timestep=timestep
-            )"""
         return True
+
+
+    def h_entry(self, nid, attrs, timestep=None, graph_item="node"):
+
+        ntype = attrs.get("type", "")
+        #print("add history entry for ", ntype)
+        #print("nid, attrs", nid, attrs)
+        if ntype in self.history_types and self.enable_data_store is True:
+            if timestep is None:
+                timestep = attrs["time"]
+
+            history_id = f"{nid}_{time.time()}_{timestep}"
+            len_type_entries = len([(inid, iattrs) for inid, iattrs in self.datastore.nodes(data=True) if iattrs.get("type").upper() == attrs.get("type").upper()])
+            self.datastore.add_node(
+                history_id,
+                **dict(
+                    type=nid,
+                    entry_index=len_type_entries,
+                    graph_item=graph_item,
+                    base_type=attrs.get("type", ""),
+                    **{k: v for k, v in attrs.items() if k not in ["id", "type"]}
+                )
+            )
+
+
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         # pprint.pp(attrs)
@@ -176,24 +194,24 @@ class GUtils(Utils):
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
 
-                if self.enable_data_manager is True:
-                    # Add history entry
-                    self.data_manager.h_entry(
-                        attrs["id"],
-                        {k: v for k, v in attrs.items() if k != "id"},
-                        graph_item="edge"
-                    )
+
+                # Add history entry
+                self.h_entry(
+                    attrs["id"],
+                    {k: v for k, v in attrs.items() if k != "id"},
+                    graph_item="edge"
+                )
                 # print(f"Edge added ")
                 # print(self.G.get_edge_data(src, trt))
         except Exception as e:
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
     def update_node(self, attrs):
-        if self.enable_data_manager is True:
+        if self.enable_data_store is True:
             # Add history entry
-            self.data_manager.h_entry(
+            self.h_entry(
                 attrs["id"],
-                **{k: v for k, v in attrs.items() if k != "id"},
+                {k: v for k, v in attrs.items() if k != "id"},
                 graph_item="node"
             )
 
@@ -204,11 +222,11 @@ class GUtils(Utils):
         table_name = f"{src_layer}_{rel}_{trgt_layer}"
         edge_id = f"{src}_{rel}_{trgt}"
 
-        if self.enable_data_manager is True:
+        if self.enable_data_store is True:
             # Add history entry
-            self.data_manager.h_entry(
+            self.h_entry(
                 attrs["id"],
-                **{k: v for k, v in attrs.items() if k != "id"},
+                {k: v for k, v in attrs.items() if k != "id"},
                 graph_item="edge"
             )
 
