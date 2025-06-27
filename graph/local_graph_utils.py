@@ -52,9 +52,6 @@ class GUtils(Utils):
         if self.enable_data_store is True:
             self.datastore = nx.MultiGraph()
 
-
-
-
         # Sim timestep must be updated externally for each loop
         self.timestep = None
 

@@ -17,7 +17,6 @@ import json
 
 from qf_sim.calculator.calculator_creator import CalcCreator
 from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
-from qf_sim.utils.data_handler import DataManager
 from utils.logger import LOGGER
 from qf_sim.test import SimCore
 from utils.utils import Utils
