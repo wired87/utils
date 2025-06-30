@@ -1,3 +1,5 @@
+import base64
+import json
 import numpy as np
 
 def serialize_complex(com, restore=False):
@@ -8,28 +10,31 @@ def serialize_complex(com, restore=False):
         return deserialize_complex(com)
 
     if isinstance(com, list):
-        restored = [serialize_complex(item) for item in com]
+        return [serialize_complex(item) for item in com]
     else:
-        restored =         {
-            "bytes": com.tobytes(),
+        return {
+            "bytes": base64.b64encode(com.tobytes()).decode("utf-8"),
             "dtype": str(com.dtype),
             "shape": com.shape
         }
-    print("serialize_complex", restored)
-    return restored
 
 
-def deserialize_complex(bytes_struct):
+def deserialize_complex(bytes_struct, from_json=True):
     """
     Deserialisiert ein einzelnes oder verschachteltes serialisiertes Array.
     """
+    print("bytes_struct",bytes_struct)
+    # Falls String, erst JSON laden
+    if from_json and isinstance(bytes_struct, str):
+        bytes_struct = json.loads(bytes_struct)
+
     if isinstance(bytes_struct, list):
         return [deserialize_complex(item) for item in bytes_struct]
     else:
-        b = bytes_struct["bytes"]
+        # Hier Base64 DEKODIEREN
+        b = base64.b64decode(bytes_struct["bytes"])
         array_type = np.dtype(bytes_struct["dtype"])
-        array_shape = bytes_struct["shape"]
+        array_shape = tuple(bytes_struct["shape"])
         restored = np.frombuffer(b, dtype=array_type).reshape(array_shape)
-        print("deserialize_complex",restored)
-
+        print("return", restored)
         return restored

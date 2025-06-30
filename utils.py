@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import pprint
 
 import aiofiles
 import httpx
@@ -8,6 +9,7 @@ import yaml
 from tqdm import tqdm
 import csv
 
+from utils._np.serialize_complex import deserialize_complex
 from utils.file.aread_json import aread_content
 
 
@@ -18,6 +20,18 @@ class Utils:
         self.info = info
         #self.local_dest_base = LOCAL_DEST_BASE
         #self.bucket_dest_base = BUCKET_DEST_BASE
+
+
+
+    def getr(self, attrs, key, s=False):
+        print("h:")
+        pprint.pp(attrs)
+        v = attrs[key]
+        if s is True:
+            deserialize_complex(v)
+        return v
+
+
 
     async def get_file_metadata_async(self, url: str, just_size=True) -> dict or None:
         """Retrieves file metadata asynchronously using a HEAD request."""
