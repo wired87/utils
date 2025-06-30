@@ -1,23 +1,35 @@
-def serialize_complex(com, is_quark=False, is_energy=False):
-    print("complex before s:", com)
-    if is_quark:
-        serialized_struct = []
-        for i in range(3):
-            row = com[i]  # com[i] ist eine 1D-Zeile (Spinor)
-            serialized_row = [(z.real, z.imag) for z in row]
-            serialized_struct.append(serialized_row)
+import numpy as np
 
-    elif is_energy is True:
-        serialized_struct = []
-        for i in range(len(com)):
-            row = com[i]  # com[i] ist eine 1D-Zeile (Spinor)
-            row_struct = []
-            for i in range(len(row)):
-                serialized_row = (i.real, i.imag)
-                row_struct.append(serialized_row)
-            serialized_struct.append(row_struct)
+def serialize_complex(com, restore=False):
+    """
+    Serialisiert oder deserialisiert ein beliebig verschachteltes Array oder Listenstruktur.
+    """
+    if restore:
+        return deserialize_complex(com)
+
+    if isinstance(com, list):
+        restored = [serialize_complex(item) for item in com]
     else:
-        serialized_struct = [[(z.real, z.imag) for z in row] for row in com]
+        restored =         {
+            "bytes": com.tobytes(),
+            "dtype": str(com.dtype),
+            "shape": com.shape
+        }
+    print("serialize_complex", restored)
+    return restored
 
-    print("serialized_struct", serialized_struct)
-    return serialized_struct
+
+def deserialize_complex(bytes_struct):
+    """
+    Deserialisiert ein einzelnes oder verschachteltes serialisiertes Array.
+    """
+    if isinstance(bytes_struct, list):
+        return [deserialize_complex(item) for item in bytes_struct]
+    else:
+        b = bytes_struct["bytes"]
+        array_type = np.dtype(bytes_struct["dtype"])
+        array_shape = bytes_struct["shape"]
+        restored = np.frombuffer(b, dtype=array_type).reshape(array_shape)
+        print("deserialize_complex",restored)
+
+        return restored
