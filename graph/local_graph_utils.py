@@ -50,7 +50,7 @@ class GUtils(Utils):
         self.q_handler = QueueHandler(queue)
 
         if self.enable_data_store is True:
-            self.datastore = nx.MultiGraph()
+            self.datastore = nx.Graph()
 
         # Sim timestep must be updated externally for each loop
         self.timestep = None
@@ -212,23 +212,36 @@ class GUtils(Utils):
                 graph_item="node"
             )
 
-    def update_edge(self, src, trgt, attrs):
-        rel = attrs.get("rel", "").lower().replace(" ", "_")
+    def update_edge(self, src, trgt, rels:str or list, attrs):
+        #rel = attrs.get("rel", "").lower().replace(" ", "_")
+        """
         src_layer = attrs.get("src_layer").upper()
         trgt_layer = attrs.get("trgt_layer").upper()
-        table_name = f"{src_layer}_{rel}_{trgt_layer}"
-        edge_id = f"{src}_{rel}_{trgt}"
-
-        if self.enable_data_store is True:
-            # Add history entry
-            self.h_entry(
-                attrs["id"],
-                {k: v for k, v in attrs.items() if k != "id"},
-                graph_item="edge"
-            )
-
+        table_name = f"{src_layer}_{rel}_{trgt_layer}
+        """
+        print("str(type(self.G))", str(type(self.G)))
         # Update nx
-        self.G.edges[src][trgt].update(attrs)
+        if "MultiGraph" in str(type(self.G)):
+            for key, edge in self.G.get_edge_data(src, trgt).items():
+                erel = edge.get("rel")
+                if erel in rels:
+                    if self.enable_data_store is True:
+                        edge_id = f"{src}_{erel}_{trgt}"
+                        self.h_entry(
+                            edge_id,
+                            {k: v for k, v in attrs.items() if k != "id"},
+                            graph_item="edge"
+                        )
+                    self.G.edges[src, trgt, key].update(attrs)
+        else:
+            if self.enable_data_store is True:
+                edge_id = f"{src}_{rels}_{trgt}"
+                self.h_entry(
+                    edge_id,
+                    {k: v for k, v in attrs.items() if k != "id"},
+                    graph_item="edge"
+                )
+            self.G.edges[src, trgt].update(attrs)
 
         # todo handle async rt spanner || fbrtdb
 
@@ -306,7 +319,7 @@ class GUtils(Utils):
 
     def get_neighbor_list(self, node, target_type: str or list or None = None, just_id=False,
                           trgt_rel: str or list or None = None) -> List[tuple] or None:
-        # print(f"Get neighbors from {node}")
+        print(f"# Get neighbors from {node}")
         neighbors = []
         # Filter Input
         if isinstance(target_type, str):
@@ -315,12 +328,12 @@ class GUtils(Utils):
             trgt_rel = [trgt_rel]
 
         for neighbor in self.G.neighbors(node):
-            # print("Loop n:", neighbor)
+            #print("get_neighbor_list neighbors:", neighbor)
             # Get neighbor from type
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
-                # print("Loop attrs", nattrs)
-                if nattrs.get('type') in target_type:
+                #print("get_neighbor_list nattrs", nattrs)
+                if nattrs.get('type') in [t.upper() for t in target_type]:
                     if just_id is True:
                         neighbors.append(neighbor)
                     else:
