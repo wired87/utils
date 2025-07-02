@@ -96,6 +96,8 @@ class GUtils(Utils):
     def h_entry(self, nid, attrs, timestep=None, graph_item="node"):
 
         ntype = attrs.get("type", "")
+        if ntype is None:
+            ntype = graph_item #-> SET EDGE
         #print("add history entry for ", ntype)
         #print("nid, attrs", nid, attrs)
         if ntype in self.history_types and self.enable_data_store is True:
@@ -110,7 +112,7 @@ class GUtils(Utils):
                     type=nid,
                     entry_index=len_type_entries,
                     graph_item=graph_item,
-                    base_type=attrs.get("type", ""),
+                    base_type=ntype,
                     **{k: v for k, v in attrs.items() if k not in ["id", "type"]}
                 )
             )

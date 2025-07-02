@@ -5,6 +5,9 @@ from fractions import Fraction
 
 import numpy as np
 
+from utils.logger import LOGGER
+
+
 def serialize_complex(com, restore=False):
     """
     Serialisiert oder deserialisiert ein beliebig verschachteltes Array oder Listenstruktur.
@@ -26,8 +29,8 @@ def deserialize_complex(bytes_struct, from_json=True, key=None, **args):
     """
     Deserialisiert ein einzelnes oder verschachteltes serialisiertes Array.
     """
-    #print("bytes_struct",bytes_struct)
-    #print("key", key)
+    LOGGER.info(f"bytes_struct {bytes_struct}")
+    LOGGER.info(f"key {key}")
     # Falls String, erst JSON laden
     if from_json and isinstance(bytes_struct, str):
         bytes_struct = json.loads(bytes_struct)
@@ -40,7 +43,7 @@ def deserialize_complex(bytes_struct, from_json=True, key=None, **args):
         array_type = np.dtype(bytes_struct["dtype"])
         array_shape = tuple(bytes_struct["shape"])
         restored = np.frombuffer(b, dtype=array_type).reshape(array_shape).copy()
-        #print("return", restored)
+        LOGGER.info(f"deserialized complex: {restored}")
         return restored
 
 def check_serilisation(data):
@@ -51,7 +54,7 @@ def check_serilisation(data):
         return data
     except Exception as e:
         # no -> serialize
-        #print("Serialisation Error:", e)
+        LOGGER.info("Serialisation Error:", e)
         return serialize_complex(data)
 
 
