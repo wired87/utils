@@ -98,8 +98,9 @@ class GUtils(Utils):
         ntype = attrs.get("type", "")
         if ntype is None:
             ntype = graph_item #-> SET EDGE
-        #print("add history entry for ", ntype)
-        #print("nid, attrs", nid, attrs)
+        print("add history entry for ", ntype)
+        print("nid, attrs", nid)
+        pprint.pp(attrs)
         if ntype in self.history_types and self.enable_data_store is True:
             if timestep is None:
                 timestep = attrs["time"]
@@ -214,7 +215,7 @@ class GUtils(Utils):
                 graph_item="node"
             )
 
-    def update_edge(self, src, trgt, rels:str or list, attrs):
+    def update_edge(self, src, trgt, attrs, rels:str or list=None, ):
         #rel = attrs.get("rel", "").lower().replace(" ", "_")
         """
         src_layer = attrs.get("src_layer").upper()
@@ -237,7 +238,7 @@ class GUtils(Utils):
                     self.G.edges[src, trgt, key].update(attrs)
         else:
             if self.enable_data_store is True:
-                edge_id = f"{src}_{rels}_{trgt}"
+                edge_id = self.G.edges[src][trgt]["id"]
                 self.h_entry(
                     edge_id,
                     {k: v for k, v in attrs.items() if k != "id"},
@@ -339,7 +340,7 @@ class GUtils(Utils):
                     if just_id is True:
                         neighbors.append(neighbor)
                     else:
-                        neighbors.append((neighbor, nattrs))
+                        neighbors.append((neighbor, nattrs.copy()))
 
             # Get neighbor from rel
             elif trgt_rel is not None:
@@ -348,7 +349,7 @@ class GUtils(Utils):
                         if just_id is True:
                             neighbors.append(neighbor)
                         else:
-                            neighbors.append((neighbor, nattrs))
+                            neighbors.append((neighbor, nattrs.copy()))
                         break
 
         # print(f"Neighbors extracted: {neighbors}")
