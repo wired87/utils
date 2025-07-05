@@ -320,8 +320,13 @@ class GUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
-    def get_neighbor_list(self, node, target_type: str or list or None = None, just_id=False,
-                          trgt_rel: str or list or None = None) -> List[tuple] or None:
+    def get_neighbor_list(
+            self,
+            node,
+            target_type: str or list or None = None,
+            just_id=False,
+            trgt_rel: str or list or None = None
+    ) -> List[tuple] or None:
         print(f"# Get neighbors from {node}")
         neighbors = []
         # Filter Input
@@ -448,3 +453,14 @@ class GUtils(Utils):
                 # time.sleep(10)
         LOGGER.info("Graph successfully build")
         return env, env_id
+
+
+
+    def delete_node(self, delid):
+        if delid and self.G.has_node(delid):
+            print(f"Del node {delid}")
+            self.G.remove_node(delid)
+        else:
+            print(f"Couldnt delete since {delid} doesnt exists")
+
+
