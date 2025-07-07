@@ -238,7 +238,7 @@ class GUtils(Utils):
                     self.G.edges[src, trgt, key].update(attrs)
         else:
             if self.enable_data_store is True:
-                edge_id = self.G.edges[src][trgt]["id"]
+                edge_id = self.G.edges[src, trgt]["id"]
                 self.h_entry(
                     edge_id,
                     {k: v for k, v in attrs.items() if k != "id"},
@@ -259,7 +259,7 @@ class GUtils(Utils):
         if G is not None:
             self.G = G
         elif self.G is None:
-            self.G = nx.MultiGraph()  # Multi
+            self.G = nx.Graph()  # normaler G da gluon -> gluon sonst explodieren würde
         print("Local Graph loaded")
 
     def save_graph(self, dest_name):
@@ -349,7 +349,16 @@ class GUtils(Utils):
 
             # Get neighbor from rel
             elif trgt_rel is not None:
-                for key, edge_attrs in self.G.get_edge_data(node, neighbor).items():
+                if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
+                    for key, edge_attrs in self.G.get_edge_data(node, neighbor):
+                        if edge_attrs.get("rel") in trgt_rel:
+                            if just_id is True:
+                                neighbors.append(neighbor)
+                            else:
+                                neighbors.append((neighbor, nattrs.copy()))
+                            break
+                else:
+                    edge_attrs=self.G.get_edge_data(node, neighbor)
                     if edge_attrs.get("rel") in trgt_rel:
                         if just_id is True:
                             neighbors.append(neighbor)
