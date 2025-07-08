@@ -11,6 +11,7 @@ from bm.settings import TEST_USER_ID
 
 from bm.logging_custom import cpr
 from qf_sim.physics.quantum_fields.nodes import ALL_SUBS
+from utils._np.serialize_complex import check_serialize_dict
 from utils.logger import LOGGER
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
@@ -72,7 +73,7 @@ class GUtils(Utils):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
         if attrs.get("type") is None:
             print("NEW NODE ATTRS")
-            pprint.pp(attrs)
+            #pprint.pp(attrs)
 
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
@@ -98,9 +99,11 @@ class GUtils(Utils):
         ntype = attrs.get("type", "")
         if ntype is None:
             ntype = graph_item #-> SET EDGE
+        """
         print("add history entry for ", ntype)
         print("nid, attrs", nid)
         pprint.pp(attrs)
+        """
         if ntype in self.history_types and self.enable_data_store is True:
             if timestep is None:
                 timestep = attrs["time"]
@@ -207,6 +210,8 @@ class GUtils(Utils):
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
     def update_node(self, attrs):
+        attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+
         if self.enable_data_store is True:
             # Add history entry
             self.h_entry(
@@ -223,6 +228,10 @@ class GUtils(Utils):
         table_name = f"{src_layer}_{rel}_{trgt_layer}
         """
         print("str(type(self.G))", str(type(self.G)))
+
+        # serialize attrs
+        attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+
         # Update nx
         if "MultiGraph" in str(type(self.G)):
             for key, edge in self.G.get_edge_data(src, trgt).items():
@@ -264,6 +273,22 @@ class GUtils(Utils):
 
     def save_graph(self, dest_name):
         data = nx.node_link_data(self.G)
+
+        # srialize
+        for nid, attrs in self.G.nodes(data=True):
+            self.G.nodes[nid].update(
+                check_serialize_dict(
+                    attrs,
+                    [k for k in attrs.keys()],
+                )
+            )
+        for src, trgt, attrs in self.G.edges(data=True):
+            self.G.edges[src, trgt].update(
+                check_serialize_dict(
+                    attrs,
+                    [k for k in attrs.keys()],
+                )
+            )
         with open(f"{dest_name}", "w") as f:
             json.dump(data, f)
         print("Graph saved:", dest_name)
@@ -458,7 +483,7 @@ class GUtils(Utils):
                         )
             else:
                 LOGGER.info("DATA NOT A DICT:", node_id_data)
-                pprint.pp(node_id_data)
+                #pprint.pp(node_id_data)
                 # time.sleep(10)
         LOGGER.info("Graph successfully build")
         return env, env_id
