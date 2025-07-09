@@ -46,7 +46,7 @@ class GUtils(Utils):
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.history = {}
-        self.history_types=ALL_SUBS + ["ENV"]
+        self.history_types = ALL_SUBS + ["ENV"]
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
@@ -55,7 +55,7 @@ class GUtils(Utils):
 
         # Sim timestep must be updated externally for each loop
         self.timestep = None
-
+        self.key_map = []
         self.schemas = {}
         """table_name: {
         "schema": {},
@@ -73,7 +73,7 @@ class GUtils(Utils):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
         if attrs.get("type") is None:
             print("NEW NODE ATTRS")
-            #pprint.pp(attrs)
+            # pprint.pp(attrs)
 
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
@@ -91,14 +91,14 @@ class GUtils(Utils):
         # Add history entry
         self.h_entry(nid, {k: v for k, v in attrs.items() if k != "id"})
 
+        # Extedn keys
+        self._extend_key_map(attrs)
         return True
 
-
     def h_entry(self, nid, attrs, timestep=None, graph_item="node"):
-
         ntype = attrs.get("type", "")
         if ntype is None:
-            ntype = graph_item #-> SET EDGE
+            ntype = graph_item  # -> SET EDGE
         """
         print("add history entry for ", ntype)
         print("nid, attrs", nid)
@@ -109,19 +109,30 @@ class GUtils(Utils):
                 timestep = attrs["time"]
 
             history_id = f"{nid}_{time.time()}_{timestep}"
-            len_type_entries = len([(inid, iattrs) for inid, iattrs in self.datastore.nodes(data=True) if iattrs.get("type").upper() == attrs.get("type").upper()])
-            self.datastore.add_node(
-                history_id,
-                **dict(
-                    type=nid,
-                    entry_index=len_type_entries,
-                    graph_item=graph_item,
-                    base_type=ntype,
-                    **{k: v for k, v in attrs.items() if k not in ["id", "type"]}
-                )
+
+            len_type_entries = len(
+                [
+                    (inid, iattrs)
+                    for inid, iattrs in self.datastore.nodes(data=True) if
+                    iattrs.get("type").upper() == attrs.get("type").upper()
+                ]
             )
 
+            attrs = dict(
+                type=nid,
+                entry_index=len_type_entries,
+                graph_item=graph_item,
+                base_type=ntype,
+                **{k: v for k, v in attrs.items() if k not in ["id", "type"]}
+            )
 
+            # Extedn keys
+            self._extend_key_map(attrs)
+
+            self.datastore.add_node(
+                history_id,
+                **attrs
+            )
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         # pprint.pp(attrs)
@@ -171,12 +182,8 @@ class GUtils(Utils):
                     "color": color,
                 }
 
-                # print(">>FILTERED EDGE")
-                # pprint.pp(attrs)
-
-                """src_layer = attrs.get("src_layer").upper()
-                trgt_layer = attrs.get("trgt_layer").upper()
-                """
+                # Add keys
+                self._extend_key_map(attrs)
 
                 # print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
@@ -197,7 +204,6 @@ class GUtils(Utils):
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
 
-
                 # Add history entry
                 self.h_entry(
                     attrs["id"],
@@ -209,8 +215,23 @@ class GUtils(Utils):
         except Exception as e:
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
+    def _extend_key_map(self, attrs):
+        for k in list(attrs.keys()):
+            if k not in self.key_map:
+                self.key_map.append(k)
+
+    def get_edges(self, datastroe=True):
+        if datastroe is False:
+            return [{"src": src, "trgt": trgt, "attrs": attrs} for src, trgt, attrs in self.G.edges(data=True)]
+        else:
+            return [{"attrs": attrs} for eid, attrs in self.datastore.edges(data=True) if
+                    attrs.get("graph_item").lower() == "edge"]
+
     def update_node(self, attrs):
         attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+
+        # Add keys
+        self._extend_key_map(attrs)
 
         if self.enable_data_store is True:
             # Add history entry
@@ -220,8 +241,8 @@ class GUtils(Utils):
                 graph_item="node"
             )
 
-    def update_edge(self, src, trgt, attrs, rels:str or list=None, ):
-        #rel = attrs.get("rel", "").lower().replace(" ", "_")
+    def update_edge(self, src, trgt, attrs, rels: str or list = None, ):
+        # rel = attrs.get("rel", "").lower().replace(" ", "_")
         """
         src_layer = attrs.get("src_layer").upper()
         trgt_layer = attrs.get("trgt_layer").upper()
@@ -231,6 +252,9 @@ class GUtils(Utils):
 
         # serialize attrs
         attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+
+        # Add keys
+        self._extend_key_map(attrs)
 
         # Update nx
         if "MultiGraph" in str(type(self.G)):
@@ -361,11 +385,11 @@ class GUtils(Utils):
             trgt_rel = [trgt_rel]
 
         for neighbor in self.G.neighbors(node):
-            #print("get_neighbor_list neighbors:", neighbor)
+            # print("get_neighbor_list neighbors:", neighbor)
             # Get neighbor from type
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
-                #print("get_neighbor_list nattrs", nattrs)
+                # print("get_neighbor_list nattrs", nattrs)
                 if nattrs.get('type') in [t.upper() for t in target_type]:
                     if just_id is True:
                         neighbors.append(neighbor)
@@ -383,7 +407,7 @@ class GUtils(Utils):
                                 neighbors.append((neighbor, nattrs.copy()))
                             break
                 else:
-                    edge_attrs=self.G.get_edge_data(node, neighbor)
+                    edge_attrs = self.G.get_edge_data(node, neighbor)
                     if edge_attrs.get("rel") in trgt_rel:
                         if just_id is True:
                             neighbors.append(neighbor)
@@ -483,12 +507,10 @@ class GUtils(Utils):
                         )
             else:
                 LOGGER.info("DATA NOT A DICT:", node_id_data)
-                #pprint.pp(node_id_data)
+                # pprint.pp(node_id_data)
                 # time.sleep(10)
         LOGGER.info("Graph successfully build")
         return env, env_id
-
-
 
     def delete_node(self, delid):
         if delid and self.G.has_node(delid):
@@ -496,5 +518,3 @@ class GUtils(Utils):
             self.G.remove_node(delid)
         else:
             print(f"Couldnt delete since {delid} doesnt exists")
-
-

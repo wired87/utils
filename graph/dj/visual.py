@@ -24,7 +24,7 @@ class S(serializers.Serializer):
 
 class GraphLookup(APIView):
     serializer_class=S
-
+    #GView
     def post(self, request, *args, **kwargs):
 
         # 1. Definiere den Pfad zur JSON-Datei
@@ -47,6 +47,17 @@ class GraphLookup(APIView):
         #print("html", html)
         print("4")
         return StreamingHttpResponse(html, content_type="text/html")
+
+
+
+
+
+    def filter_G_4_view(self, G):
+        return
+
+
+
+
 
 """StreamingHttpResponse(
                 event_stream(html_content),

@@ -114,7 +114,7 @@ def check_serilisation(data):
     except Exception as e:
         # no -> serialize
 
-        LOGGER.info(f"Serialisation Error: {e}")
+        #LOGGER.info(f"Serialisation Error: {e}")
         serialized = serialize_complex(data)
         #print(">>serialized", serialized)
         return serialized
