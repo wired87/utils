@@ -24,8 +24,6 @@ class Utils:
 
 
     def getr(self, attrs, key, s=False):
-        print("h:")
-        #pprint.pp(attrs)
         v = attrs[key]
         if s is True:
             deserialize_complex(v)

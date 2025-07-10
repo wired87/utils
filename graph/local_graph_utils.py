@@ -63,7 +63,7 @@ class GUtils(Utils):
         "id_map": set(),
         },"""
 
-        print("GUtils initialized")
+        #print("GUtils initialized")
 
     ####################################
     # CORE                             #
@@ -77,8 +77,8 @@ class GUtils(Utils):
 
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
-        # print(">>NODE FILTERED")
-        # print(f"Add {attrs['id']} -> layer: {attrs['type']}")
+        # #print(">>NODE FILTERED")
+        # #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
         """if single_upsert is True:
             await self.g.upsert_row(
                 table=f"{edge_attrs['src_layer'].upper()}_{edge_attrs['rel']}_{edge_attrs['trgt_layer'].upper()}",
@@ -100,8 +100,8 @@ class GUtils(Utils):
         if ntype is None:
             ntype = graph_item  # -> SET EDGE
         """
-        print("add history entry for ", ntype)
-        print("nid, attrs", nid)
+        #print("add history entry for ", ntype)
+        #print("nid, attrs", nid)
         pprint.pp(attrs)
         """
         if ntype in self.history_types and self.enable_data_store is True:
@@ -136,7 +136,7 @@ class GUtils(Utils):
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         # pprint.pp(attrs)
-        # print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        # #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         # todo externa nd intern couplings no edge id after creation
 
         # Color
@@ -144,20 +144,20 @@ class GUtils(Utils):
 
         # Check
         """if attrs.get("id") is None:
-            print(">>>EDGE ATTRS NONE:", attrs)
+            #print(">>>EDGE ATTRS NONE:", attrs)
         """
         if index is None:
             index = attrs.get("index", None)
         if index is not None:
             color = f"rgb({index + .5}, {index + .5}, {index + .5})"
-        # print("color set:", color)
+        # #print("color set:", color)
 
         try:
             src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
             trgt_layer = self.manipulator.replace_special_chars(attrs.get("trgt_layer")).upper()
 
-            # print("src_layer", src_layer)
-            # print("trgt_layer", trgt_layer)
+            # #print("src_layer", src_layer)
+            # #print("trgt_layer", trgt_layer)
             if src is None:
                 src = attrs.get("src")
             if trt is None:
@@ -168,10 +168,10 @@ class GUtils(Utils):
                     src = str(src)
                 if isinstance(trt, int):
                     trt = str(trt)
-                # print("int conv...")
+                # #print("int conv...")
 
                 attrs = self.manipulator.clean_attr_keys(attrs, flatten)
-                # print("attrs_new", attrs )
+                # #print("attrs_new", attrs )
                 rel = attrs.get("rel", "").lower().replace(" ", "_")
                 edge_id = f"{src}_{rel}_{trt}"
                 attrs = {
@@ -185,21 +185,21 @@ class GUtils(Utils):
                 # Add keys
                 self._extend_key_map(attrs)
 
-                # print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
+                # #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
                 attrs["type"] = edge_table_name
                 src_node_attr = {"id": src, "type": src_layer}
                 trgt_node_attr = {"id": trt, "type": trgt_layer}
-                # print(f"Add {src} -> trgt: {trt}")
+                # #print(f"Add {src} -> trgt: {trt}")
 
                 if self.nx_only is False:
                     # todo run in executor
-                    # print("Upsert Local Batch Loader")
+                    # #print("Upsert Local Batch Loader")
                     self.local_batch_loader(src_node_attr)
                     self.local_batch_loader(trgt_node_attr)
                     self.local_batch_loader(attrs)
 
-                # print("Upsert to NX")
+                # #print("Upsert to NX")
                 self.G.add_edge(src, trt, **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]})
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
@@ -210,8 +210,8 @@ class GUtils(Utils):
                     {k: v for k, v in attrs.items() if k != "id"},
                     graph_item="edge"
                 )
-                # print(f"Edge added ")
-                # print(self.G.get_edge_data(src, trt))
+                # #print(f"Edge added ")
+                # #print(self.G.get_edge_data(src, trt))
         except Exception as e:
             print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
@@ -248,7 +248,7 @@ class GUtils(Utils):
         trgt_layer = attrs.get("trgt_layer").upper()
         table_name = f"{src_layer}_{rel}_{trgt_layer}
         """
-        print("str(type(self.G))", str(type(self.G)))
+        
 
         # serialize attrs
         attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
@@ -293,7 +293,7 @@ class GUtils(Utils):
             self.G = G
         elif self.G is None:
             self.G = nx.Graph()  # normaler G da gluon -> gluon sonst explodieren würde
-        print("Local Graph loaded")
+        #print("Local Graph loaded")
 
     def save_graph(self, dest_name):
         data = nx.node_link_data(self.G)
@@ -315,7 +315,7 @@ class GUtils(Utils):
             )
         with open(f"{dest_name}", "w") as f:
             json.dump(data, f)
-        print("Graph saved:", dest_name)
+        #print("Graph saved:", dest_name)
         return data
 
     def load_graph(self, local_g_path=None):
@@ -329,7 +329,7 @@ class GUtils(Utils):
         cpr(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
     def print_status_G(self):
-        print(">>>STATUS")
+        #print(">>>STATUS")
         everything = {}
         for k, v in self.G.nodes(data=True):
             ntype = v.get("type")
@@ -350,18 +350,18 @@ class GUtils(Utils):
                     "rows": [],
                     "id_map": set(),
                 }
-                print(f"Added {table_name} to schema")
+                #print(f"Added {table_name} to schema")
 
             if row_id not in [item for item in self.schemas[table_name]["id_map"]]:
-                # print(f"Insert {row_id} into {table_name}")
+                # #print(f"Insert {row_id} into {table_name}")
                 self.schemas[table_name]["rows"].append(args)
                 self.schemas[table_name]["id_map"].add(row_id)
             # else:
-            # print(f"{row_id} already in schema")
-        # print("Added args")
+            # #print(f"{row_id} already in schema")
+        # #print("Added args")
 
     def get_single_neighbor_nx(self, node, target_type):
-        # print("Node", node)
+        # #print("Node", node)
         if isinstance(node, tuple):
             node = node[0]
         for neighbor in self.G.neighbors(node):
@@ -376,7 +376,7 @@ class GUtils(Utils):
             just_id=False,
             trgt_rel: str or list or None = None
     ) -> List[tuple] or None:
-        print(f"# Get neighbors from {node}")
+        ##print(f"# Get neighbors from {node}")
         neighbors = []
         # Filter Input
         if isinstance(target_type, str):
@@ -385,11 +385,11 @@ class GUtils(Utils):
             trgt_rel = [trgt_rel]
 
         for neighbor in self.G.neighbors(node):
-            # print("get_neighbor_list neighbors:", neighbor)
+            # #print("get_neighbor_list neighbors:", neighbor)
             # Get neighbor from type
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
-                # print("get_neighbor_list nattrs", nattrs)
+                # #print("get_neighbor_list nattrs", nattrs)
                 if nattrs.get('type') in [t.upper() for t in target_type]:
                     if just_id is True:
                         neighbors.append(neighbor)
@@ -415,7 +415,7 @@ class GUtils(Utils):
                             neighbors.append((neighbor, nattrs.copy()))
                         break
 
-        # print(f"Neighbors extracted: {neighbors}")
+        # #print(f"Neighbors extracted: {neighbors}")
         return neighbors
 
     def remove_node(self, node_id, ntype):
@@ -426,7 +426,7 @@ class GUtils(Utils):
         self.G.remove_node(node_id)
 
     def cleanup_self_schema(self):
-        # print("Cleanup schema")
+        # #print("Cleanup schema")
         for k, v in self.schemas.items():
             v["rows"] = []
 
@@ -514,7 +514,7 @@ class GUtils(Utils):
 
     def delete_node(self, delid):
         if delid and self.G.has_node(delid):
-            print(f"Del node {delid}")
+            #print(f"Del node {delid}")
             self.G.remove_node(delid)
         else:
             print(f"Couldnt delete since {delid} doesnt exists")
