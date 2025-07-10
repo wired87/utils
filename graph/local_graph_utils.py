@@ -295,28 +295,59 @@ class GUtils(Utils):
             self.G = nx.Graph()  # normaler G da gluon -> gluon sonst explodieren würde
         #print("Local Graph loaded")
 
-    def save_graph(self, dest_name):
-        data = nx.node_link_data(self.G)
+    def save_graph(self, dest_dir):
+        print("Save Gs")
+        dest_file = os.path.join(dest_dir, "graph.json",)
+        self._link_safe(
+            self.G,
+            dest_file
+        )
 
-        # srialize
-        for nid, attrs in self.G.nodes(data=True):
-            self.G.nodes[nid].update(
-                check_serialize_dict(
-                    attrs,
-                    [k for k in attrs.keys()],
-                )
+        print("Main saved")
+        if self.enable_data_store is True:
+            dest_file = os.path.join(dest_dir, "datastore.json")
+            self._link_safe(
+                self.datastore,
+                dest_file
             )
-        for src, trgt, attrs in self.G.edges(data=True):
-            self.G.edges[src, trgt].update(
-                check_serialize_dict(
-                    attrs,
-                    [k for k in attrs.keys()],
-                )
-            )
+            print("DS saed")
+
+
+
+
+    def _link_safe(self, G, dest_name):
+        self.check_serilize(G)
+        data = nx.node_link_data(G)
+
         with open(f"{dest_name}", "w") as f:
             json.dump(data, f)
-        #print("Graph saved:", dest_name)
-        return data
+
+    def check_serilize(self, G):
+        # srialize
+        for nid, attrs in G.nodes(data=True):
+            G.nodes[nid].update(
+                check_serialize_dict(
+                    attrs,
+                    [k for k in attrs.keys()],
+                )
+            )
+        for src, trgt, attrs in G.edges(data=True):
+            G.edges[src, trgt].update(
+                check_serialize_dict(
+                    attrs,
+                    [k for k in attrs.keys()],
+                )
+            )
+
+
+
+
+
+
+
+
+
+
 
     def load_graph(self, local_g_path=None):
         if local_g_path is None:
@@ -329,7 +360,7 @@ class GUtils(Utils):
         cpr(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
     def print_status_G(self):
-        #print(">>>STATUS")
+        print("G STATUS")
         everything = {}
         for k, v in self.G.nodes(data=True):
             ntype = v.get("type")

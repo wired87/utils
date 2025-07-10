@@ -23,8 +23,6 @@ def create_g_visual(G, dest_path):
             )
         )
 
-    G = None
-
     options = '''
         const options = {
           "nodes": {
