@@ -302,16 +302,15 @@ class GUtils(Utils):
             self.G,
             dest_file
         )
+        print(f"G data written to :{dest_file}")
 
-        print("Main saved")
         if self.enable_data_store is True:
-            dest_file = os.path.join(dest_dir, "datastore.json")
+            dest_file_datastore = os.path.join(dest_dir, "datastore.json")
             self._link_safe(
                 self.datastore,
                 dest_file
             )
-            print("DS saed")
-
+            print(f"datastore data written to :{dest_file_datastore}")
 
 
 
