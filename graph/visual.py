@@ -2,26 +2,39 @@ import networkx as nx
 from pyvis.network import Network
 
 
-def create_g_visual(G, dest_path):
+def create_g_visual(G, dest_path, ds=True):
+    # ds = create from datastore
     print("G", G)
     # filter graph fr frontend
-    new_G = nx.Graph()
-    for nid, properties in G.nodes(data=True):
-        new_G.add_node(
-            nid,
-            **dict(
-                size=20
-            )
-        )
 
-    for src, trgt, properties in G.edges(data=True):
-        new_G.add_edge(
-            src,
-            trgt,
-            **dict(
-                size=20
+    new_G = nx.Graph()
+    for nid, attrs in G.nodes(data=True):
+        ntype = attrs.get("type")
+        graph_item = attrs.get("graph_item")
+        if graph_item == "node":
+            new_G.add_node(
+                nid,
+                **dict(
+                    type=ntype
+                )
             )
-        )
+
+    # 2. iter for edges between added nodes
+    for nid, attrs in G.nodes(data=True):
+        graph_item = attrs.get("graph_item")
+        print("graph_item", graph_item)
+        if graph_item == "edge":
+            print("edge")
+            trgt=attrs.get("trgt")
+            src=attrs.get("src")
+            eid=attrs.get("id")
+            print("trgt")
+            new_G.add_edge(
+                src,
+                trgt,
+                id=eid,
+                type="edge"
+            )
 
     options = '''
         const options = {

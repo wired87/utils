@@ -126,6 +126,9 @@ class GUtils(Utils):
                 **{k: v for k, v in attrs.items() if k not in ["id", "type"]}
             )
 
+            print("Add H Entry:")
+            pprint.pp(attrs)
+
             # Extedn keys
             self._extend_key_map(attrs)
 
@@ -136,7 +139,7 @@ class GUtils(Utils):
 
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         # pprint.pp(attrs)
-        # #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         # todo externa nd intern couplings no edge id after creation
 
         # Color
@@ -206,14 +209,17 @@ class GUtils(Utils):
 
                 # Add history entry
                 self.h_entry(
-                    attrs["id"],
-                    {k: v for k, v in attrs.items() if k != "id"},
+                    nid=attrs["id"],
+                    attrs={k: v for k, v in attrs.items() if k != "id"},
                     graph_item="edge"
                 )
                 # #print(f"Edge added ")
                 # #print(self.G.get_edge_data(src, trt))
+            else:
+                raise ValueError(f"Wrong edge fromat")
+
         except Exception as e:
-            print(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
+            raise ValueError(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
     def _extend_key_map(self, attrs):
         for k in list(attrs.keys()):
