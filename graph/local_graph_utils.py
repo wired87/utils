@@ -53,6 +53,12 @@ class GUtils(Utils):
         if self.enable_data_store is True:
             self.datastore = nx.Graph()
 
+        self.metadata_fields = [
+            "graph_item",
+            "index",
+            "entry_index",
+            "time",
+        ]
         # Sim timestep must be updated externally for each loop
         self.timestep = None
         self.key_map = []
@@ -99,14 +105,17 @@ class GUtils(Utils):
         ntype = attrs.get("type", "")
         if ntype is None:
             ntype = graph_item  # -> SET EDGE
+
         """
         #print("add history entry for ", ntype)
         #print("nid, attrs", nid)
         pprint.pp(attrs)
         """
-        if ntype in self.history_types and self.enable_data_store is True:
+
+        print(f"Add {graph_item} h_entry", nid)
+        if self.enable_data_store is True:
             if timestep is None:
-                timestep = attrs["time"]
+                timestep = attrs.get("time", 0.0)
 
             history_id = f"{nid}_{time.time()}_{timestep}"
 
@@ -114,7 +123,7 @@ class GUtils(Utils):
                 [
                     (inid, iattrs)
                     for inid, iattrs in self.datastore.nodes(data=True) if
-                    iattrs.get("type").upper() == attrs.get("type").upper()
+                    iattrs.get("type", "0").upper() == attrs.get("type", "1").upper()
                 ]
             )
 
@@ -126,8 +135,8 @@ class GUtils(Utils):
                 **{k: v for k, v in attrs.items() if k not in ["id", "type"]}
             )
 
-            print("Add H Entry:")
-            pprint.pp(attrs)
+            #print("Add H Entry:")
+            #pprint.pp(attrs)
 
             # Extedn keys
             self._extend_key_map(attrs)
@@ -136,7 +145,9 @@ class GUtils(Utils):
                 history_id,
                 **attrs
             )
-
+            print("H entry node added", self.datastore.nodes[history_id])
+        else:
+            raise ValueError("Invalid data!!!!", nid, attrs)
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         # pprint.pp(attrs)
         print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
@@ -213,7 +224,7 @@ class GUtils(Utils):
                     attrs={k: v for k, v in attrs.items() if k != "id"},
                     graph_item="edge"
                 )
-                # #print(f"Edge added ")
+                print(f"Edge added ")
                 # #print(self.G.get_edge_data(src, trt))
             else:
                 raise ValueError(f"Wrong edge fromat")
@@ -234,6 +245,11 @@ class GUtils(Utils):
                     attrs.get("graph_item").lower() == "edge"]
 
     def update_node(self, attrs):
+        node_attrs = self.G.nodes[attrs.get("id")]
+        if node_attrs is None:
+            print("Node couldnt be updated...")
+            return
+
         attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
 
         # Add keys
@@ -318,7 +334,10 @@ class GUtils(Utils):
             )
             print(f"datastore data written to :{dest_file_datastore}")
 
+    def filter_datastore(self):
+        """
 
+        """
 
     def _link_safe(self, G, dest_name):
         self.check_serilize(G)

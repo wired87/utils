@@ -22,7 +22,7 @@ def create_g_visual(G, dest_path, ds=True):
     # 2. iter for edges between added nodes
     for nid, attrs in G.nodes(data=True):
         graph_item = attrs.get("graph_item")
-        print("graph_item", graph_item)
+        #print("graph_item", graph_item)
         if graph_item == "edge":
             print("edge")
             trgt=attrs.get("trgt")
