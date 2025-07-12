@@ -1,13 +1,10 @@
 import json
 import os
-import pprint
 import time
 
 from typing import List
 
 import networkx as nx
-
-from bm.settings import TEST_USER_ID
 
 from bm.logging_custom import cpr
 from qf_sim.physics.quantum_fields.nodes import ALL_SUBS
@@ -30,13 +27,14 @@ class GUtils(Utils):
 
     def __init__(
             self,
-            user_id=TEST_USER_ID,
-            env_id="env_bare_rajtigesomnlhfyqzbvx",
+            user_id,
+            env_id, #="env_bare_rajtigesomnlhfyqzbvx",
             G=None,
             g_from_path=None,
             nx_only=False,
             # queue: queue.Queue or None = None,
-            enable_data_store=True
+            enable_data_store=True,
+            history_types=None
     ):
         super().__init__()
         self.G = None
@@ -46,12 +44,12 @@ class GUtils(Utils):
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.history = {}
-        self.history_types = ALL_SUBS + ["ENV"]
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
         if self.enable_data_store is True:
             self.datastore = nx.Graph()
+            self.history_types = history_types  # list of nodetypes captured by dataqstore  ALL_SUBS + ["ENV"]
 
         self.metadata_fields = [
             "graph_item",
