@@ -1,6 +1,6 @@
 def get_graph_utils(local=True, **kwargs):
     if not local:
-        from _google.graph.g_utils import DataManager
+        from _google.gdb_manager.g_utils import DataManager
         # loads both DataManager and GUtils
         base = DataManager
     else:

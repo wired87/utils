@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import pprint
 
 import aiofiles
 import httpx

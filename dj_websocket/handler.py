@@ -1,5 +1,4 @@
-import asyncio
-import json
+
 import os
 
 import websockets
@@ -37,16 +36,6 @@ class ConnectionManager:
             print("connection declined")
             await websocket.close(code=1008)
             return None
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
 
 
 

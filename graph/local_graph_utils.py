@@ -7,14 +7,14 @@ from typing import List
 import networkx as nx
 
 from bm.logging_custom import cpr
-from qf_sim.physics.quantum_fields.nodes import ALL_SUBS
+from qf_core_base.qf_utils.all_subs import ALL_SUBS
+import queue
+
 from utils._np.serialize_complex import check_serialize_dict
 from utils.logger import LOGGER
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
 from utils.utils import Utils
-import queue
-
 
 class GUtils(Utils):
     """
@@ -28,7 +28,6 @@ class GUtils(Utils):
     def __init__(
             self,
             user_id,
-            env_id, #="env_bare_rajtigesomnlhfyqzbvx",
             G=None,
             g_from_path=None,
             nx_only=False,

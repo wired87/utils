@@ -1,7 +1,5 @@
 import asyncio
 
-import os
-
 #daphne bm.asgi:application
 
 import threading
@@ -9,14 +7,14 @@ import time
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from _google.firebase.real_time_database import FirebaseRTDBManager
+from _google.gdb_manager.firebase.real_time_database import FirebaseRTDBManager
 
 from urllib.parse import parse_qs
 
 import json
 
-from qf_sim.calculator.calculator_creator import CalcCreator
-from qf_sim.physics.quantum_fields.qf_updator import QFUpdator
+from qf_core_base.calculator.calculator_creator import CalcCreator
+from qf_sim.physics.quantum_fields.qf_core_base.qf_updator import QFUpdator
 from utils.logger import LOGGER
 from qf_sim.test import SimCore
 from utils.utils import Utils
