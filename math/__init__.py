@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-from utils.file.yyaml import load_yaml
+from utils.file._yaml import load_yaml
 
 MGLOBALS= r"C:\Users\wired\OneDrive\Desktop\Projects\Brainmaster\utils\math\globals.yaml" if os.name == "nt" else "utils/math/globals.yaml"
 MGLOBALSC = load_yaml(MGLOBALS)
