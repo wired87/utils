@@ -109,7 +109,7 @@ class GUtils(Utils):
         pprint.pp(attrs)
         """
 
-        print(f"Add {graph_item} h_entry", nid)
+        #print(f"Add {graph_item} h_entry", nid)
         if self.enable_data_store is True:
             if timestep is None:
                 timestep = attrs.get("time", 0.0)
@@ -142,12 +142,12 @@ class GUtils(Utils):
                 history_id,
                 **attrs
             )
-            print("H entry node added", self.datastore.nodes[history_id])
+            #print("H entry node added", self.datastore.nodes[history_id])
         else:
             raise ValueError("Invalid data!!!!", nid, attrs)
     def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
         # pprint.pp(attrs)
-        print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
+        #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         # todo externa nd intern couplings no edge id after creation
 
         # Color
@@ -221,8 +221,8 @@ class GUtils(Utils):
                     attrs={k: v for k, v in attrs.items() if k != "id"},
                     graph_item="edge"
                 )
-                print(f"Edge added ")
-                # #print(self.G.get_edge_data(src, trt))
+                #print(f"Edge added ")
+                #print(self.G.get_edge_data(src, trt))
             else:
                 raise ValueError(f"Wrong edge fromat")
 
@@ -242,7 +242,8 @@ class GUtils(Utils):
                     attrs.get("graph_item").lower() == "edge"]
 
     def update_node(self, attrs):
-        node_attrs = self.G.nodes[attrs.get("id")]
+        nid = attrs.get("id")
+        node_attrs = self.G.nodes[nid]
         if node_attrs is None:
             print("Node couldnt be updated...")
             return
@@ -251,6 +252,8 @@ class GUtils(Utils):
 
         # Add keys
         self._extend_key_map(attrs)
+
+        self.G.nodes[nid].update(attrs)
 
         if self.enable_data_store is True:
             # Add history entry
@@ -381,7 +384,7 @@ class GUtils(Utils):
         cpr(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
     def print_status_G(self):
-        print("G STATUS")
+        print("STATUS:", self.G)
         everything = {}
         for k, v in self.G.nodes(data=True):
             ntype = v.get("type")
@@ -430,11 +433,15 @@ class GUtils(Utils):
     ) -> List[tuple] or None:
         ##print(f"# Get neighbors from {node}")
         neighbors = []
+
         # Filter Input
         if isinstance(target_type, str):
             target_type = [target_type]
         if isinstance(trgt_rel, str):
             trgt_rel = [trgt_rel]
+
+        #print("trgt_rel:", trgt_rel)
+        #print("target_type:", target_type)
 
         for neighbor in self.G.neighbors(node):
             # #print("get_neighbor_list neighbors:", neighbor)
@@ -460,12 +467,13 @@ class GUtils(Utils):
                             break
                 else:
                     edge_attrs = self.G.get_edge_data(node, neighbor)
-                    if edge_attrs.get("rel") in trgt_rel:
+                    #print("edge_attrs:", edge_attrs)
+                    if edge_attrs.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
                         if just_id is True:
                             neighbors.append(neighbor)
                         else:
                             neighbors.append((neighbor, nattrs.copy()))
-                        break
+
 
         # #print(f"Neighbors extracted: {neighbors}")
         return neighbors
@@ -570,3 +578,56 @@ class GUtils(Utils):
             self.G.remove_node(delid)
         else:
             print(f"Couldnt delete since {delid} doesnt exists")
+    
+    
+    def get_node_pos(self, G=None):
+        if G==None:
+            G = self.G
+        serializable_node_copy = []
+        valid_types = [*ALL_SUBS, "QFN"]
+        for nid, attrs in G.nodes(data=True):
+            ntype = attrs.get("type")
+            if ntype in valid_types:
+                # todo single subs
+                serializable_node_copy.append(
+                    {
+                        "id": attrs.get("id"),
+                        "pos": attrs.get("pos")
+                    }
+                )
+        return serializable_node_copy
+    
+    
+    def get_edges_src_trgt_pos(self, G=None, get_pos=False) -> list[dict]:
+        if G==None:
+            G = self.G
+        edges=[]
+        valid_types = [*ALL_SUBS, "QFN"]
+        for src, trgt, attrs in G.edges(data=True):
+            src_attrs = G.nodes[src]
+            trgt_attrs = G.nodes[trgt]
+
+            src_type = src_attrs["type"]
+            trgt_type = trgt_attrs["type"]
+
+            if src_type in valid_types and trgt_type in valid_types:
+                if get_pos is True:
+                    src_pos = src_attrs["pos"]
+                    trgt_pos = trgt_attrs["pos"]
+
+                    # todo calc weight based on
+                    edges.append(
+                        dict(
+                            src=src_pos,
+                            trgt=trgt_pos
+                        )
+                    )
+                else:
+                    edges.append(
+                        dict(
+                            src=src,
+                            trgt=trgt
+                        )
+                    )
+        print(f"edge src trgt pos set: {edges}")
+        return edges

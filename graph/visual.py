@@ -24,11 +24,11 @@ def create_g_visual(G, dest_path, ds=True):
         graph_item = attrs.get("graph_item")
         #print("graph_item", graph_item)
         if graph_item == "edge":
-            print("edge")
+            #print("edge")
             trgt=attrs.get("trgt")
             src=attrs.get("src")
             eid=attrs.get("id")
-            print("trgt")
+            #print("trgt")
             new_G.add_edge(
                 src,
                 trgt,
