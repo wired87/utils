@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from tempfile import TemporaryDirectory
 
 from typing import List
 
@@ -11,6 +12,7 @@ from qf_core_base.qf_utils.all_subs import ALL_SUBS
 import queue
 
 from utils._np.serialize_complex import check_serialize_dict
+from utils.graph.visual import create_g_visual
 from utils.logger import LOGGER
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
@@ -33,22 +35,25 @@ class GUtils(Utils):
             nx_only=False,
             # queue: queue.Queue or None = None,
             enable_data_store=True,
-            history_types=None
+            history_types=None,
+            file_store=None
     ):
         super().__init__()
         self.G = None
         self.enable_data_store = enable_data_store
-        self.user_id = user_id
         self.g_from_path = g_from_path
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.history = {}
+        self.user_id=user_id
+
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
         if self.enable_data_store is True:
             self.datastore = nx.Graph()
             self.history_types = history_types  # list of nodetypes captured by dataqstore  ALL_SUBS + ["ENV"]
+        self.file_store=file_store or TemporaryDirectory()
 
         self.metadata_fields = [
             "graph_item",
@@ -317,27 +322,18 @@ class GUtils(Utils):
             self.G = nx.Graph()  # normaler G da gluon -> gluon sonst explodieren würde
         #print("Local Graph loaded")
 
-    def save_graph(self, dest_dir):
+    def save_graph(self, dest_file, ds=False):
         print("Save Gs")
-        dest_file = os.path.join(dest_dir, "graph.json",)
+        if ds is True:
+            G=self.datastore
+        else:
+            G=self.G
         self._link_safe(
-            self.G,
+            G,
             dest_file
         )
         print(f"G data written to :{dest_file}")
 
-        if self.enable_data_store is True:
-            dest_file_datastore = os.path.join(dest_dir, "datastore.json")
-            self._link_safe(
-                self.datastore,
-                dest_file
-            )
-            print(f"datastore data written to :{dest_file_datastore}")
-
-    def filter_datastore(self):
-        """
-
-        """
 
     def _link_safe(self, G, dest_name):
         self.check_serilize(G)
@@ -474,7 +470,6 @@ class GUtils(Utils):
                         else:
                             neighbors.append((neighbor, nattrs.copy()))
 
-
         # #print(f"Neighbors extracted: {neighbors}")
         return neighbors
 
@@ -493,7 +488,6 @@ class GUtils(Utils):
     def build_G_from_data(
             self,
             initial_data,
-            initial_frontend_data,
             env_id
     ):
         # --- Graph aufbauen ---
@@ -508,37 +502,16 @@ class GUtils(Utils):
             if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                 for nid, attrs in node_id_data.items():
                     # LOGGER.info(f">>>NID, {nid}")
-                    if node_type not in initial_frontend_data:
-                        initial_frontend_data[node_type] = {}
-
                     if node_type == "edges":
                         parts = nid.split(f"_{attrs.get('rel')}_")
-
-                        src_layer = attrs.get("src_layer")
-                        trgt_layer = attrs.get("trgt_layer")
-
                         # LOGGER.info("parts", parts)
                         # check 2 ids in id and
                         if len(parts) >= 2:
-
                             self.add_edge(
                                 parts[0],
                                 parts[1],
                                 attrs=attrs
                             )
-
-                            edge_id = f"{parts[0]}_{attrs.get('rel')}_{parts[1]}"
-                            # just include edges between sub-fields in frontend graph
-                            if src_layer in ALL_SUBS and trgt_layer in ALL_SUBS:
-                                initial_frontend_data[node_type].update(
-                                    {
-                                        attrs.get("id", edge_id): {
-                                            "src": parts[0],
-                                            "trgt": parts[1],
-                                            "color": attrs.get("color")
-                                        }
-                                    }
-                                )
                         else:
                             print("something else!!!")
 
@@ -546,21 +519,6 @@ class GUtils(Utils):
                         LOGGER.info("Env recognized")
                         env = attrs
                         env_id = nid  # Speichern Sie die env_id, falls benötigt
-
-                    elif node_type == "QFN":
-                        # LOGGER.info(f"Add node {nid}")
-                        self.add_node(
-                            attrs=attrs,
-                            timestep=None,
-                        )
-                        initial_frontend_data[node_type].update(
-                            {
-                                attrs["id"]: {
-                                    "pos": attrs["pos"],
-                                    "color": attrs.get("color", "(0,0,0)"),
-                                }
-                            }
-                        )
                     else:
                         self.add_node(
                             attrs=attrs,
@@ -591,7 +549,7 @@ class GUtils(Utils):
                 # todo single subs
                 serializable_node_copy.append(
                     {
-                        "id": attrs.get("id"),
+                        "id": nid,
                         "pos": attrs.get("pos")
                     }
                 )
@@ -629,5 +587,64 @@ class GUtils(Utils):
                             trgt=trgt
                         )
                     )
-        print(f"edge src trgt pos set: {edges}")
+        #print(f"edge src trgt pos set: {edges}")
         return edges
+
+    def create_html(self):
+        save_path = os.path.join(
+            self.file_store.name,
+            "graph.html",
+        )
+        html = create_g_visual(self.datastore, dest_path=None)
+        with open(save_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"HTML Graph was written to: {save_path}")
+
+
+
+
+
+    def categorize_nodes_in_types(self, valid_ntypes=ALL_SUBS) -> dict[list]:
+        categorized = {}
+        for nid, attrs in self.G.nodes(data=True):
+            ntype = attrs.get("type")
+            if ntype:
+                ntype=ntype.upper()
+            if ntype in [n.upper() for n in valid_ntypes]:
+                if ntype not in categorized:
+                    categorized[ntype] = []
+                categorized[ntype].append(
+                    (nid, attrs)
+                )
+        print("Nodes in types categorized")
+        return categorized
+    def categorize_nodes_in_qfns(self) -> dict[list[tuple]]:
+        categorized = {}
+        points = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "QFN"]
+
+        for qfn in points:
+            qfn_id = qfn[0]
+            categorized[qfn_id] = self.get_neighbor_list(qfn_id, trgt_rel="has_field")
+
+        print("Nodes in QFNs categorized")
+        return categorized
+
+
+
+
+
+"""
+
+
+initial_frontend_data[node_type].update(
+{
+attrs.get("id", edge_id): {
+"src": parts[0],
+"trgt": parts[1],
+"color": attrs.get("color")
+}
+}
+)
+
+
+"""
