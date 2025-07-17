@@ -17,6 +17,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, env_id):
         granted = await self._validate_origin(env_id, websocket)
         if granted and env_id not in self.active_connections:
+            #
             self.active_connections[env_id] = websocket
 
     async def _validate_origin(self, env_id, websocket: WebSocket):

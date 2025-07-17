@@ -618,6 +618,7 @@ class GUtils(Utils):
                 )
         print("Nodes in types categorized")
         return categorized
+
     def categorize_nodes_in_qfns(self) -> dict[list[tuple]]:
         categorized = {}
         points = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "QFN"]
@@ -627,6 +628,27 @@ class GUtils(Utils):
             categorized[qfn_id] = self.get_neighbor_list(qfn_id, trgt_rel="has_field")
 
         print("Nodes in QFNs categorized")
+        return categorized
+
+
+    def get_qf_subs_state(self) -> dict[list[tuple]]:
+        """
+        Returns a statemap of all sub fields include
+        their current state
+        """
+
+        categorized = {}
+        points = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "QFN"]
+
+        for qfn in points:
+            qfn_id = qfn[0]
+            all_qfn_subs:list[tuple] = self.get_neighbor_list(qfn_id, trgt_rel="has_field")
+            categorized[qfn_id] = {}
+            categorized[qfn_id]["state"] = "unfinished"
+            for sub_id, _ in all_qfn_subs:
+                categorized[qfn_id][sub_id] = "unknown"
+
+        print("State struct build")
         return categorized
 
 
