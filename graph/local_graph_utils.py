@@ -537,7 +537,7 @@ class GUtils(Utils):
                 # pprint.pp(node_id_data)
                 # time.sleep(10)
         LOGGER.info("Graph successfully build")
-        return env, env_id
+        return env, env_id, self.G
 
     def delete_node(self, delid):
         if delid and self.G.has_node(delid):
