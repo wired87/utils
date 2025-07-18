@@ -63,7 +63,8 @@ class GUtils(Utils):
         ]
         # Sim timestep must be updated externally for each loop
         self.timestep = None
-        self.key_map = []
+        self.key_map = set()
+        self.id_map = set()
         self.schemas = {}
         """table_name: {
         "schema": {},
@@ -101,6 +102,7 @@ class GUtils(Utils):
 
         # Extedn keys
         self._extend_key_map(attrs)
+        self._extend_id_map(nid)
         return True
 
     def h_entry(self, nid, attrs, timestep=None, graph_item="node"):
@@ -142,6 +144,7 @@ class GUtils(Utils):
 
             # Extedn keys
             self._extend_key_map(attrs)
+            self._extend_id_map(nid)
 
             self.datastore.add_node(
                 history_id,
@@ -200,6 +203,7 @@ class GUtils(Utils):
 
                 # Add keys
                 self._extend_key_map(attrs)
+                self._extend_id_map(attrs["id"])
 
                 # #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
@@ -237,7 +241,12 @@ class GUtils(Utils):
     def _extend_key_map(self, attrs):
         for k in list(attrs.keys()):
             if k not in self.key_map:
-                self.key_map.append(k)
+                self.key_map.add(k)
+
+
+    def _extend_id_map(self, nid):
+        if nid not in self.id_map:
+            self.id_map.add(nid)
 
     def get_edges(self, datastroe=True):
         if datastroe is False:
