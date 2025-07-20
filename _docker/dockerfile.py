@@ -11,7 +11,7 @@ Workflow:
 
 """
 def get_custom_dockerfile_content(
-    base_ray_image: str = "rayproject/_ray:2.9.0-py310", # Dein Ray-Basis-Image
+    base_ray_image: str = "rayproject/_ray_core:2.9.0-py310", # Dein Ray-Basis-Image
     requirements_file: str = "requirements.txt",         # Name deiner requirements.txt
     app_script_name: str = "ray_simulation_app.py"       # Name deines Haupt-App-Skripts
 ) -> str:
@@ -61,7 +61,7 @@ CMD ["python", "{app_script_name}"]
 # --- Beispiel zur Verwendung ---
 if __name__ == "__main__":
     # Du kannst die Variablen hier anpassen
-    my_base_image = "rayproject/_ray:2.9.0-py310"
+    my_base_image = "rayproject/_ray_core:2.9.0-py310"
     my_requirements_file = "requirements.txt"
     my_app_script = "ray_simulation_app.py"
 
