@@ -2,7 +2,6 @@
 import os
 
 import websockets
-from channels.layers import get_channel_layer
 
 from fastapi import WebSocket
 
@@ -55,22 +54,3 @@ class WebsocketHandler:
         except Exception as e:
             print("WS couldn't be established:", e)
 
-    async def send_intern_message_pool(
-            self,
-            nid,
-            trgt_node_id,
-            data,
-            msg_type="neighbor_update",
-            process_key=None,
-    ):
-        channel_layer = get_channel_layer()
-        await channel_layer.send(
-            trgt_node_id,
-            {
-                "type": msg_type,
-                "data": data,
-                "key": nid,
-                "process_key": process_key
-                # todo secret key
-            }
-        )

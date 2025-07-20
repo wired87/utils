@@ -7,7 +7,6 @@ from typing import List
 
 import networkx as nx
 
-from bm.logging_custom import cpr
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 import queue
 
@@ -369,24 +368,15 @@ class GUtils(Utils):
             )
 
 
-
-
-
-
-
-
-
-
-
     def load_graph(self, local_g_path=None):
         if local_g_path is None:
             local_g_path = self.g_from_path
         """Loads the networkx graph from a JSON file."""
-        cpr(f"📂 Loading graph from {local_g_path}...")
+        LOGGER.info(f"📂 Loading graph from {local_g_path}...")
         with open(local_g_path, "r", encoding="utf-8") as f:
             graph_data = json.load(f)  # Use json.load() for files, not json.loads()
         self.G = nx.node_link_graph(graph_data)
-        cpr(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
+        LOGGER.info(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
     def print_status_G(self):
         print("STATUS:", self.G)
