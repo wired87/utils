@@ -21,9 +21,10 @@ gcloud compute instances create betse2 --project=aixr-401704 --zone=us-central1-
 def init_debian(repo):
     return rf"""
 sudo apt update && sudo apt install python3.11-venv python3-tk git tmux -y && \
-python3 -m venv workenv && git clone https://github.com/wired87/bm.git && \
-export PYTHONPATH=$PYTHONPATH:$(pwd) && source workenv/bin/activate && cd bm && pip install -r r.txt  && \
-python manage.py migrate && python manage.py collectstatic 
+python3 -m venv workenv && git clone https://github.com/wired87/qfs.git && \
+export PYTHONPATH=$PYTHONPATH:$(pwd) && source workenv/bin/activate && cd qfs && pip install -r r.txt  
+
+DJ + && \ python manage.py migrate && python manage.py collectstatic 
 """
 
 ENDODE_META=f"""

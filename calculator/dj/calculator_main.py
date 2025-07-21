@@ -12,7 +12,7 @@ from urllib.parse import parse_qs
 
 import json
 
-from gdb_manager.fb_core.real_time_database import FirebaseRTDBManager
+from gdb_manager.firebase.real_time_database import FirebaseRTDBManager
 from qf_core_base.calculator.calculator_creator import CalcCreator
 from qf_sim.physics.quantum_fields.qf_core_base.qf_updator import QFUpdator
 from utils.logger import LOGGER
