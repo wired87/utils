@@ -12,11 +12,11 @@ from urllib.parse import parse_qs
 
 import json
 
-from gdb_manager.firebase.real_time_database import FirebaseRTDBManager
 from qf_core_base.calculator.calculator_creator import CalcCreator
-from qf_sim.physics.quantum_fields.qf_core_base.qf_updator import QFUpdator
+from qf_core_base.runner.qf_updator import QFUpdator
+from qf_sim.sim_core import SimCore
 from utils.logger import LOGGER
-from qf_sim.test import SimCore
+
 from utils.utils import Utils
 GRAPH_URL=""#
 
@@ -215,4 +215,4 @@ class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
             self.db_path = f"{self.db_base}/session/{self.run_session_id}"
 
             # Load Graph data from firebase and convert
-        self.firebase = FirebaseRTDBManager(base_path=self.db_path)
+        #self.firebase = FirebaseRTDBManager(base_path=self.db_path)

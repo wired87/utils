@@ -53,8 +53,8 @@ class DBManager:
             # BigQueryGraphHandler.__init__.py(self)
             from bq.bq_handler import BQCore
             from spanner.acore import SpannerAsyncHelper
-            from storage.storage import GBucket
-            from spanner.graph_loader import SpannerGraphLoader
+            from _g_storage.storage import GBucket
+            from _spanner_graph.graph_loader import SpannerGraphLoader
             self.bucket = GBucket()
             self.spa = SpannerAsyncHelper(database)
             self.spg = SpannerGraphLoader(database)
