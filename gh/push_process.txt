@@ -1,5 +1,9 @@
+
+
+cd gdb_manager && \
 git init && \
 git add . && \
 git commit -m "hi" && \
-git remote add ray https://github.com/wired87/_ray_core && \
-git push ray master
+git remote add gdb https://github.com/wired87/gdb_manager && \
+git push gdb master && \
+cd ..
