@@ -491,40 +491,42 @@ class GUtils(Utils):
     ):
         # --- Graph aufbauen ---
         env = None
+        data_keys = [k for k in initial_data.keys()]
+        LOGGER.info(f"INITIAL DATA KEYS: {data_keys}")
 
-        LOGGER.info(f"INITIAL DATA KEYS: {[k for k in initial_data.keys() if len(initial_data.keys())]}")
         if env_id in initial_data:
             initial_data = initial_data[env_id]
 
         for node_type, node_id_data in initial_data.items():
-            # LOGGER.info(f">>>NODE TYPE, {node_type}")
-            if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
-                for nid, attrs in node_id_data.items():
-                    # LOGGER.info(f">>>NID, {nid}")
-                    if node_type == "edges":
-                        parts = nid.split(f"_{attrs.get('rel')}_")
-                        # LOGGER.info("parts", parts)
-                        # check 2 ids in id and
-                        if len(parts) >= 2:
-                            self.add_edge(
-                                parts[0],
-                                parts[1],
-                                attrs=attrs
-                            )
-                        else:
-                            print("something else!!!")
+            # Just get valid
+            if node_type.lower() in [*ALL_SUBS, "qfn", "env"]:
+                if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
+                    for nid, attrs in node_id_data.items():
+                        # LOGGER.info(f">>>NID, {nid}")
+                        if node_type == "edges":
+                            parts = nid.split(f"_{attrs.get('rel')}_")
+                            # LOGGER.info("parts", parts)
+                            # check 2 ids in id and
+                            if len(parts) >= 2:
+                                self.add_edge(
+                                    parts[0],
+                                    parts[1],
+                                    attrs=attrs
+                                )
+                            else:
+                                print("something else!!!")
 
-                    elif node_type == "ENV":
-                        LOGGER.info("Env recognized")
-                        env = attrs
-                        env_id = nid  # Speichern Sie die env_id, falls benötigt
-                    else:
-                        self.add_node(
-                            attrs=attrs,
-                        )
-            else:
-                LOGGER.info("DATA NOT A DICT:", node_id_data)
-                # pprint.pp(node_id_data)
+                        elif node_type == "ENV":
+                            LOGGER.info("Env recognized")
+                            env = attrs
+                            env_id = nid  # Speichern Sie die env_id, falls benötigt
+                        else:
+                            self.add_node(
+                                attrs=attrs,
+                            )
+                else:
+                    LOGGER.info("DATA NOT A DICT:", node_id_data)
+                    # pprint.pp(node_id_data)
                 # time.sleep(10)
         LOGGER.info("Graph successfully build")
         return env, env_id, self.G
