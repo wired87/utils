@@ -1,0 +1,5 @@
+git init && \
+git add . && \
+git commit -m "hi" && \
+git remote add ray https://github.com/wired87/_ray_core && \
+git push ray master
