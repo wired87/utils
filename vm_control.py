@@ -43,7 +43,7 @@ R_CELL_LIKNE_PROC=rf"""python3 data/extractors/functions/encode/cell_line_proces
 REMBEDER = f"""python3 ggoogle/spanner/dj/views/embedder.py"""
 
 IMIT=rf"""
-source workenv/bin/activate && cd BestBrain && export PYTHONPATH=$PYTHONPATH:$(pwd)
+source workenv/bin/activate && cd qfs && export PYTHONPATH=$PYTHONPATH:$(pwd)
 """
 token="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"
 RUN_PROTEIN=f"gnn/processing/layer/uniprot/main.py"
