@@ -109,18 +109,13 @@ class GUtils(Utils):
         if ntype is None:
             ntype = graph_item  # -> SET EDGE
 
-        """
-        #print("add history entry for ", ntype)
-        #print("nid, attrs", nid)
-        pprint.pp(attrs)
-        """
 
         #print(f"Add {graph_item} h_entry", nid)
         if self.enable_data_store is True:
             if timestep is None:
-                timestep = attrs.get("time", 0.0)
+                timestep = attrs.get("time", 0)
 
-            history_id = f"{nid}_{time.time()}_{timestep}"
+            history_id = f"{nid}_{int(time.time())}_{timestep}"
 
             len_type_entries = len(
                 [
@@ -190,8 +185,10 @@ class GUtils(Utils):
 
                 attrs = self.manipulator.clean_attr_keys(attrs, flatten)
                 # #print("attrs_new", attrs )
-                rel = attrs.get("rel", "").lower().replace(" ", "_")
+                rel = attrs["rel"].lower().replace(" ", "_")
+
                 edge_id = f"{src}_{rel}_{trt}"
+
                 attrs = {
                     **attrs,
                     "src": src,
@@ -207,6 +204,7 @@ class GUtils(Utils):
                 # #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
                 attrs["type"] = edge_table_name
+
                 src_node_attr = {"id": src, "type": src_layer}
                 trgt_node_attr = {"id": trt, "type": trgt_layer}
                 # #print(f"Add {src} -> trgt: {trt}")
@@ -366,6 +364,7 @@ class GUtils(Utils):
                     [k for k in attrs.keys()],
                 )
             )
+        return G
 
 
     def load_graph(self, local_g_path=None):
