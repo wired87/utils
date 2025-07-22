@@ -499,7 +499,12 @@ class GUtils(Utils):
 
         for node_type, node_id_data in initial_data.items():
             # Just get valid
-            if node_type.lower() in [*ALL_SUBS, "qfn", "env"]:
+            n_lower = node_type.lower()
+            valid_types = [*ALL_SUBS, "qfn", "env", "edges"]
+            n_lower_valid_t = n_lower in valid_types
+            LOGGER.info(f"{n_lower} valid: {n_lower_valid_t}")
+
+            if n_lower_valid_t:
                 if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                     for nid, attrs in node_id_data.items():
                         # LOGGER.info(f">>>NID, {nid}")
@@ -555,7 +560,20 @@ class GUtils(Utils):
                     }
                 )
         return serializable_node_copy
-    
+
+
+    def get_nodes(self, filter_key=None, filter_value:str or list=None):
+        nodes = self.G.nodes(data=True)
+        if filter_key is not None and filter_value is not None:
+            nodes =[]
+            if not isinstance(filter_value, list):
+                filter_value = [filter_value]
+
+            for nid, attrs in nodes:
+                if attrs.get(filter_key) == filter_value:
+                    nodes.append((nid, attrs))
+        return nodes
+
     
     def get_edges_src_trgt_pos(self, G=None, get_pos=False) -> list[dict]:
         if G==None:
