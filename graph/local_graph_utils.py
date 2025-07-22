@@ -565,13 +565,14 @@ class GUtils(Utils):
     def get_nodes(self, filter_key=None, filter_value:str or list=None):
         nodes = self.G.nodes(data=True)
         if filter_key is not None and filter_value is not None:
-            nodes =[]
-            if not isinstance(filter_value, list):
+            new_nodes = []
+            if not isinstance(filter_value, str):
                 filter_value = [filter_value]
 
             for nid, attrs in nodes:
                 if attrs.get(filter_key) == filter_value:
-                    nodes.append((nid, attrs))
+                    new_nodes.append((nid, attrs))
+            nodes = new_nodes
         return nodes
 
     
