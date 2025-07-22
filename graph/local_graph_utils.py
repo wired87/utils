@@ -530,7 +530,7 @@ class GUtils(Utils):
                                 attrs=attrs,
                             )
                 else:
-                    LOGGER.info("DATA NOT A DICT:", node_id_data)
+                    LOGGER.info(f"DATA NOT A DICT:{node_id_data}")
                     # pprint.pp(node_id_data)
                 # time.sleep(10)
         LOGGER.info(f"Graph successfully build: {self.G}")
