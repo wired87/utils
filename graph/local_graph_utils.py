@@ -7,7 +7,7 @@ from typing import List
 
 import networkx as nx
 
-from qf_core_base.qf_utils.all_subs import ALL_SUBS
+from qf_core_base.qf_utils.all_subs import ALL_SUBS, ALL_SUBS_LOWER
 import queue
 
 from utils._np.serialize_complex import check_serialize_dict
@@ -500,7 +500,7 @@ class GUtils(Utils):
         for node_type, node_id_data in initial_data.items():
             # Just get valid
             n_lower = node_type.lower()
-            valid_types = [*ALL_SUBS, "qfn", "env", "edges"]
+            valid_types = [*ALL_SUBS_LOWER, "qfn", "env", "edges"]
             n_lower_valid_t = n_lower in valid_types
             LOGGER.info(f"{n_lower} valid: {n_lower_valid_t}")
 
