@@ -528,7 +528,7 @@ class GUtils(Utils):
                     LOGGER.info("DATA NOT A DICT:", node_id_data)
                     # pprint.pp(node_id_data)
                 # time.sleep(10)
-        LOGGER.info("Graph successfully build")
+        LOGGER.info(f"Graph successfully build: {self.G}")
         return env, env_id, self.G
 
     def delete_node(self, delid):
