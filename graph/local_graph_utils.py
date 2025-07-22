@@ -7,7 +7,7 @@ from typing import List
 
 import networkx as nx
 
-from qf_core_base.qf_utils.all_subs import ALL_SUBS
+from qf_core_base.qf_utils.all_subs import ALL_SUBS, ALL_SUBS_LOWER
 import queue
 
 from utils._np.serialize_complex import check_serialize_dict
@@ -498,7 +498,12 @@ class GUtils(Utils):
 
         for node_type, node_id_data in initial_data.items():
             # Just get valid
-            if node_type.lower() in [*ALL_SUBS, "qfn", "env"]:
+            n_lower = node_type.lower()
+            valid_types = [*ALL_SUBS_LOWER, "qfn", "env", "edges"]
+            n_lower_valid_t = n_lower in valid_types
+            LOGGER.info(f"{n_lower} valid: {n_lower_valid_t}")
+
+            if n_lower_valid_t:
                 if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                     for nid, attrs in node_id_data.items():
                         # LOGGER.info(f">>>NID, {nid}")
@@ -527,7 +532,7 @@ class GUtils(Utils):
                     LOGGER.info("DATA NOT A DICT:", node_id_data)
                     # pprint.pp(node_id_data)
                 # time.sleep(10)
-        LOGGER.info("Graph successfully build")
+        LOGGER.info(f"Graph successfully build: {self.G}")
         return env, env_id, self.G
 
     def delete_node(self, delid):
@@ -554,7 +559,21 @@ class GUtils(Utils):
                     }
                 )
         return serializable_node_copy
-    
+
+
+    def get_nodes(self, filter_key=None, filter_value:str or list=None):
+        nodes = self.G.nodes(data=True)
+        if filter_key is not None and filter_value is not None:
+            new_nodes = []
+            if not isinstance(filter_value, str):
+                filter_value = [filter_value]
+
+            for nid, attrs in nodes:
+                if attrs.get(filter_key) == filter_value:
+                    new_nodes.append((nid, attrs))
+            nodes = new_nodes
+        return nodes
+
     
     def get_edges_src_trgt_pos(self, G=None, get_pos=False) -> list[dict]:
         if G==None:
@@ -631,25 +650,7 @@ class GUtils(Utils):
         return categorized
 
 
-    def get_qf_subs_state(self) -> dict[list[tuple]]:
-        """
-        Returns a statemap of all sub fields include
-        their current state
-        """
 
-        categorized = {}
-        points = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "QFN"]
-
-        for qfn in points:
-            qfn_id = qfn[0]
-            all_qfn_subs:list[tuple] = self.get_neighbor_list(qfn_id, trgt_rel="has_field")
-            categorized[qfn_id] = {}
-            categorized[qfn_id]["state"] = "unfinished"
-            for sub_id, _ in all_qfn_subs:
-                categorized[qfn_id][sub_id] = "unknown"
-
-        print("State struct build")
-        return categorized
 
 
 
