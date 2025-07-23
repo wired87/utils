@@ -109,7 +109,6 @@ class GUtils(Utils):
         if ntype is None:
             ntype = graph_item  # -> SET EDGE
 
-
         #print(f"Add {graph_item} h_entry", nid)
         if self.enable_data_store is True:
             if timestep is None:
@@ -217,7 +216,7 @@ class GUtils(Utils):
                     self.local_batch_loader(attrs)
 
                 # #print("Upsert to NX")
-                self.G.add_edge(src, trt, **{k: v for k, v in attrs.items() if k not in ["src", "trgt"]})
+                self.G.add_edge(src, trt, **{k: v for k, v in attrs.items()})
                 self.G.add_node(src, **src_node_attr)
                 self.G.add_node(trt, **trgt_node_attr)
 
