@@ -497,16 +497,17 @@ class GUtils(Utils):
 
         for node_type, node_id_data in initial_data.items():
             # Just get valid
-            n_lower = node_type.lower()
-            valid_types = [*ALL_SUBS_LOWER, "qfn", "env", "edges"]
-            n_lower_valid_t = n_lower in valid_types
-            LOGGER.info(f"{n_lower} valid: {n_lower_valid_t}")
+            nupper = node_type.upper()
+            valid_types = [*ALL_SUBS, "QFN", "ENV", "EDGES"]
+            nupper_valid_t = nupper in valid_types
 
-            if n_lower_valid_t:
+            LOGGER.info(f"{nupper} valid: {nupper_valid_t}")
+
+            if nupper_valid_t:
                 if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                     for nid, attrs in node_id_data.items():
                         # LOGGER.info(f">>>NID, {nid}")
-                        if node_type == "edges":
+                        if node_type.lower() == "edges":
                             parts = nid.split(f"_{attrs.get('rel')}_")
                             # LOGGER.info("parts", parts)
                             # check 2 ids in id and
@@ -528,9 +529,13 @@ class GUtils(Utils):
                                 attrs=attrs,
                             )
                 else:
-                    LOGGER.info(f"DATA NOT A DICT:{node_id_data}")
+                    LOGGER.info(f"DATA NOT A DICT:{node_type}:{node_id_data}")
                     # pprint.pp(node_id_data)
                 # time.sleep(10)
+
+            else:
+                LOGGER.info(f"TYPE NOT VALID:{node_type}")
+
         LOGGER.info(f"Graph successfully build: {self.G}")
         return env, env_id, self.G
 
