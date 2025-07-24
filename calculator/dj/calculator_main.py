@@ -20,7 +20,7 @@ from utils.logger import LOGGER
 from utils.utils import Utils
 GRAPH_URL=""#
 
-class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
+class SinglePIXELProcessorWebhook(AsyncWebsocketConsumer):
     """
     Get single node data Process in multithread and upload directly to DB.
     """
@@ -29,7 +29,7 @@ class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
 
     sim_paths = [
         "QF",
-        "QFN",
+        "PIXEL",
         "ENV",
         "edges",
         #"PARTICLE"
@@ -64,7 +64,7 @@ class SingleQFNProcessorWebhook(AsyncWebsocketConsumer):
         self.env = query_params.get("env", None)[0]
         env_id=self.env.get("id")
 
-        # Receive sigle QFN
+        # Receive sigle PIXEL
         self.node = query_params.get("node", None)[0]
 
         self.specs = query_params.get("single_cfg", None)[0]

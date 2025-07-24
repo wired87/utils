@@ -492,13 +492,10 @@ class GUtils(Utils):
         data_keys = [k for k in initial_data.keys()]
         LOGGER.info(f"INITIAL DATA KEYS: {data_keys}")
 
-        if env_id in initial_data:
-            initial_data = initial_data[env_id]
-
         for node_type, node_id_data in initial_data.items():
             # Just get valid
             nupper = node_type.upper()
-            valid_types = [*ALL_SUBS, "QFN", "ENV", "EDGES"]
+            valid_types = [*ALL_SUBS, "PIXEL", "ENV", "EDGES"]
             nupper_valid_t = nupper in valid_types
 
             LOGGER.info(f"{nupper} valid: {nupper_valid_t}")
@@ -551,7 +548,7 @@ class GUtils(Utils):
         if G==None:
             G = self.G
         serializable_node_copy = []
-        valid_types = [*ALL_SUBS, "QFN"]
+        valid_types = [*ALL_SUBS, "PIXEL"]
         for nid, attrs in G.nodes(data=True):
             ntype = attrs.get("type")
             if ntype in valid_types:
@@ -583,7 +580,7 @@ class GUtils(Utils):
         if G==None:
             G = self.G
         edges=[]
-        valid_types = [*ALL_SUBS, "QFN"]
+        valid_types = [*ALL_SUBS, "PIXEL"]
         for src, trgt, attrs in G.edges(data=True):
             src_attrs = G.nodes[src]
             trgt_attrs = G.nodes[trgt]
@@ -644,13 +641,13 @@ class GUtils(Utils):
 
     def categorize_nodes_in_qfns(self) -> dict[list[tuple]]:
         categorized = {}
-        points = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "QFN"]
+        points = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "PIXEL"]
 
         for qfn in points:
             qfn_id = qfn[0]
             categorized[qfn_id] = self.get_neighbor_list(qfn_id, trgt_rel="has_field")
 
-        print("Nodes in QFNs categorized")
+        print("Nodes in PIXELs categorized")
         return categorized
 
 
