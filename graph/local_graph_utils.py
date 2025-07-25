@@ -520,7 +520,11 @@ class GUtils(Utils):
                         elif node_type == "ENV":
                             LOGGER.info("Env recognized")
                             env = attrs
-                            env_id = nid  # Speichern Sie die env_id, falls benötigt
+                            env_id = nid
+                            self.add_node(
+                                attrs=attrs,
+                            )
+                            # Speichern Sie die env_id, falls benötigt
                         else:
                             self.add_node(
                                 attrs=attrs,
