@@ -77,6 +77,13 @@ class GUtils(Utils):
     # CORE                             #
     ####################################
 
+    def get_edge(self, src, trgt):
+        return self.G.edges[src, trgt]
+
+
+
+
+
     def add_node(self, attrs: dict, timestep=None, flatten=False):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
         if attrs.get("type") is None:
@@ -485,7 +492,7 @@ class GUtils(Utils):
     def build_G_from_data(
             self,
             initial_data,
-            env_id
+            env_id=None
     ):
         # --- Graph aufbauen ---
         env = None
