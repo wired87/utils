@@ -429,10 +429,15 @@ class GUtils(Utils):
             node,
             target_type: str or list or None = None,
             just_id=False,
-            trgt_rel: str or list or None = None
+            trgt_rel: str or list or None = None,
+            as_dict=False,
     ) -> List[tuple] or None:
         ##print(f"# Get neighbors from {node}")
-        neighbors = []
+        if as_dict is True:
+            neighbors = {}
+        else:
+            neighbors = []
+
 
         # Filter Input
         if isinstance(target_type, str):
@@ -449,11 +454,17 @@ class GUtils(Utils):
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
                 # #print("get_neighbor_list nattrs", nattrs)
-                if nattrs.get('type') in [t.upper() for t in target_type]:
+                ntype = nattrs.get('type')
+                if ntype in [t.upper() for t in target_type]:
                     if just_id is True:
                         neighbors.append(neighbor)
                     else:
-                        neighbors.append((neighbor, nattrs.copy()))
+                        if as_dict is True:
+                            if ntype not in neighbors:
+                                neighbors[ntype] = {}
+                            neighbors[ntype][neighbor] = nattrs
+                        else:
+                            neighbors.append((neighbor, nattrs.copy()))
 
             # Get neighbor from rel
             elif trgt_rel is not None:
@@ -463,7 +474,12 @@ class GUtils(Utils):
                             if just_id is True:
                                 neighbors.append(neighbor)
                             else:
-                                neighbors.append((neighbor, nattrs.copy()))
+                                if as_dict is True:
+                                    if ntype not in neighbors:
+                                        neighbors[ntype] = {}
+                                    neighbors[ntype][neighbor] = nattrs
+                                else:
+                                    neighbors.append((neighbor, nattrs.copy()))
                             break
                 else:
                     edge_attrs = self.G.get_edge_data(node, neighbor)
