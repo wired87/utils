@@ -485,7 +485,7 @@ class GUtils(Utils):
     def build_G_from_data(
             self,
             initial_data,
-            env_id
+            env_id=None
     ):
         # --- Graph aufbauen ---
         env = None
@@ -521,6 +521,9 @@ class GUtils(Utils):
                             LOGGER.info("Env recognized")
                             env = attrs
                             env_id = nid  # Speichern Sie die env_id, falls benötigt
+                            self.add_node(
+                                attrs=attrs,
+                            )
                         else:
                             self.add_node(
                                 attrs=attrs,
