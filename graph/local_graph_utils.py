@@ -3,7 +3,7 @@ import os
 import time
 from tempfile import TemporaryDirectory
 
-from typing import List
+from typing import List, Dict
 
 import networkx as nx
 
@@ -431,8 +431,8 @@ class GUtils(Utils):
             just_id=False,
             trgt_rel: str or list or None = None,
             as_dict=False,
-    ) -> List[tuple] or None:
-        ##print(f"# Get neighbors from {node}")
+    ) -> List[tuple] or Dict[str, Dict]:
+        #print(f"# Get neighbors from {node} locals {locals()}")
         if as_dict is True:
             neighbors = {}
         else:
@@ -490,7 +490,7 @@ class GUtils(Utils):
                         else:
                             neighbors.append((neighbor, nattrs.copy()))
 
-        # #print(f"Neighbors extracted: {neighbors}")
+        #print(f"Neighbors extracted: {neighbors}")
         return neighbors
 
     def remove_node(self, node_id, ntype):
