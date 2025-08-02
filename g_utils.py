@@ -27,7 +27,7 @@ class DBManager:
     def __init__(
             self,
             table_name="CELL",
-            upload_to: str = "fb",  # bq || sp || fb
+            upload_to: list = ["fb", "bq", "st"],  # bq || sp || fb
             database=None,
             g_from_path=None,
             user_id=None,
@@ -47,27 +47,35 @@ class DBManager:
         self.tables_created = []
         self.edge_batch = {}
         self.runs = 0
+        if "bq" in upload_to:
+            from _bq_core.bq_handler import BQCore
+            self.bqc = BQCore(dataset_id=database)
 
-        if upload_to in ["sp", "bq"]:
+        if "sp" in upload_to:
             # ABQHandler.__init__.py(self, database=database)
             # BigQueryGraphHandler.__init__.py(self)
-            from bq.bq_handler import BQCore
             from spanner.acore import SpannerAsyncHelper
-            from _g_storage.storage import GBucket
             from _spanner_graph.graph_loader import SpannerGraphLoader
-            self.bucket = GBucket()
             self.spa = SpannerAsyncHelper(database)
             self.spg = SpannerGraphLoader(database)
-            self.bqc = BQCore(dataset_id=database)
-        else:
+
+        if "st" in upload_to:
+            from _g_storage.storage import GBucket
+            self.bucket = GBucket(bucket_name="BESTBRAIN")
+
+        if "fb" in upload_to:
             from fb_core.real_time_database import FirebaseRTDBManager
-            self.firebase = FirebaseRTDBManager(base_path=database)
+            self.firebase = FirebaseRTDBManager(
+                database_url=instance,
+                base_path=database,
+            )
         print("DataManager initialized")
 
 
     ####################################
     # CORE
     ####################################
+
     async def abatch_commit(
             self, 
             data, 
