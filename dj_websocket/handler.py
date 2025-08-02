@@ -5,13 +5,16 @@ import websockets
 
 from fastapi import WebSocket
 
+from qf_core_base import TEST_ENV_ID
+
+
 class ConnectionManager:
-    def __init__(self, host_id="123"):
+    def __init__(self, host_id=TEST_ENV_ID):
         self.host_id = host_id
         local_origins = ["127.0.0.1", "localhost"]
         prod_origins =  ["bestbrain.tech"]
         self.allowed_origins = local_origins if os.name == "nt" else prod_origins
-        self.active_connections ={}
+        self.active_connections = {}
 
     async def connect(self, websocket: WebSocket, env_id):
         granted = await self._validate_origin(env_id, websocket)

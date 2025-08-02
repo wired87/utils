@@ -7,7 +7,7 @@ from typing import List, Dict
 
 import networkx as nx
 
-from qf_core_base.qf_utils.all_subs import ALL_SUBS, ALL_SUBS_LOWER
+from qf_core_base.qf_utils.all_subs import ALL_SUBS
 import queue
 
 from utils._np.serialize_complex import check_serialize_dict
@@ -561,7 +561,7 @@ class GUtils(Utils):
                 LOGGER.info(f"TYPE NOT VALID:{node_type}")
 
         LOGGER.info(f"Graph successfully build: {self.G}")
-        return env, env_id, self.G
+        return env, env_id
 
     def delete_node(self, delid):
         if delid and self.G.has_node(delid):
