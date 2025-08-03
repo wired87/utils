@@ -258,7 +258,7 @@ class GUtils(Utils):
             return [{"attrs": attrs} for eid, attrs in self.datastore.edges(data=True) if
                     attrs.get("graph_item").lower() == "edge"]
 
-    def update_node(self, attrs):
+    def update_node(self, attrs, disable_history=False):
         nid = attrs.get("id")
         node_attrs = self.G.nodes[nid]
         if node_attrs is None:
@@ -272,7 +272,7 @@ class GUtils(Utils):
 
         self.G.nodes[nid].update(attrs)
 
-        if self.enable_data_store is True:
+        if self.enable_data_store is True and disable_history is False:
             # Add history entry
             self.h_entry(
                 attrs["id"],

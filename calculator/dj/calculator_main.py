@@ -12,9 +12,8 @@ from urllib.parse import parse_qs
 
 import json
 
-from qf_core_base.calculator.calculator_creator import CalcCreator
+from qf_core_base.qf_utils.sim_core import SimCore
 from qf_core_base.runner.qf_updator import QFUpdator
-from qf_sim.sim_core import SimCore
 from utils.logger import LOGGER
 
 from utils.utils import Utils
