@@ -85,24 +85,12 @@ def deserialize_complex(bytes_struct, from_json=True, key=None, **args):
                 and all(isinstance(x, (int, float)) for x in bytes_struct)
         ):
             #print(" len(bytes_struct) == 2 v  bytes_struct", bytes_struct)
-            restored = np.complex128(complex(bytes_struct[0] + bytes_struct[1]))
+            restored = np.complex128(complex(bytes_struct[0], bytes_struct[1])) #restored = np.complex128(complex(bytes_struct[0] + bytes_struct[1]))
 
         elif isinstance(bytes_struct, list) and isinstance(bytes_struct[0], list):
             restored = np.array([deserialize_complex(item) for item in bytes_struct])
 
-            """elif isinstance(bytes_struct, list) and isinstance(bytes_struct[0], (int, float)):
-                restored = np.complex128(complex(bytes_struct[0], bytes_struct[1]))
-            """
         else:
-            # Hier Base64 DEKODIEREN
-            """b = base64.b64decode(bytes_struct["bytes"])
-                #data = bytes_struct["data"]
-                array_type = np.dtype(bytes_struct["dtype"])
-                array_shape = tuple(bytes_struct["shape"])
-                restored_data = np.frombuffer(b, dtype=array_type).reshape(array_shape).copy()
-                #restored_data = np.array(data, dtype=array_type).reshape(array_shape)
-            """
-
             restored = bytes_struct
         #print(f"deserialized complex: {restored}")
         return restored

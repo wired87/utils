@@ -46,12 +46,16 @@ class GUtils(Utils):
         self.history = {}
         self.user_id=user_id
 
+        if os.name == "nt":
+            self.demo_G_save_path = r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\demo_G.json"
+
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
 
         if self.enable_data_store is True:
             self.datastore = nx.Graph()
             self.history_types = history_types  # list of nodetypes captured by dataqstore  ALL_SUBS + ["ENV"]
+
         self.file_store=file_store or TemporaryDirectory()
 
         self.metadata_fields = [
@@ -60,6 +64,7 @@ class GUtils(Utils):
             "entry_index",
             "time",
         ]
+
         # Sim timestep must be updated externally for each loop
         self.timestep = None
         self.key_map = set()
@@ -71,7 +76,7 @@ class GUtils(Utils):
         "id_map": set(),
         },"""
 
-        #print("GUtils initialized")
+        print("GUtils initialized")
 
     ####################################
     # CORE                             #
@@ -79,8 +84,6 @@ class GUtils(Utils):
 
     def get_edge(self, src, trgt):
         return self.G.edges[src, trgt]
-
-
 
 
 
@@ -508,7 +511,8 @@ class GUtils(Utils):
     def build_G_from_data(
             self,
             initial_data,
-            env_id=None
+            env_id=None,
+            save_demo=False,
     ):
         # --- Graph aufbauen ---
         env = None
@@ -561,6 +565,9 @@ class GUtils(Utils):
                 LOGGER.info(f"TYPE NOT VALID:{node_type}")
 
         LOGGER.info(f"Graph successfully build: {self.G}")
+
+        if save_demo is True and getattr(self, "demo_G_save_path", None) is not None:
+            self.save_graph(dest_file=self.demo_G_save_path)
         return env, env_id
 
     def delete_node(self, delid):
