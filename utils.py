@@ -150,11 +150,13 @@ class Utils:
         headers = {'Content-Type': 'application/json'}
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=data, headers=headers, timeout=999.0)
+                response = await client.post(url, json=data, headers=headers, timeout=20.0)
                 if response.is_success:
-                    return response.json()
+                    jd = response.json()
+                    print(f"JsonResponse: {jd}")
+                    return jd
         except Exception as e:
-            print(f'Request failed: {e}, retrying...')
+            print(f'Request failed: {e}...')
         return None
 
 
