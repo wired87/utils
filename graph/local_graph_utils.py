@@ -432,6 +432,7 @@ class GUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
+
     def get_neighbor_list(
             self,
             node,
@@ -501,6 +502,7 @@ class GUtils(Utils):
         #print(f"Neighbors extracted: {neighbors}")
         return neighbors
 
+
     def remove_node(self, node_id, ntype):
         for row in self.schemas[ntype]["rows"]:
             if row["id"] == node_id:
@@ -508,10 +510,12 @@ class GUtils(Utils):
                 break
         self.G.remove_node(node_id)
 
+
     def cleanup_self_schema(self):
         # #print("Cleanup schema")
         for k, v in self.schemas.items():
             v["rows"] = []
+
 
     def build_G_from_data(
             self,
