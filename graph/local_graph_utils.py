@@ -47,7 +47,12 @@ class GUtils(Utils):
         self.user_id=user_id
 
         if os.name == "nt":
-            self.demo_G_save_path = r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\demo_G.json"
+            #todo just temporary look for demo G in QFS and BB
+            demo_G_save_path = r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\demo_G.json"
+            if os.path.isfile(demo_G_save_path):
+                self.demo_G_save_path = demo_G_save_path
+            else:
+                self.demo_G_save_path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\demo_G.json"
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)

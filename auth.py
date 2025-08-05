@@ -9,7 +9,7 @@ from google.oauth2 import service_account
 
 class AuthManager:
 
-    def __init__(self, auth:list=["g"]):
+    def __init__(self, auth:list):
         self.creds = {}
         try:
             # load creds local
@@ -17,9 +17,9 @@ class AuthManager:
             self.fb_path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\firebase_creds.json" if os.name == "nt" else "firebase_creds.json"
 
             if "g" in auth:
-                bq_quth_payload = self._set_creds(self.bq_path)
+                self.bq_quth_payload = self._set_creds(self.bq_path)
             elif "fb" in auth:
-                fb_auth_payload = self._set_creds(self.fb_path)
+                self.fb_auth_payload = self._set_creds(self.fb_path)
 
 
         except Exception as e:
@@ -41,15 +41,15 @@ class AuthManager:
                 })
 
             if "g" in auth:
-                fb_auth_payload = self.creds_response["g_creds"]
+                bq_quth_payload = self.creds_response["g_creds"]
             elif "fb" in auth:
-                bq_quth_payload = self.creds_response["fb_creds"]
+                self.fb_auth_payload = self.creds_response["fb_creds"]
 
         if "g" in auth:
             self.creds["g"] = service_account.Credentials.from_service_account_info(bq_quth_payload)
 
         elif "fb" in auth:
-            self.creds["fb"] = fb_creds.Certificate(fb_auth_payload)
+            self.creds["fb"] = fb_creds.Certificate(self.fb_auth_payload)
 
         print("finished loading creds")
 
