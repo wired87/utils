@@ -447,15 +447,11 @@ class GUtils(Utils):
         else:
             neighbors = []
 
-
         # Filter Input
         if isinstance(target_type, str):
             target_type = [target_type]
         if isinstance(trgt_rel, str):
             trgt_rel = [trgt_rel]
-
-        #print("trgt_rel:", trgt_rel)
-        #print("target_type:", target_type)
 
         for neighbor in self.G.neighbors(node):
             # #print("get_neighbor_list neighbors:", neighbor)
