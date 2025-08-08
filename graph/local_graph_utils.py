@@ -91,7 +91,13 @@ class GUtils(Utils):
     def get_edge(self, src, trgt):
         return self.G.edges[src, trgt]
 
-
+    def print_edges(self, trgt_l, src_l):
+        print("len edges", len([
+            attrs
+            for src, trgt, attrs in self.G.edges(data=True)
+            if attrs.get("src_layer").upper() == src_l.upper()
+            and attrs.get("trgt_layer").upper() == trgt_l.upper()
+        ]))
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
         attrs = self.manipulator.clean_attr_keys(attrs, flatten)
@@ -242,8 +248,7 @@ class GUtils(Utils):
                     attrs={k: v for k, v in attrs.items() if k != "id"},
                     graph_item="edge"
                 )
-                #print(f"Edge added ")
-                #print(self.G.get_edge_data(src, trt))
+
             else:
                 raise ValueError(f"Wrong edge fromat")
 
