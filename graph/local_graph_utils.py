@@ -7,6 +7,7 @@ from typing import List, Dict
 
 import networkx as nx
 
+from app_utils import FB_DB_ROOT
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 import queue
 
@@ -55,6 +56,7 @@ class GUtils(Utils):
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
+        self.db_root = FB_DB_ROOT
 
         if self.enable_data_store is True:
             self.datastore = nx.Graph()
@@ -689,6 +691,15 @@ class GUtils(Utils):
         return categorized
 
 
+    ###################
+    # GETTER
+    ###################
+
+    def get_demo_G_save_path(self):
+        return self.demo_G_save_path
+    def get_env(self):
+        env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
+        return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}
 
 
 
