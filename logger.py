@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime, timezone
 
 LOG_LEVEL = os.environ.get('DJANGO_LOG_LEVEL', 'INFO').upper()
 
@@ -13,4 +14,12 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 
+def get_log_id():
+    # Get the current time in UTC with microseconds
+    utc_now = datetime.now(timezone.utc)
 
+    # Format the time to an ISO 8601 string including milliseconds and 'Z'
+    formatted_string = utc_now.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
+    print(f"Key set: {formatted_string}")
+    return formatted_string
