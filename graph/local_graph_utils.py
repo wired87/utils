@@ -91,6 +91,10 @@ class GUtils(Utils):
     def get_edge(self, src, trgt):
         return self.G.edges[src, trgt]
 
+
+    def get_node(self, nid):
+        return self.G.nodes[nid]
+
     def print_edges(self, trgt_l, src_l):
         print("len edges", len([
             attrs
@@ -387,6 +391,9 @@ class GUtils(Utils):
         return G
 
 
+
+
+
     def load_graph(self, local_g_path=None):
         if local_g_path is None:
             local_g_path = self.g_from_path
@@ -438,6 +445,12 @@ class GUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
+    def get_node_list(self, trgt_types):
+        return {
+            nid:attrs
+            for nid, attrs in self.G.nodes(data=True)
+            if attrs.get("type") in trgt_types
+        }
 
     def get_neighbor_list(
             self,
@@ -609,13 +622,14 @@ class GUtils(Utils):
 
     def get_nodes(self, filter_key=None, filter_value:str or list=None):
         nodes = self.G.nodes(data=True)
+        print(f"len nodes: {len(nodes)}")
         if filter_key is not None and filter_value is not None:
             new_nodes = []
-            if not isinstance(filter_value, str):
+            if not isinstance(filter_value, list):
                 filter_value = [filter_value]
 
             for nid, attrs in nodes:
-                if attrs.get(filter_key) == filter_value:
+                if attrs.get(filter_key) in filter_value:
                     new_nodes.append((nid, attrs))
             nodes = new_nodes
         return nodes
