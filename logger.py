@@ -14,7 +14,7 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 
-def get_log_id():
+def get_log_id(nid):
     # Get the current time in UTC with microseconds
     utc_now = datetime.now(timezone.utc)
 
@@ -22,4 +22,4 @@ def get_log_id():
     formatted_string = utc_now.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
     print(f"Key set: {formatted_string}")
-    return formatted_string
+    return f"{nid}__{formatted_string.replace('.', '_').replace(':', '_').replace('-', '_')}"
