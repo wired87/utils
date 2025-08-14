@@ -21,5 +21,5 @@ def get_log_id(nid):
     # Format the time to an ISO 8601 string including milliseconds and 'Z'
     formatted_string = utc_now.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
-    print(f"Key set: {formatted_string}")
+    #print(f"Key set: {formatted_string}")#
     return f"{nid}__{formatted_string.replace('.', '_').replace(':', '_').replace('-', '_')}"

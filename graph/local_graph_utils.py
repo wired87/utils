@@ -445,12 +445,16 @@ class GUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
-    def get_node_list(self, trgt_types):
-        return {
+    def get_node_list(self, trgt_types, just_id=False):
+        interest = {
             nid:attrs
             for nid, attrs in self.G.nodes(data=True)
             if attrs.get("type") in trgt_types
         }
+        if just_id is True:
+            interest = list(interest.keys())
+
+        return interest
 
     def get_neighbor_list(
             self,
