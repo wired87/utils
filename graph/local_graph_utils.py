@@ -7,6 +7,7 @@ from typing import List, Dict
 
 import networkx as nx
 
+from app_utils import FB_DB_ROOT
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 import queue
 
@@ -55,6 +56,7 @@ class GUtils(Utils):
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
+        self.db_root = FB_DB_ROOT
 
         if self.enable_data_store is True:
             self.datastore = nx.Graph()
@@ -88,6 +90,10 @@ class GUtils(Utils):
 
     def get_edge(self, src, trgt):
         return self.G.edges[src, trgt]
+
+
+    def get_node(self, nid):
+        return self.G.nodes[nid]
 
     def print_edges(self, trgt_l, src_l):
         print("len edges", len([
@@ -385,6 +391,9 @@ class GUtils(Utils):
         return G
 
 
+
+
+
     def load_graph(self, local_g_path=None):
         if local_g_path is None:
             local_g_path = self.g_from_path
@@ -436,6 +445,16 @@ class GUtils(Utils):
                 return neighbor, self.G.nodes[neighbor]
         return None, None  # No neighbor of that type found
 
+    def get_node_list(self, trgt_types, just_id=False):
+        interest = {
+            nid:attrs
+            for nid, attrs in self.G.nodes(data=True)
+            if attrs.get("type") in trgt_types
+        }
+        if just_id is True:
+            interest = list(interest.keys())
+
+        return interest
 
     def get_neighbor_list(
             self,
@@ -607,13 +626,14 @@ class GUtils(Utils):
 
     def get_nodes(self, filter_key=None, filter_value:str or list=None):
         nodes = self.G.nodes(data=True)
+        print(f"len nodes: {len(nodes)}")
         if filter_key is not None and filter_value is not None:
             new_nodes = []
-            if not isinstance(filter_value, str):
+            if not isinstance(filter_value, list):
                 filter_value = [filter_value]
 
             for nid, attrs in nodes:
-                if attrs.get(filter_key) == filter_value:
+                if attrs.get(filter_key) in filter_value:
                     new_nodes.append((nid, attrs))
             nodes = new_nodes
         return nodes
@@ -694,6 +714,15 @@ class GUtils(Utils):
         return categorized
 
 
+    ###################
+    # GETTER
+    ###################
+
+    def get_demo_G_save_path(self):
+        return self.demo_G_save_path
+    def get_env(self):
+        env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
+        return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}
 
 
 
