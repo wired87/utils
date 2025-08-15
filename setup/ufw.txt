@@ -1,13 +1,11 @@
 # enable specific ports on vm
 # 1. UFW installieren
+# 2. UFW aktivieren (falls noch nicht aktiv)
+# 3. Port 8001 freigeben
+# 4. Status prüfen
+
 sudo apt update
 sudo apt install ufw
-
-# 2. UFW aktivieren (falls noch nicht aktiv)
 sudo ufw enable
-
-# 3. Port 8001 freigeben
 sudo ufw allow 8001/tcp
-
-# 4. Status prüfen
 sudo ufw status

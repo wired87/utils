@@ -1,4 +1,3 @@
-from utils.embedder import embed
 
 import asyncio
 import json
@@ -320,7 +319,9 @@ class DBManager:
             tasks = []
             #print("data", data)
             for k, v in data.items():
-                rows = [embed(row) for row in v["rows"]] if embed_only else v["rows"]
+                #rows = [embed(row) for row in v["rows"]] if embed_only else v["rows"]
+
+                rows = None
                 print("Len rows", len(rows))
                 tasks.append(
                     self.aupdate_insert(
