@@ -5,11 +5,10 @@ import websockets
 
 from fastapi import WebSocket
 
-from qf_core_base import TEST_ENV_ID
 
 
 class ConnectionManager:
-    def __init__(self, host_id=TEST_ENV_ID):
+    def __init__(self, host_id):
         self.host_id = host_id
         local_origins = ["127.0.0.1", "localhost"]
         prod_origins =  ["bestbrain.tech"]

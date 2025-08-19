@@ -7,7 +7,6 @@ from typing import List, Dict
 
 import networkx as nx
 
-from app_utils import FB_DB_ROOT
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 import queue
 
@@ -56,7 +55,6 @@ class GUtils(Utils):
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
-        self.db_root = FB_DB_ROOT
 
         if self.enable_data_store is True:
             self.datastore = nx.Graph()
@@ -453,75 +451,67 @@ class GUtils(Utils):
         }
         if just_id is True:
             interest = list(interest.keys())
-
         return interest
 
     def get_neighbor_list(
             self,
             node,
             target_type: str or list or None = None,
-            just_id=False,
-            trgt_rel: str or list or None = None,
-            as_dict=False,
     ) -> List[tuple] or Dict[str, Dict]:
-        #print(f"# Get neighbors from {node} locals {locals()}")
-        if as_dict is True:
-            neighbors = {}
-        else:
-            neighbors = []
+        neighbors = {}
 
         # Filter Input
         if isinstance(target_type, str):
             target_type = [target_type]
-        if isinstance(trgt_rel, str):
-            trgt_rel = [trgt_rel]
+        upper_trgt_types = [t.upper() for t in target_type]
 
         for neighbor in self.G.neighbors(node):
-            # #print("get_neighbor_list neighbors:", neighbor)
+            #print("get_neighbor_list neighbors:", neighbor)
             # Get neighbor from type
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
                 # #print("get_neighbor_list nattrs", nattrs)
                 ntype = nattrs.get('type')
-                if ntype in [t.upper() for t in target_type]:
-                    if just_id is True:
-                        neighbors.append(neighbor)
-                    else:
-                        if as_dict is True:
-                            if ntype not in neighbors:
-                                neighbors[ntype] = {}
-                            neighbors[ntype][neighbor] = nattrs
-                        else:
-                            neighbors.append((neighbor, nattrs.copy()))
+                if ntype in upper_trgt_types:
+                    if neighbor not in neighbors:
+                        neighbors[neighbor] = {}
+                    neighbors[neighbor] = nattrs
 
-            # Get neighbor from rel
-            elif trgt_rel is not None:
-                if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
-                    for key, edge_attrs in self.G.get_edge_data(node, neighbor):
-                        if edge_attrs.get("rel") in trgt_rel:
-                            if just_id is True:
-                                neighbors.append(neighbor)
-                            else:
-                                if as_dict is True:
-                                    if ntype not in neighbors:
-                                        neighbors[ntype] = {}
-                                    neighbors[ntype][neighbor] = nattrs
-                                else:
-                                    neighbors.append((neighbor, nattrs.copy()))
-                            break
-                else:
-                    edge_attrs = self.G.get_edge_data(node, neighbor)
-                    #print("edge_attrs:", edge_attrs)
-                    if edge_attrs.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
-                        if just_id is True:
-                            neighbors.append(neighbor)
-                        else:
-                            neighbors.append((neighbor, nattrs.copy()))
-
-        #print(f"Neighbors extracted: {neighbors}")
+        print(f"Neighbors extracted: {neighbors.keys()}")
         return neighbors
 
 
+
+
+    def get_neighbor_list_rel(self, node:str, trgt_rel: str or list or None = None, as_dict=False):
+        neighbors = {}
+        edges = {}
+        if isinstance(trgt_rel, str):
+            trgt_rel = [trgt_rel]
+        # Get neighbor from rel
+        for neighbor in self.G.neighbors(node):
+            nnid = neighbor["id"]
+            if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
+                for key, edge_attrs in self.G.get_edge_data(node, neighbor):
+                    ntype = edge_attrs.get('type')
+
+                    if edge_attrs.get("rel") in trgt_rel:
+                        if ntype not in neighbors:
+                            neighbors[nnid] = {}
+                        edges[nnid] = edge_attrs
+            else:
+                edge_attrs = self.G.get_edge_data(node, neighbor)
+                # check if rel matches
+                if edge_attrs.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
+                    # get nodes from extracted edges
+                    neighbors[nnid] = neighbor.copy()
+
+        if as_dict is True:
+            return neighbors
+        return [
+            (nid, attrs)
+            for nid, attrs in neighbors.items()
+        ]
     def remove_node(self, node_id, ntype):
         for row in self.schemas[ntype]["rows"]:
             if row["id"] == node_id:
@@ -625,8 +615,11 @@ class GUtils(Utils):
 
 
     def get_nodes(self, filter_key=None, filter_value:str or list=None):
+        print("G:", self.G)
         nodes = self.G.nodes(data=True)
+
         print(f"len nodes: {len(nodes)}")
+
         if filter_key is not None and filter_value is not None:
             new_nodes = []
             if not isinstance(filter_value, list):
@@ -634,13 +627,17 @@ class GUtils(Utils):
 
             for nid, attrs in nodes:
                 if attrs.get(filter_key) in filter_value:
-                    new_nodes.append((nid, attrs))
+                    new_nodes.append(
+                        (nid, attrs)
+                    )
+
             nodes = new_nodes
+
         return nodes
 
     
     def get_edges_src_trgt_pos(self, G=None, get_pos=False) -> list[dict]:
-        if G==None:
+        if G == None:
             G = self.G
         edges=[]
         valid_types = [*ALL_SUBS, "PIXEL"]
@@ -708,7 +705,7 @@ class GUtils(Utils):
 
         for qfn in points:
             qfn_id = qfn[0]
-            categorized[qfn_id] = self.get_neighbor_list(qfn_id, trgt_rel="has_field")
+            categorized[qfn_id] = self.get_neighbor_list_rel(qfn_id, trgt_rel="has_field")
 
         print("Nodes in PIXELs categorized")
         return categorized
@@ -721,9 +718,11 @@ class GUtils(Utils):
     def get_demo_G_save_path(self):
         return self.demo_G_save_path
     def get_env(self):
-        env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
-        return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}
-
+        """env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
+        return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}"""
+        for nid, attrs in self.G.nodes(data=True):
+            if attrs.get("type") == "ENV":
+                return {"id": nid, **{k: v for k, v in attrs.items() if k != "id"}}
 
 
 
