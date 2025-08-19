@@ -18,7 +18,7 @@ class DockerAdmin:
 
     import os
 
-    def build_docker_image(self, image_name, dockerfile_path='.', e):
+    def build_docker_image(self, image_name, dockerfile_path='.', e={}):
         env_str = " ".join([f'--env {name}="{val}"' for name, val in e.items()])
         try:
             command = f"docker build -t {image_name} {dockerfile_path} -e {env_str}"

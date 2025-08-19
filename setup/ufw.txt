@@ -8,4 +8,5 @@ sudo apt update
 sudo apt install ufw
 sudo ufw enable
 sudo ufw allow 8001/tcp
+sudo ufw reload
 sudo ufw status
