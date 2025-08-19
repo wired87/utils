@@ -435,14 +435,16 @@ class GUtils(Utils):
         # #print("Added args")
 
     def get_single_neighbor_nx(self, node, target_type):
-        # #print("Node", node)
-        if isinstance(node, tuple):
-            node = node[0]
-        for neighbor in self.G.neighbors(node):
-            if self.G.nodes[neighbor].get('type') == target_type:
-                return neighbor, self.G.nodes[neighbor]
-        return None, None  # No neighbor of that type found
-
+        print("Node", node)
+        try:
+            if isinstance(node, tuple):
+                node = node[0]
+            for neighbor in self.G.neighbors(node):
+                if self.G.nodes[neighbor].get('type') == target_type:
+                    return neighbor, self.G.nodes[neighbor]
+            return None, None  # No neighbor of that type found
+        except Exception as e:
+            print(f"Couldnt fetch content: {e}")
     def get_node_list(self, trgt_types, just_id=False):
         interest = {
             nid:attrs

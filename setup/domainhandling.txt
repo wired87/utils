@@ -24,11 +24,6 @@ TTL: default
 
 ###########################
 
-
-
-
-
-
 check it dns records worked:
 ping bestbrain.tech
 
