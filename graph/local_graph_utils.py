@@ -102,22 +102,22 @@ class GUtils(Utils):
         ]))
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
-        attrs = self.manipulator.clean_attr_keys(attrs, flatten)
+        #print("Add node:", attrs)
+        attrs = self.manipulator.clean_attr_keys(
+            attrs,
+            flatten
+        )
+
         if attrs.get("type") is None:
             print("NEW NODE ATTRS")
             # pprint.pp(attrs)
 
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
-        # #print(">>NODE FILTERED")
-        # #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
-        """if single_upsert is True:
-            await self.g.upsert_row(
-                table=f"{edge_attrs['src_layer'].upper()}_{edge_attrs['rel']}_{edge_attrs['trgt_layer'].upper()}",
-                batch_chunk=[edge_attrs])"""
 
         if self.nx_only is False:
             self.local_batch_loader(attrs)
+
         self.G.add_node(nid, **{k: v for k, v in attrs.items() if k != "id"})
 
         # Add history entry
@@ -170,7 +170,10 @@ class GUtils(Utils):
             #print("H entry node added", self.datastore.nodes[history_id])
         else:
             raise ValueError("Invalid data!!!!", nid, attrs)
-    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
+
+    def add_edge(
+            self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None
+    ):
         # pprint.pp(attrs)
         #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         # todo externa nd intern couplings no edge id after creation
@@ -281,7 +284,8 @@ class GUtils(Utils):
             print("Node couldnt be updated...")
             return
 
-        attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+        # todo serilize @ save
+        #attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
 
         # Add keys
         self._extend_key_map(attrs)
@@ -296,7 +300,7 @@ class GUtils(Utils):
                 graph_item="node"
             )
 
-    def update_edge(self, src, trgt, attrs, rels: str or list = None, ):
+    def update_edge(self, src, trgt, attrs, rels: str or list = None, temporal=False):
         # rel = attrs.get("rel", "").lower().replace(" ", "_")
         """
         src_layer = attrs.get("src_layer").upper()
@@ -306,7 +310,8 @@ class GUtils(Utils):
         
 
         # serialize attrs
-        attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+        # todo @ save chek serilize otherwise ray actors get serialized fuck in
+        # attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
 
         # Add keys
         self._extend_key_map(attrs)
@@ -399,7 +404,14 @@ class GUtils(Utils):
         LOGGER.info(f"📂 Loading graph from {local_g_path}...")
         with open(local_g_path, "r", encoding="utf-8") as f:
             graph_data = json.load(f)  # Use json.load() for files, not json.loads()
+
         self.G = nx.node_link_graph(graph_data)
+
+        # return env
+        for k, v in self.G.nodes(data=True):
+            type = v.get("type")
+            if type == "ENV":
+                return k, v
         LOGGER.info(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
     def print_status_G(self):
@@ -434,8 +446,8 @@ class GUtils(Utils):
             # #print(f"{row_id} already in schema")
         # #print("Added args")
 
-    def get_single_neighbor_nx(self, node, target_type):
-        print("Node", node)
+    def get_single_neighbor_nx(self, node, target_type:str):
+        #print("Node", node)
         try:
             if isinstance(node, tuple):
                 node = node[0]
@@ -445,9 +457,10 @@ class GUtils(Utils):
             return None, None  # No neighbor of that type found
         except Exception as e:
             print(f"Couldnt fetch content: {e}")
+
     def get_node_list(self, trgt_types, just_id=False):
         interest = {
-            nid:attrs
+            nid: attrs
             for nid, attrs in self.G.nodes(data=True)
             if attrs.get("type") in trgt_types
         }
@@ -479,7 +492,7 @@ class GUtils(Utils):
                         neighbors[neighbor] = {}
                     neighbors[neighbor] = nattrs
 
-        print(f"Neighbors extracted: {neighbors.keys()}")
+        #print(f"Neighbors extracted: {neighbors.keys()}")
         return neighbors
 
 
@@ -488,13 +501,16 @@ class GUtils(Utils):
     def get_neighbor_list_rel(self, node:str, trgt_rel: str or list or None = None, as_dict=False):
         neighbors = {}
         edges = {}
+
         if isinstance(trgt_rel, str):
             trgt_rel = [trgt_rel]
+
         # Get neighbor from rel
-        for neighbor in self.G.neighbors(node):
-            nnid = neighbor["id"]
+        for nnid in self.G.neighbors(node):
+            edge_data = self.G.get_edge_data(node, nnid)
+
             if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
-                for key, edge_attrs in self.G.get_edge_data(node, neighbor):
+                for key, edge_attrs in edge_data:
                     ntype = edge_attrs.get('type')
 
                     if edge_attrs.get("rel") in trgt_rel:
@@ -502,11 +518,11 @@ class GUtils(Utils):
                             neighbors[nnid] = {}
                         edges[nnid] = edge_attrs
             else:
-                edge_attrs = self.G.get_edge_data(node, neighbor)
                 # check if rel matches
-                if edge_attrs.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
+                if edge_data.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
                     # get nodes from extracted edges
-                    neighbors[nnid] = neighbor.copy()
+                    attrs = self.G.nodes[nnid]
+                    neighbors[nnid] = attrs.copy()
 
         if as_dict is True:
             return neighbors
