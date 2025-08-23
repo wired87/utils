@@ -468,10 +468,29 @@ class GUtils(Utils):
             interest = list(interest.keys())
         return interest
 
+
+    def get_edge_ids(self, src, neighbor_ids):
+        eids=[]
+        for nnid in neighbor_ids:
+            eattrs = self.G.get_edge_data(src, nnid)
+            if "id" in eattrs:
+                eid = eattrs["id"]
+            else:
+                rel = eattrs.get("rel")
+                eid = f"{src}_{rel}_{nnid}"
+            eids.append(eid)
+        print(f"Edge Ids extracted: {eids}")
+        return eids
+
+
+
+
+
     def get_neighbor_list(
             self,
             node,
             target_type: str or list or None = None,
+            just_ids=False
     ) -> List[tuple] or Dict[str, Dict]:
         neighbors = {}
 
@@ -479,6 +498,11 @@ class GUtils(Utils):
         if isinstance(target_type, str):
             target_type = [target_type]
         upper_trgt_types = [t.upper() for t in target_type]
+
+        if just_ids is True:
+            nids = list(self.G.neighbors(node))
+            print(f"Node Ids extracted: {nids}")
+            return nids
 
         for neighbor in self.G.neighbors(node):
             #print("get_neighbor_list neighbors:", neighbor)
