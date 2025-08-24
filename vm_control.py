@@ -2,12 +2,6 @@
 
 
 
-class VMManager:
-    pass
-
-
-
-
 
 
 

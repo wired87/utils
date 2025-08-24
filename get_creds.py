@@ -4,7 +4,7 @@ import requests
 
 
 def get_creds(
-        types:list =["head"]
+        types:list =["HEAD"]
 ):
     # Fetch server
     key = os.environ.get("SERVER_ACCESS_KEY")

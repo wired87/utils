@@ -102,22 +102,22 @@ class GUtils(Utils):
         ]))
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
-        attrs = self.manipulator.clean_attr_keys(attrs, flatten)
+        #print("Add node:", attrs)
+        attrs = self.manipulator.clean_attr_keys(
+            attrs,
+            flatten
+        )
+
         if attrs.get("type") is None:
             print("NEW NODE ATTRS")
             # pprint.pp(attrs)
 
         attrs["type"] = attrs["type"].upper()
         nid = attrs["id"]
-        # #print(">>NODE FILTERED")
-        # #print(f"Add {attrs['id']} -> layer: {attrs['type']}")
-        """if single_upsert is True:
-            await self.g.upsert_row(
-                table=f"{edge_attrs['src_layer'].upper()}_{edge_attrs['rel']}_{edge_attrs['trgt_layer'].upper()}",
-                batch_chunk=[edge_attrs])"""
 
         if self.nx_only is False:
             self.local_batch_loader(attrs)
+
         self.G.add_node(nid, **{k: v for k, v in attrs.items() if k != "id"})
 
         # Add history entry
@@ -170,7 +170,10 @@ class GUtils(Utils):
             #print("H entry node added", self.datastore.nodes[history_id])
         else:
             raise ValueError("Invalid data!!!!", nid, attrs)
-    def add_edge(self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None):
+
+    def add_edge(
+            self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None
+    ):
         # pprint.pp(attrs)
         #print(f"Add edge {src}->{attrs.get('rel')}->{trt}")
         # todo externa nd intern couplings no edge id after creation
@@ -281,7 +284,8 @@ class GUtils(Utils):
             print("Node couldnt be updated...")
             return
 
-        attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+        # todo serilize @ save
+        #attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
 
         # Add keys
         self._extend_key_map(attrs)
@@ -296,7 +300,7 @@ class GUtils(Utils):
                 graph_item="node"
             )
 
-    def update_edge(self, src, trgt, attrs, rels: str or list = None, ):
+    def update_edge(self, src, trgt, attrs, rels: str or list = None, temporal=False):
         # rel = attrs.get("rel", "").lower().replace(" ", "_")
         """
         src_layer = attrs.get("src_layer").upper()
@@ -306,7 +310,8 @@ class GUtils(Utils):
         
 
         # serialize attrs
-        attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
+        # todo @ save chek serilize otherwise ray actors get serialized fuck in
+        # attrs = check_serialize_dict(attrs, [k for k in attrs.keys()])
 
         # Add keys
         self._extend_key_map(attrs)
@@ -399,7 +404,14 @@ class GUtils(Utils):
         LOGGER.info(f"📂 Loading graph from {local_g_path}...")
         with open(local_g_path, "r", encoding="utf-8") as f:
             graph_data = json.load(f)  # Use json.load() for files, not json.loads()
+
         self.G = nx.node_link_graph(graph_data)
+
+        # return env
+        for k, v in self.G.nodes(data=True):
+            type = v.get("type")
+            if type == "ENV":
+                return k, v
         LOGGER.info(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
     def print_status_G(self):
@@ -434,8 +446,8 @@ class GUtils(Utils):
             # #print(f"{row_id} already in schema")
         # #print("Added args")
 
-    def get_single_neighbor_nx(self, node, target_type):
-        print("Node", node)
+    def get_single_neighbor_nx(self, node, target_type:str):
+        #print("Node", node)
         try:
             if isinstance(node, tuple):
                 node = node[0]
@@ -445,83 +457,103 @@ class GUtils(Utils):
             return None, None  # No neighbor of that type found
         except Exception as e:
             print(f"Couldnt fetch content: {e}")
+
     def get_node_list(self, trgt_types, just_id=False):
         interest = {
-            nid:attrs
+            nid: attrs
             for nid, attrs in self.G.nodes(data=True)
             if attrs.get("type") in trgt_types
         }
         if just_id is True:
             interest = list(interest.keys())
-
         return interest
+
+
+    def get_edge_ids(self, src, neighbor_ids):
+        eids=[]
+        for nnid in neighbor_ids:
+            eattrs = self.G.get_edge_data(src, nnid)
+            if "id" in eattrs:
+                eid = eattrs["id"]
+            else:
+                rel = eattrs.get("rel")
+                eid = f"{src}_{rel}_{nnid}"
+            eids.append(eid)
+        print(f"Edge Ids extracted: {eids}")
+        return eids
+
+
+
+
 
     def get_neighbor_list(
             self,
             node,
             target_type: str or list or None = None,
-            just_id=False,
-            trgt_rel: str or list or None = None,
-            as_dict=False,
+            just_ids=False
     ) -> List[tuple] or Dict[str, Dict]:
-        #print(f"# Get neighbors from {node} locals {locals()}")
-        if as_dict is True:
-            neighbors = {}
-        else:
-            neighbors = []
+        neighbors = {}
 
         # Filter Input
         if isinstance(target_type, str):
             target_type = [target_type]
-        if isinstance(trgt_rel, str):
-            trgt_rel = [trgt_rel]
+        upper_trgt_types = [t.upper() for t in target_type]
+
+        if just_ids is True:
+            nids = list(self.G.neighbors(node))
+            print(f"Node Ids extracted: {nids}")
+            return nids
 
         for neighbor in self.G.neighbors(node):
-            # #print("get_neighbor_list neighbors:", neighbor)
+            #print("get_neighbor_list neighbors:", neighbor)
             # Get neighbor from type
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
                 # #print("get_neighbor_list nattrs", nattrs)
                 ntype = nattrs.get('type')
-                if ntype in [t.upper() for t in target_type]:
-                    if just_id is True:
-                        neighbors.append(neighbor)
-                    else:
-                        if as_dict is True:
-                            if ntype not in neighbors:
-                                neighbors[ntype] = {}
-                            neighbors[ntype][neighbor] = nattrs
-                        else:
-                            neighbors.append((neighbor, nattrs.copy()))
+                if ntype in upper_trgt_types:
+                    if neighbor not in neighbors:
+                        neighbors[neighbor] = {}
+                    neighbors[neighbor] = nattrs
 
-            # Get neighbor from rel
-            elif trgt_rel is not None:
-                if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
-                    for key, edge_attrs in self.G.get_edge_data(node, neighbor):
-                        if edge_attrs.get("rel") in trgt_rel:
-                            if just_id is True:
-                                neighbors.append(neighbor)
-                            else:
-                                if as_dict is True:
-                                    if ntype not in neighbors:
-                                        neighbors[ntype] = {}
-                                    neighbors[ntype][neighbor] = nattrs
-                                else:
-                                    neighbors.append((neighbor, nattrs.copy()))
-                            break
-                else:
-                    edge_attrs = self.G.get_edge_data(node, neighbor)
-                    #print("edge_attrs:", edge_attrs)
-                    if edge_attrs.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
-                        if just_id is True:
-                            neighbors.append(neighbor)
-                        else:
-                            neighbors.append((neighbor, nattrs.copy()))
-
-        #print(f"Neighbors extracted: {neighbors}")
+        #print(f"Neighbors extracted: {neighbors.keys()}")
         return neighbors
 
 
+
+
+    def get_neighbor_list_rel(self, node:str, trgt_rel: str or list or None = None, as_dict=False):
+        neighbors = {}
+        edges = {}
+
+        if isinstance(trgt_rel, str):
+            trgt_rel = [trgt_rel]
+
+        # Get neighbor from rel
+        for nnid in self.G.neighbors(node):
+            edge_data = self.G.get_edge_data(node, nnid)
+
+            if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
+                for key, edge_attrs in edge_data:
+                    ntype = edge_attrs.get('type')
+
+                    if edge_attrs.get("rel") in trgt_rel:
+                        if ntype not in neighbors:
+                            neighbors[nnid] = {}
+                        edges[nnid] = edge_attrs
+            else:
+                # check if rel matches
+                if edge_data.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
+                    # get nodes from extracted edges
+                    attrs = self.G.nodes[nnid]
+                    neighbors[nnid] = attrs.copy()
+
+        if as_dict is True:
+            return neighbors
+        return [
+            (nid, attrs)
+            for nid, attrs in neighbors.items()
+        ]
     def remove_node(self, node_id, ntype):
         for row in self.schemas[ntype]["rows"]:
             if row["id"] == node_id:
@@ -625,8 +657,11 @@ class GUtils(Utils):
 
 
     def get_nodes(self, filter_key=None, filter_value:str or list=None):
+        print("G:", self.G)
         nodes = self.G.nodes(data=True)
+
         print(f"len nodes: {len(nodes)}")
+
         if filter_key is not None and filter_value is not None:
             new_nodes = []
             if not isinstance(filter_value, list):
@@ -634,13 +669,17 @@ class GUtils(Utils):
 
             for nid, attrs in nodes:
                 if attrs.get(filter_key) in filter_value:
-                    new_nodes.append((nid, attrs))
+                    new_nodes.append(
+                        (nid, attrs)
+                    )
+
             nodes = new_nodes
+
         return nodes
 
     
     def get_edges_src_trgt_pos(self, G=None, get_pos=False) -> list[dict]:
-        if G==None:
+        if G == None:
             G = self.G
         edges=[]
         valid_types = [*ALL_SUBS, "PIXEL"]
@@ -708,7 +747,7 @@ class GUtils(Utils):
 
         for qfn in points:
             qfn_id = qfn[0]
-            categorized[qfn_id] = self.get_neighbor_list(qfn_id, trgt_rel="has_field")
+            categorized[qfn_id] = self.get_neighbor_list_rel(qfn_id, trgt_rel="has_field")
 
         print("Nodes in PIXELs categorized")
         return categorized
@@ -721,9 +760,11 @@ class GUtils(Utils):
     def get_demo_G_save_path(self):
         return self.demo_G_save_path
     def get_env(self):
-        env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
-        return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}
-
+        """env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
+        return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}"""
+        for nid, attrs in self.G.nodes(data=True):
+            if attrs.get("type") == "ENV":
+                return {"id": nid, **{k: v for k, v in attrs.items() if k != "id"}}
 
 
 

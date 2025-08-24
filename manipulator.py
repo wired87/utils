@@ -200,14 +200,6 @@ class Manipulator:
         if nt:
             attrs["type"] = nt.upper().replace(" ", "_")
 
-        if gene is True:
-            nt = attrs.get("type")
-            if nt:
-                if nt.upper() == "RHSA":
-                    self.refine_reactome(attrs)
-                elif nt.upper() in ["TRANSCRIPT", "GENE", "TRANSLATION"]:
-                    self.refine_gene_or_anchestors(attrs)
-
         return attrs
 
     def clean_attr_keys(self, attrs, flatten=True, stringify=False):
@@ -230,10 +222,6 @@ class Manipulator:
                 if stringify is True:
                     v = self.stringify_dict(v)
                 cleaned_attrs[clean_key] = v
-
-            """if isinstance(v, dict):
-                # stringify dict
-                cleaned_attrs[k] = json.dumps(v)"""
 
         for k, v in cleaned_attrs.items():
             if isinstance(v, str):

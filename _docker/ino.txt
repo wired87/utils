@@ -1,0 +1,9 @@
+build
+docker build -t qfs -f ./Dockerfile .
+
+artifact registry build & push
+docker build -t europe-west1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest -f ./Dockerfile . && \
+docker push europe-west1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest
+
+
+

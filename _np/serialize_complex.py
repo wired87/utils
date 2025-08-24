@@ -56,7 +56,6 @@ def serialize_complex_process(com, restore=False, bytes=True):
 
 
 def serialize_complex(com, restore=False, bytes=True):
-    #print("Before serialization:", com)
     data = {"serialized_complex": serialize_complex_process(
         com, restore, bytes
     )}
