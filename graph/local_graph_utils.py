@@ -479,10 +479,7 @@ class GUtils(Utils):
                 rel = eattrs.get("rel")
                 eid = f"{src}_{rel}_{nnid}"
             eids.append(eid)
-        print(f"Edge Ids extracted: {eids}")
         return eids
-
-
 
 
 
@@ -491,7 +488,7 @@ class GUtils(Utils):
             node,
             target_type: str or list or None = None,
             just_ids=False
-    ) -> List[tuple] or Dict[str, Dict]:
+    ) -> Dict[str, Dict] or list[str]:
         neighbors = {}
 
         # Filter Input
@@ -501,7 +498,7 @@ class GUtils(Utils):
 
         if just_ids is True:
             nids = list(self.G.neighbors(node))
-            print(f"Node Ids extracted: {nids}")
+            #print(f"Node Ids extracted: {nids}")
             return nids
 
         for neighbor in self.G.neighbors(node):
