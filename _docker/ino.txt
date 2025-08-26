@@ -1,9 +1,28 @@
-build
+# 1 build
 docker build -t qfs -f ./Dockerfile .
+
+# 2 create repo:
+gcloud artifacts repositories create qfs --repository-format=docker --location=us-central1
+
+# 3 push artifact regsitry
+docker tag qfs us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
+docker push us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
+
+
 
 artifact registry build & push
 docker build -t europe-west1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest -f ./Dockerfile . && \
-docker push europe-west1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest
+docker push us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest
 
 
 
+
+gcloud artifacts repositories create qfn \
+   --repository-format=docker \
+   --location=us-central1 \
+   --description="QMVP"
+
+gcloud artifacts repositories add-iam-policy-binding qfn \
+    --location=us-central1 \
+    --member=serviceAccount:aixr-401704@appspot.gserviceaccount.com \
+    --role="roles/artifactregistry.reader"
