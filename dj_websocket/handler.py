@@ -8,8 +8,7 @@ from fastapi import WebSocket
 
 
 class ConnectionManager:
-    def __init__(self, host_id):
-        self.host_id = host_id
+    def __init__(self):
         local_origins = ["127.0.0.1", "localhost"]
         prod_origins =  ["bestbrain.tech"]
         self.allowed_origins = local_origins if os.name == "nt" else prod_origins
@@ -22,7 +21,7 @@ class ConnectionManager:
             self.active_connections[env_id] = websocket
 
     async def _validate_origin(self, env_id, websocket: WebSocket):
-        print(f"validate received WS request to Host {self.host_id} ")
+        print(f"validate received WS request to Host ")
         def validate_sender_url():
             ok = False
             for item in self.allowed_origins:
@@ -30,7 +29,7 @@ class ConnectionManager:
                     ok=True
             return ok
 
-        if env_id == self.host_id and validate_sender_url():
+        if validate_sender_url():
             print("connection accepted")
             await websocket.accept()
             return websocket.url.hostname

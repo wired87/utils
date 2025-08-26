@@ -491,7 +491,7 @@ class GUtils(Utils):
             node,
             target_type: str or list or None = None,
             just_ids=False
-    ) -> List[tuple] or Dict[str, Dict]:
+    ) -> List[str] or Dict[str, Dict]:
         neighbors = {}
 
         # Filter Input
