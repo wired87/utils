@@ -1,5 +1,5 @@
 # 1 build
-docker build -t qfs -f ./Dockerfile .
+docker build -t us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest -f ./Dockerfile .
 
 # 2 create repo:
 gcloud artifacts repositories create qfs --repository-format=docker --location=us-central1
@@ -9,13 +9,34 @@ docker tag qfs us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
 docker push us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
 
 
+# list containers
+docker ps -a -q
+
+# rm single
+docker rm <name>
+
+# delete all stoped containers
+docker container prune
 
 artifact registry build & push
 docker build -t europe-west1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest -f ./Dockerfile . && \
 docker push us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest
 
 
-
+docker run -d \
+-e "SESSION_ID=env_id" \
+-e "DOMAIN=bestbrain.tech" \
+-e "GCP_ID=aixr-401704" \
+-e "DATASET_ID=QCOMPS" \
+-e "SIM_LEN_S=sim_time_s" \
+-e "LOGGING_DIR=tmp/ray" \
+-e "ENV_ID=env_id" \
+-e "USER_ID=your_user_id" \
+-e "FIREBASE_RTDB=your_firebase_rtdb" \
+-e "FB_DB_ROOT=users/your_user_id/env/env_id" \
+-e "DELETE_POD_ENDPOINT=gke/delete-pod/" \
+-e "CLUSTER_NAME=your_sim_cluster_name" \
+us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest
 
 gcloud artifacts repositories create qfn \
    --repository-format=docker \
@@ -26,3 +47,9 @@ gcloud artifacts repositories add-iam-policy-binding qfn \
     --location=us-central1 \
     --member=serviceAccount:aixr-401704@appspot.gserviceaccount.com \
     --role="roles/artifactregistry.reader"
+
+
+kubectl expose deployment hello-server \
+    --type LoadBalancer \
+    --port 80 \
+    --target-port 8080
