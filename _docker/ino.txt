@@ -8,13 +8,9 @@ gcloud artifacts repositories create qfs --repository-format=docker --location=u
 docker tag qfs us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
 docker push us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
 
-
-
 artifact registry build & push
 docker build -t europe-west1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest -f ./Dockerfile . && \
 docker push us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest
-
-
 
 
 gcloud artifacts repositories create qfn \
