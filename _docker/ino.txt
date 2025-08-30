@@ -2,11 +2,17 @@
 docker build -t us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest -f ./Dockerfile .
 
 # 2 create repo:
-gcloud artifacts repositories create qfs --repository-format=docker --location=us-central1
+gcloud artifacts repositories create qfs-repo --repository-format=docker --location=us-central1
 
 # 3 push artifact regsitry
 docker tag qfs us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
 docker push us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
+
+#delete deployment gke
+kubectl delete deployment env-bare-rajtigesomnlhfyqzbvx  --namespace=default
+
+# lsit deployements gke
+kubectl get deployments
 
 
 # list containers
