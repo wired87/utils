@@ -1,7 +1,6 @@
 import os
 import subprocess
 
-import docker
 from pathlib import Path
 
 from _ray_core.base.main import RayAdminBase
@@ -9,15 +8,11 @@ from dockerfile import get_custom_dockerfile_content
 from dynamic_docker import generate_dockerfile
 from qf_core_base.qf_utils.all_subs import ALL_SUBS
 
-
-
 class DockerAdmin:
     def __init__(self, context_path: str = ".", dockerfile_name: str = "Dockerfile"):
         self.context_path = Path(context_path)
         self.dockerfile_path = self.context_path / dockerfile_name
         self.client = docker.from_env()
-
-    import os
 
     def build_docker_image(self, image_name, dockerfile_path='.', e={}):
         env_str = " ".join([f'--env {name}="{val}"' for name, val in e.items()])
@@ -129,7 +124,7 @@ vars_dict = {
     "INSTANCE": os.environ.get("FIREBASE_RTDB"),
     "STIM_STRENGTH": os.environ.get("STIM_STRENGTH"),
 }
-
+r"""
 # --- Beispielnutzung ---
 if __name__ == "__main__":
     admin = DockerAdmin(".")
@@ -145,3 +140,4 @@ if __name__ == "__main__":
 
         path = os.path.join(fr"C:\Users\wired\OneDrive\Desktop\BestBrain\docker","bb_{sub}"), "v1")
         admin.build_docker_image(path, dockerfile_path=current_dir)
+"""
