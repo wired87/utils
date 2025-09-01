@@ -86,7 +86,10 @@ class ConnectionManager:
 
 
 
-    async def request_urls_process(self, all_ips):
+    async def request_urls_process(
+            self,
+            all_ips: dict
+    ):
         print("Connection request process started")
         try:
             # set len

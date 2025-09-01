@@ -14,6 +14,25 @@ kubectl delete deployment env-bare-rajtigesomnlhfyqzbvx  --namespace=default
 # lsit deployements gke
 kubectl get deployments
 
+# all logs containers  gke
+kubectl logs <pod_name> --all-containers=true
+
+
+
+
+
+######## DEBUG
+- env +uid nicht =None
+#################
+
+
+
+
+
+
+
+
+
 
 # list containers
 docker ps -a -q
