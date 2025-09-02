@@ -12,17 +12,11 @@ def exec_cmd(cmd, inp=None):
             shell=os.name == "nt",
             capture_output=True,
         )
-<<<<<<< HEAD
         print("CMD result:", result)
         if result is not None:
-            result = result.stdout
+            result = result.stdout.strip()
             print(result)
-=======
-        if result is not None:
-            print(result.stdout)
->>>>>>> origin/master
         return result
     except subprocess.CalledProcessError as e:
-        print("Exit code:", e.returncode)
-        print("STDOUT:\n", e.stdout)
-        print("STDERR:\n", e.stderr)
+        print("Exit code:", e)
+
