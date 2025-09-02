@@ -5,8 +5,8 @@ docker build -t us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs -f ./Dockerf
 gcloud artifacts repositories create qfs --repository-format=docker --location=us-central1
 
 # 3 push artifact regsitry
-docker tag qfs us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
-docker push us-central1-docker.pkg.dev/aixr-401704/qfs/qfs:latest
+docker tag qfs us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs
+docker push us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs
 
 artifact registry build & push
 docker build -t c:latest -f ./Dockerfile . && \
@@ -23,7 +23,16 @@ gcloud artifacts repositories add-iam-policy-binding qfn \
     --member=serviceAccount:aixr-401704@appspot.gserviceaccount.com \
     --role="roles/artifactregistry.reader"
 
+### LIST IMGs registry
+gcloud artifacts docker images list \
+  us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs
 
+# DLETE ARTIFACT IMAGE
+gcloud artifacts docker images delete us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs@sha256:d689be8997dc93202ed089502b4d9eff371eed3ededef0fdfc412579b4209230
+
+
+# DESCRIBE POD EG ERROR
+kubectl describe pod env-rajtigesomnlhfyqzbvx-dxuaodaunybixgexyufp-54c448db94-k982t -n default
 
 
 docker run us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest

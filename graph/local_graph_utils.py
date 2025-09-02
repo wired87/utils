@@ -277,6 +277,24 @@ class GUtils(Utils):
             return [{"attrs": attrs} for eid, attrs in self.datastore.edges(data=True) if
                     attrs.get("graph_item").lower() == "edge"]
 
+    def get_edges_from_node(self, nid, datastroe=True):
+        new_all_edges = []
+
+        if datastroe is False:
+            all_edges = [{"src": src, "trgt": trgt, "attrs": attrs} for src, trgt, attrs in self.G.edges(data=True)]
+            for edge in all_edges:
+                if edge["src"] == nid or edge["trgt"] == nid:
+                    new_all_edges.append(edge)
+        else:
+            return [{"attrs": attrs, "eid": eid} for eid, attrs in self.datastore.edges(data=True) if
+                    attrs.get("graph_item").lower() == "edge"]
+
+        if len(new_all_edges):
+            all_edges = new_all_edges
+
+        return  all_edges
+
+
     def update_node(self, attrs, disable_history=False):
         nid = attrs.get("id")
         node_attrs = self.G.nodes[nid]
