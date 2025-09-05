@@ -1,7 +1,6 @@
 import os
 import subprocess
 
-
 def exec_cmd(cmd, inp=None):
     try:
         result = subprocess.run(
