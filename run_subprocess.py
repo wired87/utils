@@ -16,5 +16,5 @@ def exec_cmd(cmd, inp=None):
         print("CMD result:", result)
         return result
     except subprocess.CalledProcessError as e:
-        print("Exit code:", e)
+        print("Error @CMD:", e)
 
