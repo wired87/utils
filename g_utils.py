@@ -64,10 +64,9 @@ class DBManager:
 
         if "fb" in upload_to:
             from fb_core.real_time_database import FirebaseRTDBManager
-            self.firebase = FirebaseRTDBManager(
-                database_url=instance,
-                base_path=database,
-            )
+            self.firebase = FirebaseRTDBManager()
+            self.firebase.set_root_ref(database)
+
         print("DataManager initialized")
 
 
