@@ -146,7 +146,7 @@ class Utils:
                     continue  # try again
 
 
-    async def apost(self, url: str, data=dict()) -> dict or None:
+    async def apost(self, url: str, data=dict) -> dict or None:
         headers = {'Content-Type': 'application/json'}
         try:
             async with httpx.AsyncClient() as client:
@@ -159,6 +159,26 @@ class Utils:
             print(f'Request failed: {e}...')
         return None
 
+    async def apost_gather(self, url: str, data=list) -> dict or None:
+        headers = {'Content-Type': 'application/json'}
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await asyncio.gather(
+                    *[
+                        client.post(
+                            url,
+                            json=data_item,
+                            headers=headers,
+                            timeout=20.0
+                        )
+                        for data_item in data
+                    ]
+                )
+                print(f"Gather successful : {response}")
+                return response
+        except Exception as e:
+            print(f'Request failed: {e}...')
+        return None
 
     async def download_json_content(
             self,

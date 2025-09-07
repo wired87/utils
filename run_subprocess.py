@@ -1,7 +1,6 @@
 import os
 import subprocess
 
-
 def exec_cmd(cmd, inp=None):
     try:
         result = subprocess.run(
@@ -13,9 +12,10 @@ def exec_cmd(cmd, inp=None):
             capture_output=True,
         )
         if result is not None:
-            print(result.stdout)
+            result = result.stdout.strip()
+        print("CMD result:", result)
         return result
     except subprocess.CalledProcessError as e:
-        print("Exit code:", e.returncode)
-        print("STDOUT:\n", e.stdout)
-        print("STDERR:\n", e.stderr)
+        print("Error:", e.stderr)
+        print("Output:", e.stdout)
+
