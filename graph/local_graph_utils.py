@@ -520,11 +520,9 @@ class GUtils(Utils):
             return nids
 
         for neighbor in self.G.neighbors(node):
-            #print("get_neighbor_list neighbors:", neighbor)
             # Get neighbor from type
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
-                # #print("get_neighbor_list nattrs", nattrs)
                 ntype = nattrs.get('type')
                 if ntype in upper_trgt_types:
                     if neighbor not in neighbors:
@@ -774,11 +772,13 @@ class GUtils(Utils):
 
     def get_demo_G_save_path(self):
         return self.demo_G_save_path
+
     def get_env(self):
         """env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
         return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}"""
         for nid, attrs in self.G.nodes(data=True):
             if attrs.get("type") == "ENV":
+                print("ENV entry found")
                 return {"id": nid, **{k: v for k, v in attrs.items() if k != "id"}}
 
 
