@@ -497,7 +497,7 @@ class GUtils(Utils):
                 rel = eattrs.get("rel")
                 eid = f"{src}_{rel}_{nnid}"
             eids.append(eid)
-        print(f"Edge Ids extracted: {eids}")
+        #print(f"Edge Ids extracted: {eids}")
         return eids
 
 
@@ -519,7 +519,7 @@ class GUtils(Utils):
 
         if just_ids is True:
             nids = list(self.G.neighbors(node))
-            print(f"Node Ids extracted: {nids}")
+            #print(f"Node Ids extracted: {nids}")
             return nids
 
         for neighbor in self.G.neighbors(node):
@@ -562,7 +562,14 @@ class GUtils(Utils):
                 if edge_data.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
                     # get nodes from extracted edges
                     attrs = self.G.nodes[nnid]
-                    neighbors[nnid] = attrs.copy()
+                    neighbors[nnid] = {
+                                        "id": nnid,
+                                        **{
+                                            k: v
+                                            for k, v in attrs.copy().items()
+                                            if k != "id"
+                                        }
+                                    }
 
         if as_dict is True:
             return neighbors
