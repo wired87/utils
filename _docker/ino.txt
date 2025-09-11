@@ -12,7 +12,6 @@ netstat
 netstat -ano
 ipconfig /all
 
-
 artifact registry build & push
 docker build -t c:latest -f ./Dockerfile . && \
 docker push us-central1-docker.pkg.dev/aixr-401704/qfs-repo/qfs:latest

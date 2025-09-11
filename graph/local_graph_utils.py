@@ -413,13 +413,11 @@ class GUtils(Utils):
 
 
 
-
-
     def load_graph(self, local_g_path=None):
         if local_g_path is None:
             local_g_path = self.g_from_path
         """Loads the networkx graph from a JSON file."""
-        LOGGER.info(f"📂 Loading graph from {local_g_path}...")
+        print(f"📂 Loading graph from {local_g_path}...")
         with open(local_g_path, "r", encoding="utf-8") as f:
             graph_data = json.load(f)  # Use json.load() for files, not json.loads()
 
