@@ -13,7 +13,7 @@ def exec_cmd(cmd, inp=None):
         )
         if result is not None:
             result = result.stdout.strip()
-        print("CMD result:", result)
+        # print("CMD result:", result)
         return result
     except subprocess.CalledProcessError as e:
         print("Error:", e.stderr)
