@@ -10,6 +10,7 @@ def exec_cmd(cmd, inp=None):
             input=inp,
             shell=os.name == "nt",
             capture_output=True,
+            timeout=20,
         )
         if result is not None:
             result = result.stdout.strip()

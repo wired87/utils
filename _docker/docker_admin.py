@@ -2,11 +2,10 @@ import os
 import subprocess
 
 from pathlib import Path
+import docker
 
-from _ray_core.base.main import RayAdminBase
 from dockerfile import get_custom_dockerfile_content
 from dynamic_docker import generate_dockerfile
-from qf_core_base.qf_utils.all_subs import ALL_SUBS
 
 class DockerAdmin:
     def __init__(self, context_path: str = ".", dockerfile_name: str = "Dockerfile"):
@@ -27,9 +26,50 @@ class DockerAdmin:
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
+    def run_local_docker_image(
+            self,
+            image: str,
+            name: str = None,
+            ports: dict = None,
+            env: dict = None,
+            detach: bool = True
+    ) -> str:
+        """
+        Run a local Docker image for testing.
 
+        :param image: Docker image name (e.g. "my-app:latest")
+        :param name: Optional container name
+        :param ports: Dict of {host_port: container_port}, e.g. {8001: 8001}
+        :param env: Dict of environment variables {key: value}
+        :param detach: Run in background (default: True)
+        :return: Container ID
+        """
+        try:
+            cmd = ["docker", "run"]
 
+            if detach:
+                cmd.append("-d")
 
+            if name:
+                cmd += ["--name", name]
+
+            if ports:
+                for host_port, container_port in ports.items():
+                    cmd += ["-p", f"{host_port}:{container_port}"]
+
+            if env:
+                for k, v in env.items():
+                    cmd += ["-e", f"{k}={v}"]
+
+            cmd.append(image)
+
+            print("Running local docker container:", " ".join(cmd))
+            container_id = subprocess.check_output(cmd, text=True).strip()
+            print(f"✅ Started container {container_id[:12]} from {image}")
+            return container_id
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to run docker image: {e}")
+            return None
 
     # --- Dockerfile-Erstellung ---
     def create_static_dockerfile(
