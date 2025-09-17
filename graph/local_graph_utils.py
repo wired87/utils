@@ -675,11 +675,12 @@ class GUtils(Utils):
                 )
         return serializable_node_copy
 
+
     def get_nodes(
             self,
             filter_key=None,
-            filter_value: str or list = None,
-            just_id=False
+            filter_value:str or list=None,
+            just_id=False,
     ):
         print("G:", self.G)
         nodes = self.G.nodes(data=True)
@@ -693,12 +694,9 @@ class GUtils(Utils):
 
             for nid, attrs in nodes:
                 if attrs.get(filter_key) in filter_value:
-                    if just_id is False:
-                        new_nodes.append(
-                            (nid, attrs)
-                        )
-                    else:
-                        new_nodes.append(nid)
+                    new_nodes.append(
+                        (nid, attrs)
+                    )
 
             nodes = new_nodes
 
