@@ -44,7 +44,7 @@ class GUtils(Utils):
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.history = {}
-        self.user_id=user_id
+        self.user_id = user_id
 
         #todo just temporary look for demo G in QFS and BB
         demo_G_save_path = r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\demo_G.json" if os.name == "nt" else "demo_G.json"
@@ -79,7 +79,6 @@ class GUtils(Utils):
         "rows": [],
         "id_map": set(),
         },"""
-
         print("GUtils initialized")
 
     ####################################
