@@ -88,6 +88,8 @@ class GUtils(Utils):
     def get_edge(self, src, trgt):
         return self.G.edges[src, trgt]
 
+    def get_graph(self):
+        return self.G
 
     def get_node(self, nid):
         return self.G.nodes[nid]
@@ -427,7 +429,7 @@ class GUtils(Utils):
             type = v.get("type")
             if type == "ENV":
                 return k, v
-        LOGGER.info(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
+        print(f"✅ Graph loaded! {len(self.G.nodes)} nodes, {len(self.G.edges)} edges.")
 
     def print_status_G(self):
         print("STATUS:", self.G)
@@ -597,7 +599,7 @@ class GUtils(Utils):
         # --- Graph aufbauen ---
         env = None
         data_keys = [k for k in initial_data.keys()]
-        LOGGER.info(f"INITIAL DATA KEYS: {data_keys}")
+        print(f"INITIAL DATA KEYS: {data_keys}")
 
         for node_type, node_id_data in initial_data.items():
             # Just get valid
@@ -605,15 +607,15 @@ class GUtils(Utils):
             valid_types = [*ALL_SUBS, "PIXEL", "ENV", "EDGES"]
             nupper_valid_t = nupper in valid_types
 
-            LOGGER.info(f"{nupper} valid: {nupper_valid_t}")
+            print(f"{nupper} valid: {nupper_valid_t}")
 
             if nupper_valid_t:
                 if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                     for nid, attrs in node_id_data.items():
-                        # LOGGER.info(f">>>NID, {nid}")
+                        # print(f">>>NID, {nid}")
                         if node_type.lower() == "edges":
                             parts = nid.split(f"_{attrs.get('rel')}_")
-                            # LOGGER.info("parts", parts)
+                            # print("parts", parts)
                             # check 2 ids in id and
                             if len(parts) >= 2:
                                 self.add_edge(
@@ -625,7 +627,7 @@ class GUtils(Utils):
                                 print("something else!!!")
 
                         elif node_type == "ENV":
-                            LOGGER.info("Env recognized")
+                            print("Env recognized")
                             env = attrs
                             env_id = nid
                             self.add_node(
@@ -637,14 +639,14 @@ class GUtils(Utils):
                                 attrs=attrs,
                             )
                 else:
-                    LOGGER.info(f"DATA NOT A DICT:{node_type}:{node_id_data}")
+                    print(f"DATA NOT A DICT:{node_type}:{node_id_data}")
                     # pprint.pp(node_id_data)
                 # time.sleep(10)
 
             else:
-                LOGGER.info(f"TYPE NOT VALID:{node_type}")
+                print(f"TYPE NOT VALID:{node_type}")
 
-        LOGGER.info(f"Graph successfully build: {self.G}")
+        print(f"Graph successfully build: {self.G}")
 
         if save_demo is True and getattr(self, "demo_G_save_path", None) is not None:
             self.save_graph(dest_file=self.demo_G_save_path)
