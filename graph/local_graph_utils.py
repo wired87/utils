@@ -696,10 +696,14 @@ class GUtils(Utils):
 
             for nid, attrs in nodes:
                 if attrs.get(filter_key) in filter_value:
-                    new_nodes.append(
-                        (nid, attrs)
-                    )
-
+                    if just_id is True:
+                        new_nodes.append(
+                            nid
+                        )
+                    else:
+                        new_nodes.append(
+                            (nid, attrs)
+                        )
             nodes = new_nodes
 
         return nodes

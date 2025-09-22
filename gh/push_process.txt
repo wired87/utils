@@ -1,5 +1,3 @@
-
-
 cd gdb_manager && \
 git init && \
 git add . && \
