@@ -135,3 +135,11 @@ def check_serialize_dict(data, attr_keys=None):
     except Exception as e:
         print("Error serialize dict", e)
         return data
+
+def check_deserialize(data:dict, serialize_val_key="serialized_complex"):
+    converted_struct = {}
+    for k, v in data.items():
+        if isinstance(v, dict) and serialize_val_key in v:
+            v = deserialize_complex(v)
+            converted_struct[k] = v
+    return converted_struct
