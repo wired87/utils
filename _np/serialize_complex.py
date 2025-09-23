@@ -117,13 +117,18 @@ def convert_numeric(v):
         return v
 
 
-def check_serialize_dict(data, attr_keys):
+def check_serialize_dict(data, attr_keys=None):
     # why attr_keys? -> serialize self.__dict__
     try:
         new_dict={}
         for k, v in data.items():
-            if k in attr_keys:
-                #print("Convert sd key:", k, type(v), v)
+            if attr_keys is not None:
+                if k in attr_keys:
+                    #print("Convert sd key:", k, type(v), v)
+                    v = check_serilisation(v)
+                    new_dict[k] = v
+            else:
+                # print("Convert sd key:", k, type(v), v)
                 v = check_serilisation(v)
                 new_dict[k] = v
         return new_dict
