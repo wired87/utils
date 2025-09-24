@@ -9,7 +9,7 @@ from typing import Dict, List
 
 """
     SpannerGraphLoader,
-    SpannerAsyncHelper,
+    ASpannerManager,
     # BigQueryGraphHandler,
     # ABQHandler
     BQCore,
@@ -52,9 +52,9 @@ class DBManager:
         if "sp" in upload_to:
             # ABQHandler.__init__.py(self, database=database)
             # BigQueryGraphHandler.__init__.py(self)
-            from spanner.acore import SpannerAsyncHelper
+            from spanner.acore import ASpannerManager
             from _spanner_graph.graph_loader import SpannerGraphLoader
-            self.spa = SpannerAsyncHelper(database)
+            self.spa = ASpannerManager(database)
             self.spg = SpannerGraphLoader(database)
 
         if "st" in upload_to:
