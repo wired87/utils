@@ -487,7 +487,7 @@ class GUtils(Utils):
 
 
     def get_edge_ids(self, src, neighbor_ids):
-        eids=[]
+        eids = []
         for nnid in neighbor_ids:
             eattrs = self.G.get_edge_data(src, nnid)
             if "id" in eattrs:
