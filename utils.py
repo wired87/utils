@@ -159,6 +159,30 @@ class Utils:
             print(f'Request failed: {e}...')
         return None
 
+
+
+    async def req(self, url: str, method: str = "GET", data=None):
+        async with httpx.AsyncClient() as client:
+            if method.upper() == "GET":
+                r = await client.get(url, params=data)
+            elif method.upper() == "POST":
+                r = await client.post(url, json=data)
+            elif method.upper() == "DELETE":
+                r = await client.delete(url, params=data)
+            else:
+                raise ValueError("Unsupported method")
+
+            # return simple info
+            return r.status_code, r.json()
+
+
+
+
+
+
+
+
+
     async def apost_gather(self, url: str, data=list) -> dict or None:
         headers = {'Content-Type': 'application/json'}
         try:

@@ -264,12 +264,17 @@ class GUtils(Utils):
         if nid not in self.id_map:
             self.id_map.add(nid)
 
-    def get_edges(self, datastroe=True):
-        if datastroe is False:
-            return [{"src": src, "trgt": trgt, "attrs": attrs} for src, trgt, attrs in self.G.edges(data=True)]
+    def get_edges(self, datastore=True, just_id=False):
+        if datastore is False:
+            if just_id is True:
+                edges = [attrs.get("id") for _, _, attrs in self.G.edges(data=True)]
+            else:
+                edges = [{"src": src, "trgt": trgt, "attrs": attrs} for src, trgt, attrs in self.G.edges(data=True)]
+
         else:
-            return [{"attrs": attrs} for eid, attrs in self.datastore.edges(data=True) if
+            edges = [{"attrs": attrs} for eid, attrs in self.datastore.edges(data=True) if
                     attrs.get("graph_item").lower() == "edge"]
+        return edges
 
     def get_edges_from_node(self, nid, datastroe=True):
         new_all_edges = []
@@ -404,6 +409,14 @@ class GUtils(Utils):
                 )
             )
         return G
+
+
+
+
+
+
+
+
 
 
 
