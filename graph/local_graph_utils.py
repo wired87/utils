@@ -114,7 +114,7 @@ class GUtils(Utils):
             # pprint.pp(attrs)
 
         attrs["type"] = attrs["type"].upper()
-        nid = attrs["id"]
+        nid = attrs["nid"]
 
         if self.nx_only is False:
             self.local_batch_loader(attrs)
@@ -219,7 +219,7 @@ class GUtils(Utils):
 
                 # Add keys
                 self._extend_key_map(attrs)
-                self._extend_id_map(attrs["id"])
+                self._extend_id_map(attrs["nid"])
 
                 # #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
@@ -243,7 +243,7 @@ class GUtils(Utils):
 
                 # Add history entry
                 self.h_entry(
-                    nid=attrs["id"],
+                    nid=attrs["nid"],
                     attrs={k: v for k, v in attrs.items() if k != "id"},
                     graph_item="edge"
                 )
@@ -312,7 +312,7 @@ class GUtils(Utils):
         if self.enable_data_store is True and disable_history is False:
             # Add history entry
             self.h_entry(
-                attrs["id"],
+                attrs["nid"],
                 {k: v for k, v in attrs.items() if k != "id"},
                 graph_item="node"
             )
@@ -497,7 +497,7 @@ class GUtils(Utils):
         for nnid in neighbor_ids:
             eattrs = self.G.get_edge_data(src, nnid)
             if "id" in eattrs:
-                eid = eattrs["id"]
+                eid = eattrs["nid"]
             else:
                 rel = eattrs.get("rel")
                 eid = f"{src}_{rel}_{nnid}"
