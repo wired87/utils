@@ -3,18 +3,12 @@ import json
 import os
 from typing import Dict, List
 
-
+from a_b_c.spanner_agent._spanner_graph.acore import ASpannerManager
+from a_b_c.spanner_agent._spanner_graph.s_graph_loader import SpannerGraphLoader
 
 # todo batch process: collect, then send up in batches
 
-"""
-    SpannerGraphLoader,
-    ASpannerManager,
-    # BigQueryGraphHandler,
-    # ABQHandler
-    BQCore,
-    #GUtils
-"""
+
 class DBManager:
     """
     Gets all times an nx.G
@@ -45,26 +39,10 @@ class DBManager:
         self.tables_created = []
         self.edge_batch = {}
         self.runs = 0
-        if "bq" in upload_to:
-            from _bq_core.bq_handler import BQCore
-            self.bqc = BQCore(dataset_id=database)
-
-        if "sp" in upload_to:
-            # ABQHandler.__init__.py(self, database=database)
-            # BigQueryGraphHandler.__init__.py(self)
-            from spanner.acore import ASpannerManager
-            from _spanner_graph.graph_loader import SpannerGraphLoader
-            self.spa = ASpannerManager(database)
-            self.spg = SpannerGraphLoader(database)
-
-        if "st" in upload_to:
-            from _g_storage.storage import GBucket
-            self.bucket = GBucket(bucket_name="BESTBRAIN")
-
-        if "fb" in upload_to:
-            from fb_core.real_time_database import FirebaseRTDBManager
-            self.firebase = FirebaseRTDBManager()
-            self.firebase.set_root_ref(database)
+        # ABQHandler.__init__.py(self, database=database)
+        # BigQueryGraphHandler.__init__.py(self)
+        self.spa = ASpannerManager()
+        self.spg = SpannerGraphLoader()
 
         print("DataManager initialized")
 
