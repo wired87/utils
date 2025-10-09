@@ -30,7 +30,7 @@ class GraphLookup(APIView):
         # 1. Definiere den Pfad zur JSON-Datei
         # ACHTUNG: Hardcodierte Pfade sind schlecht. Besser wäre es, diesen Pfad aus
         # den Django-Settings oder einer Konfiguration zu laden.
-        json_file_path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\qf_sim\calculator\tree.json"
+        json_file_path = r"C:\Users\wired\OneDrive\Desktop\qfs\qf_sim\calculator\tree.json"
 
         # 2. Öffne die JSON-Datei und lade ihren Inhalt in ein Python-Dictionary
         with open(json_file_path, 'r', encoding='utf-8') as f:

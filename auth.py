@@ -6,15 +6,17 @@ import requests
 from firebase_admin import credentials as fb_creds
 from google.oauth2 import service_account
 
+import dotenv
+dotenv.load_dotenv()
 
 class AuthManager:
 
     def __init__(self, auth:list):
         self.creds = {}
         try:
-            # load creds local
-            self.bq_path =r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\aixr-401704-59fb7f12485c.json" if os.name == "nt" else "aixr-401704-59fb7f12485c.json"
-            self.fb_path = r"C:\Users\wired\OneDrive\Desktop\BestBrain\firebase_creds.json" if os.name == "nt" else "firebase_creds.json"
+            # load creds local aixr-401704-59fb7f12485c
+            self.bq_path =r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\credentials.json" if os.name == "nt" else "credentials.json"
+            self.fb_path = os.getenv("FIREBASE_CREDENTIALS")
 
             if "g" in auth:
                 self.bq_quth_payload = self._set_creds(self.bq_path)

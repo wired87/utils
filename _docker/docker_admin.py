@@ -178,6 +178,6 @@ if __name__ == "__main__":
             **vars_dict
         )
 
-        path = os.path.join(fr"C:\Users\wired\OneDrive\Desktop\BestBrain\docker","bb_{sub}"), "v1")
+        path = os.path.join(fr"C:\Users\wired\OneDrive\Desktop\qfs\docker","bb_{sub}"), "v1")
         admin.build_docker_image(path, dockerfile_path=current_dir)
 """
