@@ -39,7 +39,7 @@ class DockerAdmin:
 
         :param image: Docker image name (e.g. "my-app:latest")
         :param name: Optional container name
-        :param ports: Dict of {host_port: container_port}, e.g. {8001: 8001}
+        :param ports: Dict of {host_port: container_port}, e.g. {8000: 8000}
         :param env: Dict of environment variables {key: value}
         :param detach: Run in background (default: True)
         :return: Container ID

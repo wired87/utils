@@ -71,7 +71,7 @@ OPTIONS = {
     "locales": {},
     "clickToUse": False,
     "configure": {},
-    "edges": {
+    "EDGES": {
         "color": {
             "color": "white"
         },

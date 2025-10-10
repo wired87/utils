@@ -7,12 +7,11 @@ from typing import List, Dict
 
 import networkx as nx
 
-from qf_core_base.qf_utils.all_subs import ALL_SUBS
 import queue
 
+from qf_utils.all_subs import ALL_SUBS
 from utils._np.serialize_complex import check_serialize_dict
 from utils.graph.visual import create_g_visual
-from utils.logger import LOGGER
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
 from utils.utils import Utils
@@ -619,7 +618,7 @@ class GUtils(Utils):
                 if isinstance(node_id_data, dict):  # Sicherstellen, dass es ein Dictionary ist
                     for nid, attrs in node_id_data.items():
                         # print(f">>>NID, {nid}")
-                        if node_type.lower() == "edges":
+                        if node_type.lower() == "EDGES":
                             parts = nid.split(f"_{attrs.get('rel')}_")
                             # print("parts", parts)
                             # check 2 ids in id and
