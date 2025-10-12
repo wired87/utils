@@ -26,7 +26,7 @@ class AuthManager:
 
         except Exception as e:
             print(f"Could not load creds local (exception: {e}) request from server")
-            domain = "http://127.0.0.1:8000" if os.name == "nt" else f"https://{os.environ.get('DMOAIN')}"
+            domain = "http://127.0.0.1:8001" if os.name == "nt" else f"https://{os.environ.get('DMOAIN')}"
             self.auth_request_path = f"{domain}/auth/access"
 
             request_types = []

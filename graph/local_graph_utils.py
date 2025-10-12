@@ -73,11 +73,6 @@ class GUtils(Utils):
         self.key_map = set()
         self.id_map = set()
         self.schemas = {}
-        """table_name: {
-        "schema": {},
-        "rows": [],
-        "id_map": set(),
-        },"""
         print("GUtils initialized")
 
     ####################################
@@ -133,7 +128,6 @@ class GUtils(Utils):
         if ntype is None:
             ntype = graph_item  # -> SET EDGE
 
-        #print(f"Add {graph_item} h_entry", nid)
         if self.enable_data_store is True:
             if timestep is None:
                 timestep = attrs.get("time", 0)
@@ -172,7 +166,12 @@ class GUtils(Utils):
             raise ValueError("Invalid data!!!!", nid, attrs)
 
     def add_edge(
-            self, src=None, trt=None, attrs: dict or None = None, flatten=False, timestep=None, index=None
+            self,
+            src=None,
+            trt=None,
+            attrs: dict or None = None,
+            flatten=False, timestep=None,
+            index=None
     ):
         # Color
         color = None
@@ -212,7 +211,8 @@ class GUtils(Utils):
                     **attrs,
                     "src": src,
                     "trgt": trt,
-                    "id": edge_id,
+                    "eid": edge_id,
+                    "tid": 0,
                     "color": color,
                 }
 
@@ -224,8 +224,8 @@ class GUtils(Utils):
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
                 attrs["type"] = edge_table_name
 
-                src_node_attr = {"id": src, "type": src_layer}
-                trgt_node_attr = {"id": trt, "type": trgt_layer}
+                src_node_attr = {"eid": src, "tid": 0, "type": src_layer}
+                trgt_node_attr = {"eid": trt,"tid": 0, "type": trgt_layer}
                 # #print(f"Add {src} -> trgt: {trt}")
 
                 if self.nx_only is False:
@@ -294,7 +294,7 @@ class GUtils(Utils):
 
 
     def update_node(self, attrs, disable_history=False):
-        nid = attrs.get("id")
+        nid = attrs.get("nid")
         node_attrs = self.G.nodes[nid]
         if node_attrs is None:
             print("Node couldnt be updated...")
@@ -312,7 +312,7 @@ class GUtils(Utils):
             # Add history entry
             self.h_entry(
                 attrs["nid"],
-                {k: v for k, v in attrs.items() if k != "id"},
+                {k: v for k, v in attrs.items() if k != "nid"},
                 graph_item="node"
             )
 
@@ -341,16 +341,16 @@ class GUtils(Utils):
                         edge_id = f"{src}_{erel}_{trgt}"
                         self.h_entry(
                             edge_id,
-                            {k: v for k, v in attrs.items() if k != "id"},
+                            {k: v for k, v in attrs.items() if k != "eid"},
                             graph_item="edge"
                         )
                     self.G.edges[src, trgt, key].update(attrs)
         else:
             if self.enable_data_store is True:
-                edge_id = self.G.edges[src, trgt]["id"]
+                edge_id = self.G.edges[src, trgt]["eid"]
                 self.h_entry(
                     edge_id,
-                    {k: v for k, v in attrs.items() if k != "id"},
+                    {k: v for k, v in attrs.items() if k != "eid"},
                     graph_item="edge"
                 )
             self.G.edges[src, trgt].update(attrs)
@@ -450,7 +450,7 @@ class GUtils(Utils):
 
     def local_batch_loader(self, args):
         table_name = args.get("type")
-        row_id = args["id"]
+        row_id = args.get("nid", args.get("eid"))
         if table_name:
             if table_name not in self.schemas:
                 self.schemas[table_name] = {
@@ -495,7 +495,7 @@ class GUtils(Utils):
         eids = []
         for nnid in neighbor_ids:
             eattrs = self.G.get_edge_data(src, nnid)
-            if "id" in eattrs:
+            if "eid" in eattrs:
                 eid = eattrs["nid"]
             else:
                 rel = eattrs.get("rel")
@@ -567,11 +567,11 @@ class GUtils(Utils):
                     # get nodes from extracted edges
                     attrs = self.G.nodes[nnid]
                     neighbors[nnid] = {
-                                        "id": nnid,
+                                        "nid": nnid,
                                         **{
                                             k: v
                                             for k, v in attrs.copy().items()
-                                            if k != "id"
+                                            if k != "nid"
                                         }
                                     }
 
@@ -583,7 +583,7 @@ class GUtils(Utils):
         ]
     def remove_node(self, node_id, ntype):
         for row in self.schemas[ntype]["rows"]:
-            if row["id"] == node_id:
+            if row["nid"] == node_id:
                 self.schemas[ntype]["rows"].remove(row)
                 break
         self.G.remove_node(node_id)
@@ -676,7 +676,7 @@ class GUtils(Utils):
                 # todo single subs
                 serializable_node_copy.append(
                     {
-                        "id": nid,
+                        "nid": nid,
                         "pos": attrs.get("pos")
                     }
                 )
@@ -802,24 +802,7 @@ class GUtils(Utils):
         for nid, attrs in self.G.nodes(data=True):
             if attrs.get("type") == "ENV":
                 print("ENV entry found")
-                return {"id": nid, **{k: v for k, v in attrs.items() if k != "id"}}
+                return {
+                    "nid": nid,
+                    **{k: v for k, v in attrs.items() if k != "nid"}}
 
-
-
-
-
-"""
-
-
-initial_frontend_data[node_type].update(
-{
-attrs.get("id", edge_id): {
-"src": parts[0],
-"trgt": parts[1],
-"color": attrs.get("color")
-}
-}
-)
-
-
-"""

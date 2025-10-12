@@ -14,7 +14,7 @@ def get_creds(
     domain = os.environ.get("DOMAIN")
 
     if os.name == "nt":
-        request_url = "http://127.0.0.1:8000" + endpoint
+        request_url = "http://127.0.0.1:8001" + endpoint
     else:
         request_url = f"https://{domain}{endpoint}"
 
