@@ -1,9 +1,4 @@
-import asyncio
 import os
-from threading import Thread
-
-import websockets
-from fastapi import WebSocket
 
 from utils.utils import Utils
 
@@ -26,7 +21,7 @@ class ConnectionManager:
         self.all_authenticated = False
 
 
-    async def connect(self, websocket: WebSocket, env_id):
+    async def connect(self, websocket, env_id):
         granted = await self._validate_origin(env_id, websocket)
         if granted and env_id not in self.active_connections:
             #
@@ -36,7 +31,7 @@ class ConnectionManager:
 
 
 
-    async def _validate_origin(self, env_id, websocket: WebSocket):
+    async def _validate_origin(self, env_id, websocket):
         print(f"validate received WS request to Host ")
         def validate_sender_url():
             ok = False

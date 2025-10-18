@@ -9,7 +9,6 @@ import networkx as nx
 
 import queue
 
-from qf_utils.all_subs import ALL_SUBS
 from utils._np.serialize_complex import check_serialize_dict
 from utils.graph.visual import create_g_visual
 from utils.manipulator import Manipulator
@@ -46,11 +45,11 @@ class GUtils(Utils):
         self.user_id = user_id
 
         #todo just temporary look for demo G in QFS and BB
-        demo_G_save_path = r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\demo_G.json" if os.name == "nt" else "demo_G.json"
+        demo_G_save_path = r"C:\Users\bestb\PycharmProjects\BestBrain\data\demo_G.json" if os.name == "nt" else "demo/demo_G.json"
         if os.path.isfile(demo_G_save_path):
             self.demo_G_save_path = demo_G_save_path
         else:
-            self.demo_G_save_path = r"C:\Users\wired\OneDrive\Desktop\qfs\demo_G.json" if os.name == "nt" else "demo_G.json"
+            self.demo_G_save_path = r"C:\Users\bestb\PycharmProjects\BestBrain\data\demo_G.json" if os.name == "nt" else "data/demo_G.json"
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
@@ -410,15 +409,6 @@ class GUtils(Utils):
         return G
 
 
-
-
-
-
-
-
-
-
-
     def load_graph(self, local_g_path=None):
         if local_g_path is None:
             local_g_path = self.g_from_path
@@ -609,7 +599,7 @@ class GUtils(Utils):
         for node_type, node_id_data in initial_data.items():
             # Just get valid
             nupper = node_type.upper()
-            valid_types = [*ALL_SUBS, "PIXEL", "ENV", "EDGES"]
+            valid_types = []
             nupper_valid_t = nupper in valid_types
 
             print(f"{nupper} valid: {nupper_valid_t}")
@@ -669,7 +659,7 @@ class GUtils(Utils):
         if G==None:
             G = self.G
         serializable_node_copy = []
-        valid_types = [*ALL_SUBS, "PIXEL"]
+        valid_types = []
         for nid, attrs in G.nodes(data=True):
             ntype = attrs.get("type")
             if ntype in valid_types:
@@ -718,7 +708,7 @@ class GUtils(Utils):
         if G == None:
             G = self.G
         edges=[]
-        valid_types = [*ALL_SUBS, "PIXEL"]
+        valid_types = []
         for src, trgt, attrs in G.edges(data=True):
             src_attrs = G.nodes[src]
             trgt_attrs = G.nodes[trgt]
@@ -762,7 +752,7 @@ class GUtils(Utils):
 
 
 
-    def categorize_nodes_in_types(self, valid_ntypes=ALL_SUBS) -> dict[list]:
+    def categorize_nodes_in_types(self, valid_ntypes) -> dict[list]:
         categorized = {}
         for nid, attrs in self.G.nodes(data=True):
             ntype = attrs.get("type")
