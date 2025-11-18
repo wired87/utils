@@ -391,7 +391,6 @@ class GUtils(Utils):
             json.dump(data, f)
 
     def check_serilize(self, G):
-        # srialize
         for nid, attrs in G.nodes(data=True):
             G.nodes[nid].update(
                 check_serialize_dict(
