@@ -1,67 +1,113 @@
-import json
+import subprocess
+import sys
 import os
 
-import requests
 
-from firebase_admin import credentials as fb_creds
-from google.oauth2 import service_account
+# --- Authentication Function ---
+def gcloud_auth_login(key_file_path: str = None):
+    """Checks gcloud authentication and logs in if necessary."""
+    try:
+        # Check if gcloud is installed
+        subprocess.run(["gcloud", "--version"], check=True, capture_output=True, shell=os.name == "nt")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("ERROR: gcloud command not found. Install Google Cloud SDK.")
+        sys.exit(1)
 
-import dotenv
-dotenv.load_dotenv()
+    # Check for existing authentication
+    try:
+        result = subprocess.run(
+            ["gcloud", "config", "get-value", "account"],
+            check=True, capture_output=True, text=True, shell=os.name == "nt"
+        )
+        if result.stdout.strip():
+            print(f"✅ Authenticated as: {result.stdout.strip()}")
+            return
+    except subprocess.CalledProcessError:
+        pass
 
-class AuthManager:
+    print("🟡 gcloud not authenticated. Logging in...")
 
-    def __init__(self, auth:list):
-        self.creds = {}
-        try:
-            # load creds local aixr-401704-59fb7f12485c
-            self.bq_path =r"C:\Users\wired\OneDrive\Desktop\Projects\qfs\credentials.json" if os.name == "nt" else "credentials.json"
-            self.fb_path = os.getenv("FIREBASE_CREDENTIALS")
+    # key_file now uses the provided path, or falls back to env var/None
+    key_file = key_file_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
 
-            if "g" in auth:
-                self.bq_quth_payload = self._set_creds(self.bq_path)
-            elif "fb" in auth:
-                self.fb_auth_payload = self._set_creds(self.fb_path)
+    try:
+        if key_file and os.path.exists(key_file):
+            # Service Account Authentication
+            print(f"🔑 Activating service account from file: {key_file}")
+            subprocess.run(
+                ["gcloud", "auth", "activate-service-account", f"--key-file={key_file}"],
+                check=True, capture_output=True, shell=os.name == "nt"
+            )
+        elif key_file and not os.path.exists(key_file):
+            print(f"❌ ERROR: Service account key file not found at: {key_file}")
+            sys.exit(1)
+        else:
+            # Interactive Login
+            print("👤 Falling back to interactive browser login...")
+            subprocess.run(
+                ["gcloud", "auth", "login"], check=True
+            )
 
+        account_result = subprocess.run(
+            ["gcloud", "config", "get-value", "account"],
+            check=True, capture_output=True, text=True, shell=os.name == "nt"
+        )
+        print(f"✅ Successfully authenticated as: {account_result.stdout.strip()}")
 
-        except Exception as e:
-            print(f"Could not load creds local (exception: {e}) request from server")
-            domain = "http://127.0.0.1:8001" if os.name == "nt" else f"https://{os.environ.get('DMOAIN')}"
-            self.auth_request_path = f"{domain}/auth/access"
-
-            request_types = []
-
-            if "g" in auth:
-                request_types.append("g_creds")
-            elif "fb" in auth:
-                request_types.append("fb_creds")
-
-            self.creds_response = requests.post(
-                self.auth_request_path,
-                data={
-                    "types": request_types
-                })
-
-            if "g" in auth:
-                bq_quth_payload = self.creds_response["g_creds"]
-            elif "fb" in auth:
-                self.fb_auth_payload = self.creds_response["fb_creds"]
-
-        if "g" in auth:
-            self.creds["g"] = service_account.Credentials.from_service_account_info(bq_quth_payload)
-
-        elif "fb" in auth:
-            self.creds["fb"] = fb_creds.Certificate(self.fb_auth_payload)
-
-        print("finished loading creds")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ ERROR: Failed to authenticate.")
+        print(f"Stderr: {e.stderr.strip()}")
+        sys.exit(1)
 
 
-    def _set_creds(self, path):
-        fb_creds = os.environ.get("FIREBASE_CREDENTIALS")
-        try:
-            fb_creds = json.loads(fb_creds)
-        except Exception as e:
-            print(f"Failed loading FIREBASE_CREDENTIALS from env (ERROR:{e}), trying directly from file")
-            with open(path, "r", encoding="utf-8") as f:
-                fb_creds = json.load(f)
-        return fb_creds
+# --- Deployment Command ---
+cloud_command = [
+    "gcloud", "compute", "instances", "create-with-container",
+    "instance-20251016-143139",
+    "--project=aixr-401704",
+    "--zone=us-central1-f",
+    "--machine-type=e2-medium",
+    "--network-interface=network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default",
+    "--maintenance-policy=MIGRATE",
+    "--provisioning-model=STANDARD",
+    "--service-account=1004568990634-compute@developer.gserviceaccount.com",
+    "--scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/trace.append",
+    "--image=projects/cos-cloud/global/images/cos-109-17800-570-50",
+    "--boot-disk-size=10GB",
+    "--boot-disk-type=pd-balanced",
+    "--boot-disk-device-name=instance-20251016-143139",
+    "--container-image=python:3.10-slim",
+    "--container-restart-policy=always",
+    "--no-shielded-secure-boot",
+    "--shielded-vtpm",
+    "--shielded-integrity-monitoring",
+    "--labels=goog-ec-src=vm_add-gcloud,container-vm=cos-109-17800-570-50"
+]
+
+
+def execute_deployment(command):
+    """Executes the GCE VM creation command."""
+    print("\n--- Starting GCE VM Deployment ---")
+    print(f"Running command: {' '.join(command)}")
+
+    try:
+        # Execute the command, showing output directly
+        subprocess.run(command, check=True, stdout=sys.stdout, stderr=sys.stderr)
+        print("\n✅ VM Instance created successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"\n❌ DEPLOYMENT FAILED.")
+        print(f"Error Code: {e.returncode}")
+        print("Please check the project ID, service account permissions, and API enablement.")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    # 1. DEFINE LOCAL KEY FILE PATH HERE.
+    # !!! REPLACE THIS PATH WITH THE ACTUAL PATH TO YOUR GCP SERVICE ACCOUNT JSON KEY FILE !!!
+    LOCAL_KEY_FILE_PATH = r"C:\Users\bestb\PycharmProjects\BestBrain\auth\credentials.json"
+
+    # 2. Ensure authentication is set up, prioritizing the local file
+    gcloud_auth_login(key_file_path=LOCAL_KEY_FILE_PATH)
+
+    # 3. Execute the deployment
+    execute_deployment(cloud_command)
