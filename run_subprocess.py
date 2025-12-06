@@ -20,3 +20,19 @@ def exec_cmd(cmd, inp=None):
         print("Error:", e.stderr)
         print("Output:", e.stdout)
 
+
+def pop_cmd(cmd):
+    process = subprocess.Popen(
+        cmd,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    for line in process.stdout:
+        print(line, end="")
+    process.wait()
+    if process.returncode != 0:
+        raise RuntimeError(f"Command failed: {cmd}: {process}")
