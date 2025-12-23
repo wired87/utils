@@ -27,22 +27,22 @@ def serialize_complex_process(com, restore=False, bytes=True):
         elif isinstance(com, (list, tuple, np.ndarray)) and isinstance(com[0], (float, int)):
             data = [item for item in com]
 
-            """data = {
+            """admin_data = {
                 "dtype": str(com.dtype),
                 "shape": com.shape
             }
             if bytes is True:
-                data.update(
+                admin_data.update(
                     {"bytes": base64.b64encode(com.tobytes()).decode("utf-8")}
                 )
             else:
-                data.update(
-                    {"data": com.tolist()}
+                admin_data.update(
+                    {"admin_data": com.tolist()}
                 )"""
 
         else:
             raise ValueError(f"Unknown serialize type, {com, type(com)}")
-        #print(">>>return data", data)
+        #print(">>>return admin_data", admin_data)
         return data
 
 
@@ -59,7 +59,7 @@ def serialize_complex(com, restore=False, bytes=True):
     data = {"serialized_complex": serialize_complex_process(
         com, restore, bytes
     )}
-    #print("After serialization:", data)
+    #print("After serialization:", admin_data)
     return data
 
 
@@ -97,7 +97,7 @@ def deserialize_complex(bytes_struct, from_json=True, key=None, **args):
         print("Error deserialize struct", e)
 
 def check_serilisation(data):
-    # is data serializable?
+    # is admin_data serializable?
     try:
         # yes:
         json.dumps(data)
@@ -136,9 +136,9 @@ def check_serialize_dict(data, attr_keys=None):
         print("Error serialize dict", e)
         return data
 
-"""def check_deserialize(data:dict, serialize_val_key="serialized_complex"):
+"""def check_deserialize(admin_data:dict, serialize_val_key="serialized_complex"):
     converted_struct = {}
-    for k, v in data.items():
+    for k, v in admin_data.items():
         if isinstance(v, dict) and serialize_val_key in v:
             v = deserialize_complex(v)
             converted_struct[k] = v

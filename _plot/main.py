@@ -23,7 +23,7 @@ class Plotter:
         Each item in item_history should be a dict with 't' (time) and 'value'.
         """
         if not item_history:
-            print("No data to plot.")
+            print("No admin_data to plot.")
             return
 
         times = [item["t"] for item in item_history]

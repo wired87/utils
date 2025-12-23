@@ -22,7 +22,7 @@ DJ + && \ python manage.py migrate && python manage.py collectstatic
 """
 
 ENDODE_META=f"""
-python3 data/extractors/functions/encode/cell_line_processor/metadata_processor.py
+python3 admin_data/extractors/functions/encode/cell_line_processor/metadata_processor.py
 """
 
 
@@ -31,9 +31,9 @@ PULL_SUB = "cd qf_sim && git pull && cd .."
 #sudo tail -n 100 /var/log/nginx/error.log
 
 # 18728
-RUN_ENCODE = "data/extractors/functions/encode/cell_line_processor/metadata_processor.py"
+RUN_ENCODE = "admin_data/extractors/functions/encode/cell_line_processor/metadata_processor.py"
 RUN_THALMUS_TRANSCRIPT = "export PYTHONPATH=$PYTHONPATH:$(pwd) gnn/processing/layer/cell_layer.py"
-R_CELL_LIKNE_PROC=rf"""python3 data/extractors/functions/encode/cell_line_processor/cell_line_processor.py"""
+R_CELL_LIKNE_PROC=rf"""python3 admin_data/extractors/functions/encode/cell_line_processor/cell_line_processor.py"""
 REMBEDER = f"""python3 ggoogle/spanner/dj/views/embedder.py"""
 
 IMIT=rf"""

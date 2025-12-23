@@ -19,7 +19,7 @@ class QueueHandler:
         task = {
             'type': task_type,
             'path': db_path,
-            'data': attrs
+            'admin_data': attrs
         }
         self.q.put(task)
         print(f"Task added to queue: {task['type']}")
@@ -54,10 +54,10 @@ class QueueHandler:
 
                 if task_type == 'firebase_push':
                     db_path = task.get('path')
-                    data_to_push = task.get('data')
+                    data_to_push = task.get('admin_data')
 
                     if db_path and data_to_push:
-                        print(f"Pushing data to {db_path}...")
+                        print(f"Pushing admin_data to {db_path}...")
                         try:
                             # Push changes to FB
                             ref = db.reference(db_path)

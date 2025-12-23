@@ -1,5 +1,6 @@
 import json
 import os
+import pprint
 import time
 from tempfile import TemporaryDirectory
 
@@ -26,7 +27,6 @@ class GUtils(Utils):
 
     def __init__(
             self,
-            user_id,
             G=None,
             g_from_path=None,
             nx_only=False,
@@ -42,14 +42,13 @@ class GUtils(Utils):
         self.get_nx_graph(G)
         self.nx_only = nx_only
         self.history = {}
-        self.user_id = user_id
 
         #todo just temporary look for demo G in QFS and BB
-        demo_G_save_path = r"C:\Users\bestb\PycharmProjects\BestBrain\data\demo_G.json" if os.name == "nt" else "demo/demo_G.json"
+        demo_G_save_path = r"C:\Users\bestb\PycharmProjects\BestBrain\admin_data\demo_G.json" if os.name == "nt" else "admin_data/demo_G.json"
         if os.path.isfile(demo_G_save_path):
             self.demo_G_save_path = demo_G_save_path
         else:
-            self.demo_G_save_path = r"C:\Users\bestb\PycharmProjects\BestBrain\data\demo_G.json" if os.name == "nt" else "data/demo_G.json"
+            self.demo_G_save_path = r"C:\Users\bestb\PycharmProjects\BestBrain\admin_data\demo_G.json" if os.name == "nt" else "admin_data/demo_G.json"
 
         self.manipulator = Manipulator()
         self.q_handler = QueueHandler(queue)
@@ -162,7 +161,7 @@ class GUtils(Utils):
             )
             #print("H entry node added", self.datastore.nodes[history_id])
         else:
-            raise ValueError("Invalid data!!!!", nid, attrs)
+            raise ValueError("Invalid admin_data!!!!", nid, attrs)
 
     def add_edge(
             self,
@@ -217,7 +216,9 @@ class GUtils(Utils):
 
                 # Add keys
                 self._extend_key_map(attrs)
-                self._extend_id_map(attrs["nid"])
+                self._extend_id_map(
+                    attrs["eid"]
+                )
 
                 # #print(f"ids {src} -> {trt}; Layer {src_layer} -> {trgt_layer}")
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
@@ -241,7 +242,7 @@ class GUtils(Utils):
 
                 # Add history entry
                 self.h_entry(
-                    nid=attrs["nid"],
+                    nid=attrs["eid"],
                     attrs={k: v for k, v in attrs.items() if k != "id"},
                     graph_item="edge"
                 )
@@ -288,8 +289,7 @@ class GUtils(Utils):
 
         if len(new_all_edges):
             all_edges = new_all_edges
-
-        return  all_edges
+        return all_edges
 
 
     def update_node(self, attrs, disable_history=False):
@@ -304,7 +304,6 @@ class GUtils(Utils):
 
         # Add keys
         self._extend_key_map(attrs)
-
         self.G.nodes[nid].update(attrs)
 
         if self.enable_data_store is True and disable_history is False:
@@ -322,7 +321,6 @@ class GUtils(Utils):
         trgt_layer = attrs.get("trgt_layer").upper()
         table_name = f"{src_layer}_{rel}_{trgt_layer}
         """
-        
 
         # serialize attrs
         # todo @ save chek serilize otherwise ray actors get serialized fuck in
@@ -380,7 +378,7 @@ class GUtils(Utils):
             G,
             dest_file
         )
-        print(f"G data written to :{dest_file}")
+        print(f"G admin_data written to :{dest_file}")
 
 
     def _link_safe(self, G, dest_name):
@@ -431,11 +429,12 @@ class GUtils(Utils):
         for k, v in self.G.nodes(data=True):
             ntype = v.get("type")
             if ntype not in everything:
-                everything[ntype] = 0
-            everything[ntype] += 1
+                everything[ntype] = []
+            everything[ntype].append(k)
 
         for k, v in everything.items():
-            print(f"{k}:{v}")
+            print(f"{k}: {len(v)} nodes:")#
+            pprint.pp(v)
 
     def local_batch_loader(self, args):
         table_name = args.get("type")
@@ -492,8 +491,6 @@ class GUtils(Utils):
             eids.append(eid)
         #print(f"Edge Ids extracted: {eids}")
         return eids
-
-
 
 
 
@@ -786,7 +783,7 @@ class GUtils(Utils):
         return self.demo_G_save_path
 
     def get_env(self):
-        """env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(data=True) if attrs.get("type") == "ENV"][0]
+        """env:tuple = [(nid, attrs) for nid, attrs in self.G.nodes(admin_data=True) if attrs.get("type") == "ENV"][0]
         return {"id": env[0], **{k:v for k,v in env[1].items() if k != "id"}}"""
         for nid, attrs in self.G.nodes(data=True):
             if attrs.get("type") == "ENV":

@@ -10,15 +10,24 @@ def exec_cmd(cmd, inp=None):
             input=inp,
             shell=os.name == "nt",
             capture_output=True,
-            timeout=20,
+            timeout=120, # Increased timeout for Windows
         )
         if result is not None:
             result = result.stdout.strip()
         # print("CMD result:", result)
         return result
     except subprocess.CalledProcessError as e:
-        print("Error:", e.stderr)
+        print(f"Error executing command {cmd}: {e.stderr}")
         print("Output:", e.stdout)
+        return None
+    except subprocess.TimeoutExpired as e:
+        print(f"Command timed out {cmd} after {e.timeout} seconds")
+        if e.stdout: print("Output so far:", e.stdout.decode())
+        if e.stderr: print("Error so far:", e.stderr.decode())
+        return None
+    except Exception as e:
+        print(f"Unexpected error executing {cmd}: {e}")
+        return None
 
 
 def pop_cmd(cmd):
