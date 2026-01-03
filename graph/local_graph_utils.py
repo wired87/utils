@@ -95,7 +95,7 @@ class GUtils(Utils):
         ]))
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
-        #print("Add node:", attrs)
+        print("Add node:", attrs)
         attrs = self.manipulator.clean_attr_keys(
             attrs,
             flatten
@@ -528,7 +528,12 @@ class GUtils(Utils):
 
 
 
-    def get_neighbor_list_rel(self, node:str, trgt_rel: str or list or None = None, as_dict=False):
+    def get_neighbor_list_rel(
+            self,
+            node:str,
+            trgt_rel: str or list or None = None,
+            as_dict=False
+    ):
         neighbors = {}
         edges = {}
 
@@ -553,13 +558,13 @@ class GUtils(Utils):
                     # get nodes from extracted edges
                     attrs = self.G.nodes[nnid]
                     neighbors[nnid] = {
-                                        "nid": nnid,
-                                        **{
-                                            k: v
-                                            for k, v in attrs.copy().items()
-                                            if k != "nid"
-                                        }
-                                    }
+                        "nid": nnid,
+                        **{
+                            k: v
+                            for k, v in attrs.copy().items()
+                            if k != "nid"
+                        }
+                    }
 
         if as_dict is True:
             return neighbors
