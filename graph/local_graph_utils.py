@@ -5,9 +5,7 @@ import time
 from tempfile import TemporaryDirectory
 
 from typing import List, Dict
-
 import networkx as nx
-
 import queue
 
 from utils._np.serialize_complex import check_serialize_dict
@@ -95,7 +93,7 @@ class GUtils(Utils):
         ]))
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
-        print("Add node:", attrs)
+        #sprint("Add node:", attrs)
         attrs = self.manipulator.clean_attr_keys(
             attrs,
             flatten
@@ -163,6 +161,7 @@ class GUtils(Utils):
         else:
             raise ValueError("Invalid admin_data!!!!", nid, attrs)
 
+
     def add_edge(
             self,
             src=None,
@@ -171,6 +170,8 @@ class GUtils(Utils):
             flatten=False, timestep=None,
             index=None
     ):
+        print(f"Add edge: {src} -> {trt}")
+
         # Color
         color = None
 
@@ -179,7 +180,6 @@ class GUtils(Utils):
             index = attrs.get("index", None)
         if index is not None:
             color = f"rgb({index + .5}, {index + .5}, {index + .5})"
-        # #print("color set:", color)
 
         try:
             src_layer = self.manipulator.replace_special_chars(attrs.get("src_layer")).upper()
@@ -224,9 +224,8 @@ class GUtils(Utils):
                 edge_table_name = f"{src_layer}_{rel}_{trgt_layer}"
                 attrs["type"] = edge_table_name
 
-                src_node_attr = {"eid": src, "tid": 0, "type": src_layer}
-                trgt_node_attr = {"eid": trt,"tid": 0, "type": trgt_layer}
-                # #print(f"Add {src} -> trgt: {trt}")
+                src_node_attr = {"nid": src, "type": src_layer}
+                trgt_node_attr = {"nid": trt, "type": trgt_layer}
 
                 if self.nx_only is False:
                     # todo run in executor
@@ -237,8 +236,12 @@ class GUtils(Utils):
 
                 # #print("Upsert to NX")
                 self.G.add_edge(src, trt, **{k: v for k, v in attrs.items()})
-                self.G.add_node(src, **src_node_attr)
-                self.G.add_node(trt, **trgt_node_attr)
+
+                if not self.G.has_node(src):
+                    self.add_node(src_node_attr)
+
+                if not self.G.has_node(trt):
+                    self.add_node(trgt_node_attr)
 
                 # Add history entry
                 self.h_entry(
@@ -253,6 +256,7 @@ class GUtils(Utils):
         except Exception as e:
             raise ValueError(f"Skipping link src: {src} -> trgt: {trt} cause:", e, attrs)
 
+
     def _extend_key_map(self, attrs):
         for k in list(attrs.keys()):
             if k not in self.key_map:
@@ -263,7 +267,17 @@ class GUtils(Utils):
         if nid not in self.id_map:
             self.id_map.add(nid)
 
-    def get_edges(self, datastore=True, just_id=False):
+
+    def get_edges(self, src, trgt) -> list[dict or None]:
+        edges = []
+        if "MultiGraph" in str(type(self.G)):
+            for key, edge in self.G.get_edge_data(src, trgt).items():
+                edges.append(edge)
+        else:
+            edges.append(self.G.edges[src, trgt])
+        return edges
+
+    """def get_edges(self, datastore=True, just_id=False):
         if datastore is False:
             if just_id is True:
                 edges = [attrs.get("id") for _, _, attrs in self.G.edges(data=True)]
@@ -273,7 +287,7 @@ class GUtils(Utils):
         else:
             edges = [{"attrs": attrs} for eid, attrs in self.datastore.edges(data=True) if
                     attrs.get("graph_item").lower() == "edge"]
-        return edges
+        return edges"""
 
     def get_edges_from_node(self, nid, datastroe=True):
         new_all_edges = []
@@ -330,7 +344,7 @@ class GUtils(Utils):
         self._extend_key_map(attrs)
 
         # Update nx
-        if "MultiGraph" in str(type(self.G)):
+        if "Graph" in str(type(self.G)):
             for key, edge in self.G.get_edge_data(src, trgt).items():
                 erel = edge.get("rel")
                 if erel in rels:
@@ -516,7 +530,7 @@ class GUtils(Utils):
             # Get neighbor from type
             nattrs = self.G.nodes[neighbor]
             if target_type is not None:
-                ntype = nattrs.get('type')
+                ntype = nattrs.get('type').upper()
                 if ntype in upper_trgt_types:
                     if neighbor not in neighbors:
                         neighbors[neighbor] = {}
@@ -524,8 +538,6 @@ class GUtils(Utils):
 
         #print(f"Neighbors extracted: {neighbors.keys()}")
         return neighbors
-
-
 
 
     def get_neighbor_list_rel(
@@ -544,34 +556,40 @@ class GUtils(Utils):
         for nnid in self.G.neighbors(node):
             edge_data = self.G.get_edge_data(node, nnid)
 
-            if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
-                for key, edge_attrs in edge_data:
-                    ntype = edge_attrs.get('type')
+            try:
+                if isinstance(self.G, (nx.MultiGraph, nx.MultiDiGraph)):
+                    for key, edge_attrs in edge_data.items():
+                        ntype = edge_attrs.get('type')
 
-                    if edge_attrs.get("rel") in trgt_rel:
-                        if ntype not in neighbors:
-                            neighbors[nnid] = {}
-                        edges[nnid] = edge_attrs
-            else:
-                # check if rel matches
-                if edge_data.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
-                    # get nodes from extracted edges
-                    attrs = self.G.nodes[nnid]
-                    neighbors[nnid] = {
-                        "nid": nnid,
-                        **{
-                            k: v
-                            for k, v in attrs.copy().items()
-                            if k != "nid"
+                        if edge_attrs.get("rel") in trgt_rel:
+                            if ntype not in neighbors:
+                                neighbors[nnid] = {}
+                            edges[nnid] = edge_attrs
+                else:
+                    # check if rel matches
+                    if edge_data.get("rel").lower() in [rel.lower() for rel in trgt_rel]:
+                        # get nodes from extracted edges
+                        attrs = self.G.nodes[nnid]
+                        neighbors[nnid] = {
+                            "nid": nnid,
+                            **{
+                                k: v
+                                for k, v in attrs.copy().items()
+                                if k != "nid"
+                            }
                         }
-                    }
+
+            except Exception as e:
+                print(f"Err get_neighbor_list_rel for ({edge_data}):", e)
 
         if as_dict is True:
             return neighbors
+
         return [
             (nid, attrs)
             for nid, attrs in neighbors.items()
         ]
+
     def remove_node(self, node_id, ntype):
         for row in self.schemas[ntype]["rows"]:
             if row["nid"] == node_id:
@@ -679,7 +697,7 @@ class GUtils(Utils):
             filter_key=None,
             filter_value:str or list=None,
             just_id=False,
-    ):
+    ) -> list[int] or list[tuple]:
         print("G:", self.G)
         nodes = self.G.nodes(data=True)
 

@@ -24,7 +24,7 @@ CALC_ARRAY=[
 
 
 def make_graph():
-    g = nx.MultiGraph()
+    g = nx.Graph()
     # Make Input array graph
 
 
