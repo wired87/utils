@@ -167,7 +167,8 @@ class GUtils(Utils):
             src=None,
             trt=None,
             attrs: dict or None = None,
-            flatten=False, timestep=None,
+            flatten=False,
+            timestep=None,
             index=None
     ):
         print(f"Add edge: {src} -> {trt}")
@@ -178,6 +179,7 @@ class GUtils(Utils):
         # Check
         if index is None:
             index = attrs.get("index", None)
+
         if index is not None:
             color = f"rgb({index + .5}, {index + .5}, {index + .5})"
 
