@@ -171,7 +171,7 @@ class GUtils(Utils):
             timestep=None,
             index=None
     ):
-        print(f"Add edge: {src} -> {trt}")
+        #print(f"Add edge: {src} -> {trt}")
 
         # Color
         color = None
