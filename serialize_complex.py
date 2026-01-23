@@ -4,9 +4,87 @@ import numpy as np
 
 
 
+def is_complex(com):
+    """
+    Prüft rekursiv, ob ein Objekt komplexe Zahlen enthält.
+    Gibt True zurück, sobald die erste komplexe Zahl gefunden wird.
+    """
+    try:
+        # 1. Fall: Komplexe Zahl (Python, NumPy, JAX)
+        if isinstance(com, (complex, np.complexfloating)):
+            return True
+
+        # 2. Fall: Bereits serialisiertes Dict {'real': ..., 'imag': ...}
+        # Wir prüfen auf 'imag' != 0, falls du nur echte komplexe Werte filtern willst.
+        # Falls JEDES serialisierte Dict als komplex gelten soll: 'real' in com and 'imag' in com
+        if isinstance(com, dict) and 'real' in com and 'imag' in com:
+            return True
+
+        # 3. Fall: Listen, Tupel oder Arrays (Rekursiver Abstieg)
+        if isinstance(com, (list, tuple, np.ndarray)):
+            return any(is_complex(item) for item in com)
+
+        # 4. Fall: Allgemeine Dictionaries (Metadaten durchsuchen)
+        if isinstance(com, dict):
+            return any(is_complex(v) for v in com.values())
+
+        # 5. Fall: Basistypen (int, float)
+        return False
+
+    except Exception as e:
+        print("Err is_complex", e)
+        return False
 
 
-def serialize_complex_process(com, restore=False, bytes=True):
+
+def serialize_complex_dict(com, restore=False):
+    """
+    Verarbeitet rekursiv komplexe Zahlen, Matrizen und bereits
+    existierende {'real': x, 'imag': y} Strukturen.
+    """
+    try:
+        if restore:
+            return deserialize_complex(com)
+
+            # 1. Fall: Bereits serialisiertes Dict {'real': ..., 'imag': ...}
+        if isinstance(com, dict) and 'real' in com:
+            return com
+
+            # 2. Fall: Komplexe Zahl (Python, NumPy, JAX)
+        if isinstance(com, (complex, np.complexfloating)):
+            return {"real": float(com.real), "imag": float(com.imag)}
+
+            # 3. Fall: Arrays oder Listen (Rekursiver Abstieg)
+            # Wichtig: Wir wandeln ALLES in eine Liste um und rufen uns selbst auf.
+        if isinstance(com, (list, tuple, np.ndarray)):
+            return [serialize_complex_dict(item) for item in com]
+
+            # 4. Fall: Einzelne Zahlen (int, float, np.float64)
+        if isinstance(com, (float, int, np.floating, np.integer)):
+            return float(com)
+
+            # 5. Fall: Allgemeine Dictionaries (z.B. Metadaten)
+        if isinstance(com, dict):
+            return {k: serialize_complex_process(v) for k, v in com.items()}
+
+            # Wenn wir hier landen, ist es ein unbekannter Typ
+        raise ValueError(f"Unknown serialize type: {type(com)} für Wert {com}")
+    except Exception as e:
+        print("Err serialize_complex_dict", e)
+
+
+def deserialize_complex_dict(data):
+    """ Wandelt die Dict-Struktur zurück in komplexe Zahlen """
+    if isinstance(data, dict) and "real" in data and "imag" in data:
+        return complex(data["real"], data["imag"])
+    if isinstance(data, list):
+        return [deserialize_complex(item) for item in data]
+    if isinstance(data, dict):
+        return {k: deserialize_complex(v) for k, v in data.items()}
+    return data
+
+
+def serialize_complex_process(com, restore=False):
     """
     Serialisiert oder deserialisiert ein beliebig verschachteltes Array oder Listenstruktur.
     """
@@ -27,18 +105,7 @@ def serialize_complex_process(com, restore=False, bytes=True):
         elif isinstance(com, (list, tuple, np.ndarray)) and isinstance(com[0], (float, int)):
             data = [item for item in com]
 
-            """admin_data = {
-                "dtype": str(com.dtype),
-                "shape": com.shape
-            }
-            if bytes is True:
-                admin_data.update(
-                    {"bytes": base64.b64encode(com.tobytes()).decode("utf-8")}
-                )
-            else:
-                admin_data.update(
-                    {"admin_data": com.tolist()}
-                )"""
+
 
         else:
             raise ValueError(f"Unknown serialize type, {com, type(com)}")
@@ -135,11 +202,3 @@ def check_serialize_dict(data, attr_keys=None):
     except Exception as e:
         print("Error serialize dict", e)
         return data
-
-"""def check_deserialize(admin_data:dict, serialize_val_key="serialized_complex"):
-    converted_struct = {}
-    for k, v in admin_data.items():
-        if isinstance(v, dict) and serialize_val_key in v:
-            v = deserialize_complex(v)
-            converted_struct[k] = v
-    return converted_struct"""

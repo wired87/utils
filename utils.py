@@ -8,7 +8,7 @@ import yaml
 from tqdm import tqdm
 import csv
 
-from utils._np.serialize_complex import deserialize_complex
+from utils.serialize_complex import deserialize_complex
 from utils.file.aread_json import aread_content
 
 

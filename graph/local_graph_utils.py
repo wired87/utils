@@ -8,7 +8,7 @@ from typing import List, Dict
 import networkx as nx
 import queue
 
-from utils._np.serialize_complex import check_serialize_dict
+from utils.serialize_complex import check_serialize_dict
 from utils.graph.visual import create_g_visual
 from utils.manipulator import Manipulator
 from utils.queue_handler import QueueHandler
