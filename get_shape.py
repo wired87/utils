@@ -25,3 +25,33 @@ def get_modular_shape(item):
 
     # Falls ein leeres Dict oder unbekannter Typ kommt, behandeln wir es als Skalar-Platzhalter
     return ()
+
+
+
+def extract_complex(item, out, val_idx_item:list):
+    # Blatt: komplexes Dict
+    if isinstance(item, dict) and 'real' in item and 'imag' in item:
+        out.append(complex(item['real'], item['imag']))
+        val_idx_item.append(0)
+        return
+
+    # Blatt: Skalar
+    if isinstance(item, (int, float, complex, np.number)):
+        out.append(complex(item, 0j))
+        val_idx_item.append(0)
+        return
+
+    # Ast: Liste / Tuple / Array
+    if isinstance(item, (list, tuple, np.ndarray)):
+        for sub in item:
+            extract_complex(
+                sub,
+                out,
+                val_idx_item,
+            )
+
+"""
+def vals_to_sorted_complex_array(vals):
+    
+    return arr[np.argsort(np.abs(arr))]  # Sortierung nach Betrag
+"""
