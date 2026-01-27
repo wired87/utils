@@ -89,7 +89,8 @@ def serialize_complex_process(com, restore=False):
     Serialisiert oder deserialisiert ein beliebig verschachteltes Array oder Listenstruktur.
     """
     try:
-        data=True
+        data = True
+
         if restore:
             return deserialize_complex(com)
 

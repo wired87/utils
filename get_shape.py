@@ -37,7 +37,7 @@ def extract_complex(item, out, val_idx_item:list):
 
     # Blatt: Skalar
     if isinstance(item, (int, float, complex, np.number)):
-        out.append(complex(item, 0j))
+        out.append(complex(item))
         val_idx_item.append(0)
         return
 
@@ -49,6 +49,14 @@ def extract_complex(item, out, val_idx_item:list):
                 out,
                 val_idx_item,
             )
+    else:
+        if item.isnumeric():
+            float(item)
+            out.append(complex(item))
+            val_idx_item.append(0)
+            return
+
+        print("UNKNOWN extraction item:", item)
 
 """
 def vals_to_sorted_complex_array(vals):
