@@ -89,7 +89,6 @@ def serialize_complex_process(com, restore=False):
     Serialisiert oder deserialisiert ein beliebig verschachteltes Array oder Listenstruktur.
     """
     try:
-        data = True
 
         if restore:
             return deserialize_complex(com)
@@ -106,13 +105,10 @@ def serialize_complex_process(com, restore=False):
         elif isinstance(com, (list, tuple, np.ndarray)) and isinstance(com[0], (float, int)):
             data = [item for item in com]
 
-
-
         else:
             raise ValueError(f"Unknown serialize type, {com, type(com)}")
         #print(">>>return admin_data", admin_data)
         return data
-
 
     except Exception as e:
         if isinstance(com, dict):
