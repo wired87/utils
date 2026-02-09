@@ -93,7 +93,7 @@ class GUtils(Utils):
         ]))
 
     def add_node(self, attrs: dict, timestep=None, flatten=False):
-        #sprint("Add node:", attrs)
+        #print("Add node:", attrs)
         attrs = self.manipulator.clean_attr_keys(
             attrs,
             flatten
@@ -112,12 +112,14 @@ class GUtils(Utils):
         self.G.add_node(nid, **{k: v for k, v in attrs.items() if k != "id"})
 
         # Add history entry
-        self.h_entry(nid, {k: v for k, v in attrs.items() if k != "id"})
+        #self.h_entry(nid, {k: v for k, v in attrs.items() if k != "id"})
 
         # Extedn keys
         self._extend_key_map(attrs)
         self._extend_id_map(nid)
         return True
+
+
 
     def h_entry(self, nid, attrs, timestep=None, graph_item="node"):
         ntype = attrs.get("type", "")
