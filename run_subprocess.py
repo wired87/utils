@@ -31,17 +31,70 @@ def exec_cmd(cmd, inp=None):
 
 
 def pop_cmd(cmd):
-    process = subprocess.Popen(
-        cmd,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    for line in process.stdout:
-        print(line, end="")
-    process.wait()
-    if process.returncode != 0:
-        raise RuntimeError(f"Command failed: {cmd}: {process}")
+    """
+    Run a command and stream stdout/stderr, with OS-specific handling.
+
+    - On Windows (os.name == "nt"), we run through the shell with a string.
+    - On POSIX systems, we pass a list directly with shell=False.
+    - If the Docker engine is not reachable on Windows, we surface a clear error.
+    """
+    is_windows = os.name == "nt"
+
+    # Normalize command into both a display string and an argument list.
+    if isinstance(cmd, (list, tuple)):
+        args_list = [str(c) for c in cmd]
+    else:
+        args_list = [str(cmd)]
+    display_cmd = " ".join(args_list)
+
+    try:
+        if is_windows:
+            # Windows: use the shell with a single string.
+            process = subprocess.Popen(
+                display_cmd,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        else:
+            # POSIX: avoid shell, pass the argument list directly.
+            process = subprocess.Popen(
+                args_list,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+
+        output_lines = []
+        for line in process.stdout:
+            output_lines.append(line)
+            print(line, end="")
+
+        process.wait()
+
+        if process.returncode != 0:
+            combined_output = "".join(output_lines)
+
+            # Special-case: Docker Desktop engine not running on Windows.
+            if is_windows and "dockerDesktopLinuxEngine" in combined_output:
+                raise RuntimeError(
+                    "Docker engine is not running. Please start Docker Desktop "
+                    "and ensure the Linux engine is enabled, then retry.\n"
+                    f"Command: {display_cmd}"
+                )
+
+            raise RuntimeError(
+                f"Command failed with exit code {process.returncode}: {display_cmd}"
+            )
+    except FileNotFoundError as e:
+        # Command itself not found (e.g. 'docker' or 'gcloud' missing).
+        raise RuntimeError(
+            f"Command not found: {args_list[0]}. "
+            "Is it installed and on your PATH?"
+        ) from e
