@@ -1,41 +1,4 @@
 import itertools
-import operator
-import os
-
-import numpy as np
-
-from utils.file._yaml import load_yaml
-
-
-
-
-
-# WICHTIG FÜR MATH G ENGINE Alle relevanten Python-Operatoren als Funktionen
-OPS = {
-    '+': "add",
-    '-': "sub",
-    '*': "mul",
-    '/': "div",
-    '**': "pow",
-    '%': "mod",
-    '//': "floordiv",
-    '==': "eq",
-    '!=': "neq",
-    '>': "gt",
-    '<': "lt",
-    '>=': "ge",
-    '<=': "le",
-    '&': "and",
-    '|': "or",
-    '^': "xor",
-    '<<': "lshift",
-    '>>': "rshift",
-    '(': "lparen",
-    ')': "rparen",
-    '@': "matmul",
-    '=': "assign"
-}
-
 
 def apply_all_operator_combinations(variables):
     results = {}
