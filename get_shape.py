@@ -8,6 +8,8 @@ def get_shape(item):
     Recursively determines the shape of an item without loading
     all data into memory (lazy evaluation).
     """
+    if item is None:
+        return ()
 
     # 1. Handle NumPy Arrays directly (Fastest)
     if isinstance(item, np.ndarray):
@@ -53,6 +55,11 @@ def get_shape(item):
 
 
 def extract_complex(item, out):
+    # Handle None / missing values (treat as 0)
+    if item is None:
+        out.append(0.0)
+        return
+
     # Blatt: komplexes Dict
     if isinstance(item, dict) and 'real' in item and 'imag' in item:
         out.append(complex(item['real'], item['imag']))

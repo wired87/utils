@@ -31,20 +31,20 @@ class OperatorHandler:
     a -> * -> b -> * -> c -> ...
     """
 
-    def __init__(self, len_modules, methods):
+    def __init__(self):
         self.g = GUtils(G=nx.MultiDiGraph())
         self._op_counter = 0
-        self.start_point_ctlr = [[] for _ in range(len_modules)]
+
         len_ops = len(list(OPS.keys()))
+
         self.ops_ctlr = np.arange(len_ops).tolist()
+
         self.ops_struct = [
             []
             for _ in range(len_ops)
         ]
 
         self.method_schema = None
-
-        self.operator_pathway_ctlr = [[] for _ in range(len_modules)]
 
         self.grid_ctlr = []
         self.op_ctlr = []
@@ -82,8 +82,11 @@ def eq_extractor_main(equation, eq_store_item):
     First indice in each item points to dest struct
     """
     print("eq_extractor_main...")
-    # deriovate
     eq_idx_map = []
+
+    if equation is None or (isinstance(equation, str) and not equation.strip()):
+        print("eq_extractor_main... done (empty equation, skipping)")
+        return eq_idx_map
 
     eq_extractor = EqExtractor()
 
@@ -272,77 +275,3 @@ if __name__ == "__main__":
             print(f"Fehler: {e}")
 
 
-
-"""
-
-
-import ast
-
-class EqExtractor(ast.NodeVisitor):
-    def __init__(self):
-        self.batches = []
-        self.temp_count = 0
-
-    def visit_Call(self, node):
-        # 1. Funktionsnamen extrahieren (z.B. 'dot' aus 'jnp.dot')
-        if isinstance(node.func, ast.Attribute):
-            func_name = node.func.attr
-        elif isinstance(node.func, ast.Name):
-            func_name = node.func.id
-        else:
-            func_name = "unknown_func"
-
-        # 2. Argumente rekursiv auflösen
-        # Das ist wichtig, falls in der Funktion wieder Rechnungen stehen!
-        args = [self.visit(arg) for arg in node.args]
-
-        target = f"temp_{self.temp_count}"
-        self.temp_count += 1
-
-        # Wir mappen Funktionen auf das P-O-P Schema
-        # left = 1. Argument, right = 2. Argument (falls vorhanden)
-        self.batches.append({
-            "left": args[0] if len(args) > 0 else None,
-            "op": func_name,
-            "right": args[1] if len(args) > 1 else None,
-            "res": target,
-            "all_args": args # Für Funktionen mit > 2 Parametern
-        })
-        return target
-
-    def visit_BinOp(self, node):
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-        op_sym = self._get_op_sym(node.op)
-        target = f"temp_{self.temp_count}"
-        self.temp_count += 1
-        self.batches.append({"left": left, "op": op_sym, "right": right, "res": target})
-        return target
-
-    def visit_UnaryOp(self, node):
-        operand = self.visit(node.operand)
-        if isinstance(node.op, ast.USub):
-            target = f"temp_{self.temp_count}"
-            self.temp_count += 1
-            self.batches.append({"left": operand, "op": "neg", "right": None, "res": target})
-            return target
-
-    def visit_Name(self, node):
-        return node.id
-
-    def visit_Constant(self, node):
-        return node.value
-
-    def _get_op_sym(self, op):
-        if isinstance(op, ast.Add): return "+"
-        if isinstance(op, ast.Sub): return "-"
-        if isinstance(op, ast.Mult): return "*"
-        if isinstance(op, ast.Div): return "/"
-        if isinstance(op, (ast.Pow, ast.BitXor)): return "**"
-        return "unknown"
-
-
-
-
-
-"""
