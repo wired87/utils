@@ -30,13 +30,14 @@ def exec_cmd(cmd, inp=None):
         return None
 
 
-def pop_cmd(cmd):
+def pop_cmd(cmd, cwd=None):
     """
     Run a command and stream stdout/stderr, with OS-specific handling.
 
     - On Windows (os.name == "nt"), we run through the shell with a string.
     - On POSIX systems, we pass a list directly with shell=False.
     - If the Docker engine is not reachable on Windows, we surface a clear error.
+    - cwd: optional working directory for the subprocess.
     """
     is_windows = os.name == "nt"
 
@@ -47,28 +48,30 @@ def pop_cmd(cmd):
         args_list = [str(cmd)]
     display_cmd = " ".join(args_list)
 
+    popen_kw = dict(
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if cwd is not None:
+        popen_kw["cwd"] = cwd
+
     try:
         if is_windows:
             # Windows: use the shell with a single string.
             process = subprocess.Popen(
                 display_cmd,
                 shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+                **popen_kw,
             )
         else:
             # POSIX: avoid shell, pass the argument list directly.
             process = subprocess.Popen(
                 args_list,
                 shell=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+                **popen_kw,
             )
 
         output_lines = []

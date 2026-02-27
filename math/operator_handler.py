@@ -4,12 +4,11 @@ creates OPERATOR and PARAM nodes and links them recursively (p -> o -> p).
 """
 import re
 from typing import List
-import ast
 
 import networkx as nx
 import numpy as np
 
-from utils.graph.local_graph_utils import GUtils
+from graph.local_graph_utils import GUtils
 from utils.math.operators import OPS
 
 # Operators to split on (order matters for regex)
@@ -54,7 +53,7 @@ class OperatorHandler:
         print("add op nodes...")
         for i, (k, v) in enumerate(OPS.items()):
             self.g.add_node({
-                "nid": k,
+                "id": k,
                 "type": "OPERATOR",
                 "operator_idx": i,
             })

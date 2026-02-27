@@ -84,15 +84,11 @@ def deserialize_complex_dict(data):
     return data
 
 
-def serialize_complex_process(com, restore=False):
+def serialize_complex_process(com):
     """
     Serialisiert oder deserialisiert ein beliebig verschachteltes Array oder Listenstruktur.
     """
     try:
-
-        if restore:
-            return deserialize_complex(com)
-
         if isinstance(com, (complex, np.complexfloating, np.complex128)):
             data = [float(com.real), float(com.imag)]
 
@@ -102,8 +98,15 @@ def serialize_complex_process(com, restore=False):
         elif isinstance(com, (list, tuple, np.ndarray)) and isinstance(com[0], (complex, np.complexfloating, np.complex128)):
             data = [[float(item.real), float(item.imag)] for item in com]
 
-        elif isinstance(com, (list, tuple, np.ndarray)) and isinstance(com[0], (float, int)):
-            data = [item for item in com]
+        elif isinstance(com, (list, tuple, np.ndarray)):
+            # Handle empty array/list
+            if len(com) == 0:
+                data = []
+            # numpy scalar types (np.int64, np.float32, etc.) - fix: Serialization error for ndarray
+            elif isinstance(com[0], (float, int, np.integer, np.floating)):
+                data = [float(item) for item in com]
+            else:
+                raise ValueError(f"Unknown serialize type, {com, type(com)}")
 
         else:
             raise ValueError(f"Unknown serialize type, {com, type(com)}")
