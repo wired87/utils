@@ -46,6 +46,13 @@ def get_shape(item):
         # Combine current length with inner shape
         return (len(item),) + inner_shape
 
+    # 4b. Handle other sequence-like types (range, custom list-like, etc.)
+    if hasattr(item, '__len__') and hasattr(item, '__getitem__') and not isinstance(item, str):
+        if len(item) == 0:
+            return (0,)
+        inner_shape = get_shape(item[0])
+        return (len(item),) + inner_shape
+
     # 5. Handle Scalars (int, float, complex, np.number)
     if isinstance(item, (int, float, complex, np.number)):
         return ()

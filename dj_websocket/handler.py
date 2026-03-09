@@ -1,6 +1,6 @@
 import os
 
-from utils.utils import Utils
+from qbrain.graph.utils import Utils
 
 class ConnectionManager:
 

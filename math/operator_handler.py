@@ -5,11 +5,12 @@ creates OPERATOR and PARAM nodes and links them recursively (p -> o -> p).
 import re
 from typing import List
 
+import ast
 import networkx as nx
 import numpy as np
 
-from graph.local_graph_utils import GUtils
-from utils.math.operators import OPS
+from qbrain.graph.local_graph_utils import GUtils
+from qbrain.utils.math.operators import OPS
 
 # Operators to split on (order matters for regex)
 _OPS = r"([+\-*/])"
@@ -29,9 +30,9 @@ class OperatorHandler:
     the equation pathway.
     a -> * -> b -> * -> c -> ...
     """
-
-    def __init__(self):
-        self.g = GUtils(G=nx.MultiDiGraph())
+    
+    def __init__(self, g=None):
+        self.g = g or GUtils(G=nx.MultiDiGraph())
         self._op_counter = 0
 
         len_ops = len(list(OPS.keys()))
@@ -64,15 +65,6 @@ class OperatorHandler:
         for item in param_db_coords:
             self.start_point_ctlr[midx].append(item)
         return
-
-
-
-
-
-
-
-
-
 
 
 
@@ -131,11 +123,27 @@ def eq_extractor_main(equation, eq_store_item):
     return eq_idx_map
 
 
-import ast
 
 
 class EqExtractor(ast.NodeVisitor):
-    def __init__(self):
+    """
+    Parse equation strings attached to METHOD nodes and, optionally, project them
+    as operator chains into a graph (p -> OPERATOR -> p -> ...).
+
+    Usage patterns:
+      - Single equation parsing (legacy):
+            extractor = EqExtractor()
+            extractor.visit(ast.parse(code, mode="eval"))
+            batches = extractor.batches
+
+      - Graph-wide extraction (new):
+            extractor = EqExtractor(g=brain)  # brain is a GUtils instance
+            extractor.main()  # walks METHOD nodes, builds p->op->p chains
+    """
+
+    def __init__(self, g=None):
+        # g is expected to be a GUtils-like object (e.g. Brain) with .G, .add_node, .add_edge
+        self.g = g
         self.batches = []
         self.temp_count = 0
 
@@ -230,6 +238,156 @@ class EqExtractor(ast.NodeVisitor):
 
     def visit_Constant(self, node):
         return node.value
+
+    # ------------------------------------------------------------------
+    # Graph projection helpers
+    # ------------------------------------------------------------------
+    def _ensure_param_node(self, method_id, name):
+        """
+        Ensure a PARAM node exists for the given method-local symbol name.
+        Nodes are scoped by method so temporary symbols do not collide.
+        """
+        if self.g is None or getattr(self.g, "G", None) is None:
+            return None
+        nid = f"EQ_PARAM::{method_id}::{name}"
+        if not self.g.G.has_node(nid):
+            self.g.add_node(
+                {
+                    "id": nid,
+                    "type": "PARAM",
+                    "name": str(name),
+                    "method_id": method_id,
+                }
+            )
+        # Link param node to parent METHOD node for navigation and grouping.
+        try:
+            self.g.add_edge(
+                src=method_id,
+                trt=nid,
+                attrs={
+                    "rel": "has_eq_param",
+                    "src_layer": "METHOD",
+                    "trgt_layer": "PARAM",
+                },
+            )
+        except Exception as e:
+            print(f"[EqExtractor] _ensure_param_node: edge creation failed for {method_id}->{nid}: {e}")
+        return nid
+
+    def _ensure_op_node(self, method_id, idx, op_name):
+        """
+        Ensure an OPERATOR node exists for a specific batch index of a method.
+        """
+        if self.g is None or getattr(self.g, "G", None) is None:
+            return None
+        nid = f"EQ_OP::{method_id}::{idx}"
+        if not self.g.G.has_node(nid):
+            self.g.add_node(
+                {
+                    "id": nid,
+                    "type": "OPERATOR",
+                    "op": str(op_name),
+                    "method_id": method_id,
+                    "op_index": idx,
+                }
+            )
+        # Link operator node to parent METHOD node for navigation and grouping.
+        try:
+            self.g.add_edge(
+                src=method_id,
+                trt=nid,
+                attrs={
+                    "rel": "has_eq_op",
+                    "src_layer": "METHOD",
+                    "trgt_layer": "OPERATOR",
+                },
+            )
+        except Exception as e:
+            print(f"[EqExtractor] _ensure_op_node: edge creation failed for {method_id}->{nid}: {e}")
+        return nid
+
+    def main(self):
+        """
+        Loop over METHOD nodes in self.g, parse their 'equation' strings and
+        create chains within the graph of the form:
+
+            PARAM -> OPERATOR -> PARAM -> OPERATOR -> PARAM -> ...
+
+        For each parsed batch we:
+          - create/update PARAM nodes for left/right/res symbols (scoped per method)
+          - create/update an OPERATOR node for the batch
+          - add edges:
+                left_param  --eq_input--> OPERATOR
+                right_param --eq_input--> OPERATOR (if present)
+                OPERATOR    --eq_output-> result_param
+        """
+        if self.g is None or getattr(self.g, "G", None) is None:
+            print("[EqExtractor] main: no graph attached, aborting")
+            return
+
+        import ast as _ast  # local alias to avoid confusion with module import
+
+        for nid, attrs in self.g.G.nodes(data=True):
+            ntype = str(attrs.get("type") or "").upper()
+            if ntype != "METHOD":
+                continue
+
+            equation = attrs.get("equation")
+            if not isinstance(equation, str) or not equation.strip():
+                continue
+
+            # Reset batches for this method
+            self.batches = []
+            self.temp_count = 0
+
+            try:
+                code = equation.replace("^", "**")
+                self.visit(_ast.parse(code, mode="eval"))
+            except Exception as e:
+                print(f"[EqExtractor] main: skip method {nid} due to parse error: {e}")
+                continue
+
+            for idx, b in enumerate(self.batches):
+                op_name = b.get("op")
+                if not op_name:
+                    continue
+
+                op_nid = self._ensure_op_node(nid, idx, op_name)
+                if op_nid is None:
+                    continue
+
+                # Inputs: left and right (if present)
+                for side in ("left", "right"):
+                    val = b.get(side)
+                    if val is None:
+                        continue
+                    p_nid = self._ensure_param_node(nid, val)
+                    if p_nid is None:
+                        continue
+                    self.g.add_edge(
+                        src=p_nid,
+                        trt=op_nid,
+                        attrs={
+                            "rel": "eq_input",
+                            "src_layer": "PARAM",
+                            "trgt_layer": "OPERATOR",
+                        },
+                    )
+
+                # Output: result symbol of this batch
+                res_val = b.get("res")
+                if res_val is not None:
+                    res_nid = self._ensure_param_node(nid, res_val)
+                    if res_nid is not None:
+                        self.g.add_edge(
+                            src=op_nid,
+                            trt=res_nid,
+                            attrs={
+                                "rel": "eq_output",
+                                "src_layer": "OPERATOR",
+                                "trgt_layer": "PARAM",
+                            },
+                        )
 
 
 

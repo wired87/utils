@@ -1,11 +1,11 @@
 import json
 
 
-def deserialize(world_cfg):
+def deserialize(val):
     try:
-        if isinstance(world_cfg, str):
-            #print("deserialize", world_cfg)
-            world_cfg = json.loads(world_cfg)
+        if isinstance(val, str):
+            val = json.loads(val)
     except Exception as e:
         print(f"Err deserialize: {e}")
-    return world_cfg
+    print("deserialized", val, type(val))
+    return val

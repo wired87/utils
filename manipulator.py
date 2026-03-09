@@ -1,70 +1,14 @@
 import json
 import re
 
-from utils.file.flatten_dict import flatten_attributes
+from qbrain.utils.file.flatten_dict import flatten_attributes
 
 from functools import lru_cache
 
 
 class GraphAttrOptimizer:
     def __init__(self):
-        self.db_map = {
-            # Add more known mappings if needed
-            "ens": "Ensembl",
-            "refseq": "RefSeq",
-            "refseq_peptide": "RefSeq (Peptide)",
-            "refseq_mrna": "RefSeq (mRNA)",
-            "uniprot": "UniProt",
-            "uniprot_gn": "UniProt Gene",
-            "ncbi": "NCBI",
-            "genecards": "GeneCards",
-            "chebi": "ChEBI",
-            "gtex": "GTEx",
-            "geo": "GEO",
-            "sra": "SRA",
-            "ebi": "EBI",
-            "dbsnp": "dbSNP",
-            "pubchem": "PubChem",
-            "arrayexpress": "ArrayExpress",
-            "hgnc": "HGNC",
-            "go": "GO",
-            "omim": "OMIM",
-            "mim_gene": "OMIM Gene",
-            "mim_morbid": "OMIM Morbid",
-            "pdb": "PDB",
-            "kegg": "KEGG",
-            "pfam": "Pfam",
-            "panther": "PANTHER",
-            "interpro": "InterPro",
-            "prosite_patterns": "Prosite (Patterns)",
-            "prosite_profiles": "Prosite (Profiles)",  # ✅ Added
-            "embl": "EMBL",
-            "ccds": "CCDS",
-            "ucsc": "UCSC",
-            "wikigene": "WikiGene",
-            "biogrid": "BioGRID",  # ✅ Normalized to lowercase key
-            "cdd": "CDD",  # ✅ Added
-            "uniparc": "UniParc",  # ✅ Added
-            "superfamily": "SuperFamily",  # ✅ Added
-            "smart": "Smart",  # ✅ Added
-            "ncbifam": "NCBIfam",  # ✅ Added
-            "gene3d": "Gene3D",  # ✅ Added
-            "pirsf": "PIRSF",  # ✅ Added
-            "mobidblite": "MobiDBLite",  # ✅ Added
-            "ncoils": "ncoils",  # ✅ Added
-            "Reactome": "Reactome",  # ✅ Added
-
-            # Relationship-based mappings
-            "alphafold": "has_predicted_structure",
-            "protein_id": "has_protein_id",
-            "hpa": "linked_to_protein_expression",
-            "seg": "has_segment_annotation",
-            "entrezgene": "mapped_to_entrez_id",
-            "coord_system": "aligned_to_coordinate_system",
-            "strand": "located_on_strand",
-            "transcripts": "contains_transcripts",
-            "exons": "contains_exons"
-        }
+        pass
 
     def clean_attr_keys(self, attrs):
         cleaned_attrs = {}
