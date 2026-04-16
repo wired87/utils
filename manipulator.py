@@ -1,9 +1,10 @@
 import json
 import re
 
-from qbrain.utils.file.flatten_dict import flatten_attributes
 
 from functools import lru_cache
+
+from firegraph.file.flatten_dict import flatten_attributes
 
 
 class GraphAttrOptimizer:

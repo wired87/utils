@@ -10,7 +10,7 @@ import networkx as nx
 import numpy as np
 
 from qbrain.graph.local_graph_utils import GUtils
-from qbrain.utils.math.operators import OPS
+from firegraph.utils.math.operators import OPS
 
 # Operators to split on (order matters for regex)
 _OPS = r"([+\-*/])"
