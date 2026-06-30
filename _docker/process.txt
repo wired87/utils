@@ -1,0 +1,4 @@
+docker login -u DEIN_DOCKERHUB_BENUTZERNAME
+docker build -t wired87/cnvmaster:latest C:\Users\Bernhard\PycharmProjects\CNVMaster\product\executable
+docker push DEIN_DOCKERHUB_BENUTZERNAME/IMAGE_NAME:latest
+
