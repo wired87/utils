@@ -1,0 +1,8 @@
+git rm --cached firegraph
+derbe@braini MINGW64 ~/nx_to_eq/nx_to_eq (master)
+$ rm -rf firegraph/.git
+
+derbe@braini MINGW64 ~/nx_to_eq/nx_to_eq (master)
+$ git add firegraph
+git add .
+git commit -m "Replace firegraph submodule with regular directory"

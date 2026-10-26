@@ -1,0 +1,24 @@
+prob:
+$ source .venv/Scripts/activate
+bash: uname: command not found
+bash: basename: command not found
+()
+
+fix:
+unset -f deactivate 2>/dev/null
+unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT _OLD_VIRTUAL_PATH
+export PATH="/mingw64/bin:/usr/bin:/bin:/c/Windows/System32:/c/Windows"
+hash -r
+
+command -v uname
+command -v basename
+
+source .venv/Scripts/activate
+python --version
+python -m pip --version
+
+
+prob:
+permission denied
+sol
+python -m daphne oasismarket.asgi:application

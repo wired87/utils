@@ -1,0 +1,9 @@
+rm -rf .git && \
+git init && \
+
+git add . && \
+git commit -m "hi" && \
+git remote add l1b https://github.com/wired87/lighter1_back && \
+git push --recurse-submodules=on-demand l1b master --force
+
+git remote -v
